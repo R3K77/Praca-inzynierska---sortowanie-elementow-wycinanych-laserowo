@@ -6,11 +6,22 @@ import numpy as np
 # Funkcja zwraca obraz wynikowy, obraz z detekcją krawędzi oraz obraz po filtracji
 # W przypadku braku znalezienia konturów zwracany jest pusty obraz
 # Zwracane obrazy:
+# img_output, edged, gray = workspace_detection(img, Canny_threshold1, Canny_threshold2, bilateralFilter_d, bilateralFilter_SigmaColor, bilateralFilter_SigmaSpace, own_size=False, own_size_width=0, own_size_height=0)
 #  - img_output - obraz wynikowy
 #  - edged - obraz z detekcją krawędzi
 #  - gray - obraz po filtracji w skali szarości
+# Wejściowe parametry:
+#  - img - obraz wejściowy
+#  - Canny_threshold1 - próg detekcji krawędzi
+#  - Canny_threshold2 - próg detekcji krawędzi
+#  - bilateralFilter_d - parametr filtracji bilateralnej 
+#  - bilateralFilter_SigmaColor - parametr filtracji bilateralnej 
+#  - bilateralFilter_SigmaSpace - parametr filtracji bilateralnej 
+#  - own_size - własne wymiary obrazu wynikowego (True/False), domyślnie False
+#  - own_size_width - szerokość obrazu wynikowego, domyślnie 0
+#  - own_size_height - wysokość obrazu wynikowego, domyślnie 0
 # ------------------------------------------------------------------------------------------------- #
-def workspace_detection(img, Canny_threshold1, Canny_threshold2, bilateralFilter_d, bilateralFilter_SigmaColor, bilateralFilter_SigmaSpace):
+def workspace_detection(img, Canny_threshold1, Canny_threshold2, bilateralFilter_d, bilateralFilter_SigmaColor, bilateralFilter_SigmaSpace, own_size=False, own_size_width=0, own_size_height=0):
     # Filtracja obrazu w skali szarości 
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     gray = cv2.bilateralFilter(gray, bilateralFilter_d, bilateralFilter_SigmaColor, bilateralFilter_SigmaSpace)
@@ -23,7 +34,7 @@ def workspace_detection(img, Canny_threshold1, Canny_threshold2, bilateralFilter
     # Znalezienie największego konturu
     biggest = np.array([])
     if len(contours) != 0:
-        max_area = 0            
+        max_area = 0
         for i in contours:                                          # Przechodzenie przez wszystkie kontury
             area = cv2.contourArea(i)                               # Obliczenie pola powierzchni
             if area > 500:                                          # Odfiltrowanie małych konturów
@@ -48,11 +59,11 @@ def workspace_detection(img, Canny_threshold1, Canny_threshold2, bilateralFilter
 
         # Wyznaczenie koordynatów narożników 
         points_sum = points.sum(axis=1)
-        input_pts[0] = points[np.argmin(points_sum)] # top-left 
-        input_pts[3] = points[np.argmax(points_sum)] # bottom-right
+        input_pts[0] = points[np.argmin(points_sum)]        # top-left 
+        input_pts[3] = points[np.argmax(points_sum)]        # bottom-right
         points_diff = np.diff(points, axis=1) 
-        input_pts[1] = points[np.argmin(points_diff)] # top-right
-        input_pts[2] = points[np.argmax(points_diff)] # bottom-left
+        input_pts[1] = points[np.argmin(points_diff)]       # top-right
+        input_pts[2] = points[np.argmax(points_diff)]       # bottom-left
         
         # Wyznaczenie wymiarów obrazu
         (top_left, top_right, bottom_left, bottom_right) = input_pts # Rozpakowanie punktów
@@ -61,10 +72,16 @@ def workspace_detection(img, Canny_threshold1, Canny_threshold2, bilateralFilter
         right_height = np.sqrt(((top_right[0] - bottom_right[0]) ** 2) + ((top_right[1] - bottom_right[1]) ** 2))       # Obliczenie prawej wysokości
         left_height = np.sqrt(((top_left[0] - bottom_left[0]) ** 2) + ((top_left[1] - bottom_left[1]) ** 2))            # Obliczenie lewej wysokości
 
+        max_width = 0
+        max_height = 0        
         # Rozmiar obrazu wynikowego
-        max_width = max(int(bottom_width), int(top_width)) # Maksymalna szerokość
-        # max_height = int(max_width * 1.414)                # Dla kartki A4 stosunek szerokości do wysokości wynosi 1.414
-        max_height = max(int(right_height), int(left_height)) # Maksymalna wysokość
+        if own_size == True:
+            max_width = own_size_width
+            max_height = own_size_height
+        else:
+            max_width = max(int(bottom_width), int(top_width))          # Maksymalna szerokość
+            # max_height = int(max_width * 1.414)                       # Dla kartki A4 stosunek szerokości do wysokości wynosi 1.414
+            max_height = max(int(right_height), int(left_height))       # Maksymalna wysokość
 
         # Współrzędne narożników obrazu wynikowego
         converted_points = np.array([[0, 0], [max_width, 0], [0, max_height], [max_width, max_height]], dtype="float32")
@@ -85,7 +102,7 @@ cap = cv2.VideoCapture(1)
 
 # Utworzenie okien do wyświetlania obrazów i suwaków do zmiany parametrów detekcji krawędzi i filtracji 
 cv2.namedWindow('Detekcja krawędzi')
-cv2.createTrackbar('Threshold 1', 'Detekcja krawędzi', 18, 100, lambda x: None)
+cv2.createTrackbar('Threshold 1', 'Detekcja krawędzi', 18, 100, lambda x: None) 
 cv2.createTrackbar('Threshold 2', 'Detekcja krawędzi', 53, 200, lambda x: None)
 cv2.namedWindow('Detekcja krawędziw')
 cv2.createTrackbar('Threshold 3', 'Detekcja krawędziw', 5, 100, lambda x: None)
@@ -109,7 +126,7 @@ while True:
     threshold5 = cv2.getTrackbarPos('Threshold 5', 'Detekcja krawędziw')
     
     # Wywołanie funkcji do detekcji krawędzi i transformacji perspektywicznej
-    img_output, edged, gray = workspace_detection(img, threshold1, threshold2, threshold3, threshold4, threshold5)
+    img_output, edged, gray = workspace_detection(img, threshold1, threshold2, threshold3, threshold4, threshold5, True, 1000, 1000)
     
     # Wyświetlenie obrazów
     cv2.imshow('Detekcja krawędzi', edged)

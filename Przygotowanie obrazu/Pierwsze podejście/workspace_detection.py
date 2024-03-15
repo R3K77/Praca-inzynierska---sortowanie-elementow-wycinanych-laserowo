@@ -97,8 +97,27 @@ def workspace_detection(img, Canny_threshold1, Canny_threshold2, bilateralFilter
         return img_output, edged, gray
     
 
+# ----------------- Funkcja do kalibracji kamery ----------------- #
+# Funkcja przyjmuje obraz z kamery
+# Funkcja zwraca obraz po kalibracji kamery
+# Funkcja wczytuje z plików macierze kalibracji kamery
+# ---------------------------------------------------------------- #
+def camera_calibration(frame):
+    # Wczytanie parametrów kamery z pliku
+    loaded_mtx = np.loadtxt('settings/mtx_matrix.txt', delimiter=',')
+    loaded_dist = np.loadtxt('settings/distortion_matrix.txt', delimiter=',')
+    loaded_newcameramtx = np.loadtxt('settings/new_camera_matrix.txt', delimiter=',')
+    loaded_roi = np.loadtxt('settings/roi_matrix.txt', delimiter=',')
+    
+    # Kalibracja kamery
+    frame = cv2.undistort(frame, loaded_mtx, loaded_dist, None, loaded_newcameramtx)
+    x, y, w, h = map(int, loaded_roi) 
+    frame = frame[y:y + h, x:x + w]
+    return frame  
+
+
 # Utworzenie obiektu kamery
-cap = cv2.VideoCapture(1)
+cap = cv2.VideoCapture(0)
 
 # Utworzenie okien do wyświetlania obrazów i suwaków do zmiany parametrów detekcji krawędzi i filtracji 
 cv2.namedWindow('Detekcja krawędzi')
@@ -112,6 +131,7 @@ cv2.createTrackbar('Threshold 5', 'Detekcja krawędziw', 10, 200, lambda x: None
 # Główna pętla programu
 while True:
     ret, frame = cap.read()
+    frame = camera_calibration(frame)
     if not ret:
         print('Nie można wczytać obrazu z kamery')
         break
@@ -126,7 +146,7 @@ while True:
     threshold5 = cv2.getTrackbarPos('Threshold 5', 'Detekcja krawędziw')
     
     # Wywołanie funkcji do detekcji krawędzi i transformacji perspektywicznej
-    img_output, edged, gray = workspace_detection(img, threshold1, threshold2, threshold3, threshold4, threshold5, True, 1000, 1000)
+    img_output, edged, gray = workspace_detection(img, threshold1, threshold2, threshold3, threshold4, threshold5)
     
     # Wyświetlenie obrazów
     cv2.imshow('Detekcja krawędzi', edged)

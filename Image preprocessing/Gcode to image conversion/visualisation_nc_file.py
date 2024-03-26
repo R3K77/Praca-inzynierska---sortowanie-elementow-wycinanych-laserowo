@@ -87,13 +87,13 @@ def visualize_cutting_paths(file_path, x_max=500, y_max=1000):
 
 if __name__ == "__main__":
     
-    file_paths = ["./Przygotowanie obrazu/gcode2image/NC_files/Arkusz-1001.nc", 
-                  "./Przygotowanie obrazu/gcode2image/NC_files/arkusz-2001.nc", 
-                  "./Przygotowanie obrazu/gcode2image/NC_files/arkusz-3001.nc", 
-                  "./Przygotowanie obrazu/gcode2image/NC_files/Arkusz-4001.nc", 
-                  "./Przygotowanie obrazu/gcode2image/NC_files/Arkusz-5001.nc", 
-                  "./Przygotowanie obrazu/gcode2image/NC_files/Arkusz-6001.nc", 
-                  "./Przygotowanie obrazu/gcode2image/NC_files/Arkusz-7001.nc"]
+    file_paths = ["./Image preprocessing/Gcode to image conversion/NC_files/Arkusz-1001.nc", 
+                  "./Image preprocessing/Gcode to image conversion/NC_files/arkusz-2001.nc", 
+                  "./Image preprocessing/Gcode to image conversion/NC_files/arkusz-3001.nc", 
+                  "./Image preprocessing/Gcode to image conversion/NC_files/Arkusz-4001.nc", 
+                  "./Image preprocessing/Gcode to image conversion/NC_files/Arkusz-5001.nc", 
+                  "./Image preprocessing/Gcode to image conversion/NC_files/Arkusz-6001.nc", 
+                  "./Image preprocessing/Gcode to image conversion/NC_files/Arkusz-7001.nc"]
     
     
     for file_path in file_paths:
@@ -111,12 +111,12 @@ if __name__ == "__main__":
         xlim = plt.xlim([x_min, x_max]) 
         
         # Zapisanie do pliku, z uwzględnieniem wymagań dotyczących braku marginesu i koloru tła oraz nazwy pliku źródłowego
-        plt.savefig(f"./Przygotowanie obrazu/gcode2image/visualisation/{file_path.split('/')[-1].split('.')[0]}.png", pad_inches=0, facecolor='black')
+        plt.savefig(f"./Image preprocessing/Gcode to image conversion/visualisation/{file_path.split('/')[-1].split('.')[0]}.png", pad_inches=0, facecolor='black')
     
     # Wyświetlenie wszystkich obrazów (przełączanie za pomocą slidera)
     for file_path in file_paths:
-        cv2.imshow('image', cv2.imread(f"./Przygotowanie obrazu/gcode2image/visualisation/{file_path.split('/')[-1].split('.')[0]}.png"))
-    cv2.createTrackbar('Trackbar', 'image', 0, 6, lambda x: cv2.imshow('image', cv2.imread(f"./Przygotowanie obrazu/gcode2image/visualisation/{file_paths[x].split('/')[-1].split('.')[0]}.png")))
+        cv2.imshow('image', cv2.imread(f"./Image preprocessing/Gcode to image conversion/visualisation/{file_path.split('/')[-1].split('.')[0]}.png"))
+    cv2.createTrackbar('Trackbar', 'image', 0, 6, lambda x: cv2.imshow('image', cv2.imread(f"./Image preprocessing/Gcode to image conversion/visualisation/{file_paths[x].split('/')[-1].split('.')[0]}.png")))
     cv2.waitKey(0)
     
 

@@ -2,6 +2,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import re # Obsługa wyrażeń regularnych
 import cv2 
+from matplotlib.patches import Polygon
+from matplotlib.collections import PatchCollection
+
 
 # ----------------- Funkcja do wizualizacji ścieżek cięcia z pliku NC ----------------- #
 # Funkcja plik .nc z kodem G-kodu i zwraca obraz z wizualizacją ścieżek cięcia.
@@ -100,6 +103,25 @@ if __name__ == "__main__":
         
         # Przykładowe wywołanie funkcji
         cutting_paths, x_min, x_max, y_min, y_max = visualize_cutting_paths(file_path)
+        
+        # Wizualizacja i wypełnianie ścieżek
+        fig, ax = plt.subplots(figsize=(x_max/100, y_max/100))
+        patches = []
+        for path in cutting_paths:
+            polygon = Polygon(path, closed=True, color='green')  # Poprawka tutaj
+            patches.append(polygon)
+            
+        p = PatchCollection(patches, alpha=0.4)
+        p.set_color('green')
+        ax.add_collection(p)
+
+        ax.set_xlim(x_min, x_max)
+        ax.set_ylim(y_min, y_max)
+        ax.set_aspect('equal')
+        ax.axis('off')
+
+        # Zapis do pliku, z uwzględnieniem wymagań dotyczących braku marginesu i koloru tła oraz nazwy pliku źródłowego
+        plt.savefig(f"./Image preprocessing/Gcode to image conversion/visualisation/filled/{file_path.split('/')[-1].split('.')[0]}.png", pad_inches=0, facecolor='black')
 
         # Przykładowa wizualizacja ścieżek cięcia
         plt.figure(figsize=(x_max/70, y_max/70), facecolor='black')
@@ -112,6 +134,8 @@ if __name__ == "__main__":
         
         # Zapisanie do pliku, z uwzględnieniem wymagań dotyczących braku marginesu i koloru tła oraz nazwy pliku źródłowego
         plt.savefig(f"./Image preprocessing/Gcode to image conversion/visualisation/{file_path.split('/')[-1].split('.')[0]}.png", pad_inches=0, facecolor='black')
+        
+        
     
     # Wyświetlenie wszystkich obrazów (przełączanie za pomocą slidera)
     for file_path in file_paths:

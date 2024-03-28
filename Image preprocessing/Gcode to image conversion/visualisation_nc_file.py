@@ -1,7 +1,10 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import re # Obsługa wyrażeń regularnych
-import cv2 
+import cv2
+import os
+from matplotlib.patches import Polygon
+from matplotlib.collections import PatchCollection
 
 # ----------------- Funkcja do wizualizacji ścieżek cięcia z pliku NC ----------------- #
 # Funkcja plik .nc z kodem G-kodu i zwraca obraz z wizualizacją ścieżek cięcia.
@@ -86,14 +89,8 @@ def visualize_cutting_paths(file_path, x_max=500, y_max=1000):
 
 
 if __name__ == "__main__":
-    
-    file_paths = ["./Image preprocessing/Gcode to image conversion/NC_files/Arkusz-1001.nc", 
-                  "./Image preprocessing/Gcode to image conversion/NC_files/arkusz-2001.nc", 
-                  "./Image preprocessing/Gcode to image conversion/NC_files/arkusz-3001.nc", 
-                  "./Image preprocessing/Gcode to image conversion/NC_files/Arkusz-4001.nc", 
-                  "./Image preprocessing/Gcode to image conversion/NC_files/Arkusz-5001.nc", 
-                  "./Image preprocessing/Gcode to image conversion/NC_files/Arkusz-6001.nc", 
-                  "./Image preprocessing/Gcode to image conversion/NC_files/Arkusz-7001.nc"]
+    print(os.getcwd())
+    file_paths = ["NC_files/Arkusz-1001.nc"]
     
     
     for file_path in file_paths:
@@ -101,22 +98,29 @@ if __name__ == "__main__":
         # Przykładowe wywołanie funkcji
         cutting_paths, x_min, x_max, y_min, y_max = visualize_cutting_paths(file_path)
 
-        # Przykładowa wizualizacja ścieżek cięcia
-        plt.figure(figsize=(x_max/70, y_max/70), facecolor='black')
+        # Wizualizacja i wypełnianie ścieżek
+        fig, ax = plt.subplots(figsize=(x_max / 100, y_max / 100))
+        patches = []
         for path in cutting_paths:
-            plt.plot([x for x, y in path], [y for x, y in path], linestyle='-', marker=None, color='white')
-        plt.plot([x_min, x_max, x_max, x_min, x_min], [y_min, y_min, y_max, y_max, y_min], linestyle='-', marker=None, color='white')
-        plt.axis('off')
-        ylim = plt.ylim([y_min, y_max])
-        xlim = plt.xlim([x_min, x_max]) 
-        
+            polygon = Polygon(path, closed=True, color='green')  # Poprawka tutaj
+            patches.append(polygon)
+
+        p = PatchCollection(patches, alpha=0.4)
+        p.set_color('green')
+        ax.add_collection(p)
+
+        ax.set_xlim(x_min, x_max)
+        ax.set_ylim(y_min, y_max)
+        ax.set_aspect('equal')
+        ax.axis('off')
+
         # Zapisanie do pliku, z uwzględnieniem wymagań dotyczących braku marginesu i koloru tła oraz nazwy pliku źródłowego
-        plt.savefig(f"./Image preprocessing/Gcode to image conversion/visualisation/{file_path.split('/')[-1].split('.')[0]}.png", pad_inches=0, facecolor='black')
+        plt.savefig(f"visualisation/{file_path.split('/')[-1].split('.')[0]}.png", pad_inches=0, facecolor='black')
     
     # Wyświetlenie wszystkich obrazów (przełączanie za pomocą slidera)
     for file_path in file_paths:
-        cv2.imshow('image', cv2.imread(f"./Image preprocessing/Gcode to image conversion/visualisation/{file_path.split('/')[-1].split('.')[0]}.png"))
-    cv2.createTrackbar('Trackbar', 'image', 0, 6, lambda x: cv2.imshow('image', cv2.imread(f"./Image preprocessing/Gcode to image conversion/visualisation/{file_paths[x].split('/')[-1].split('.')[0]}.png")))
+        cv2.imshow('image', cv2.imread(f"visualisation/{file_path.split('/')[-1].split('.')[0]}.png"))
+    cv2.createTrackbar('Trackbar', 'image', 0, 6, lambda x: cv2.imshow('image', cv2.imread(f"visualisation/{file_paths[x].split('/')[-1].split('.')[0]}.png")))
     cv2.waitKey(0)
     
 

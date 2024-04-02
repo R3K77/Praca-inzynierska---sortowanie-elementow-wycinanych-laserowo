@@ -88,157 +88,61 @@ def visualize_cutting_paths(file_path, x_max=500, y_max=1000):
 
 
 
-# if __name__ == "__main__":
-    
-#     file_paths = ["./Image preprocessing/Gcode to image conversion/NC_files/Arkusz-1001.nc", 
-#                   "./Image preprocessing/Gcode to image conversion/NC_files/arkusz-2001.nc", 
-#                   "./Image preprocessing/Gcode to image conversion/NC_files/arkusz-3001.nc", 
-#                   "./Image preprocessing/Gcode to image conversion/NC_files/Arkusz-4001.nc", 
-#                   "./Image preprocessing/Gcode to image conversion/NC_files/Arkusz-5001.nc", 
-#                   "./Image preprocessing/Gcode to image conversion/NC_files/Arkusz-6001.nc", 
-#                   "./Image preprocessing/Gcode to image conversion/NC_files/Arkusz-7001.nc"]
-    
-    
-#     for file_path in file_paths:
-        
-#         # Przykładowe wywołanie funkcji
-#         cutting_paths, x_min, x_max, y_min, y_max = visualize_cutting_paths(file_path)
-        
-#         # Wizualizacja i wypełnianie ścieżek
-#         fig, ax = plt.subplots(figsize=(x_max/100, y_max/100))
-#         patches = []
-#         for path in cutting_paths:
-#             polygon = Polygon(path, closed=True, color='green')  # Poprawka tutaj
-#             patches.append(polygon)
-            
-#         p = PatchCollection(patches, alpha=0.4)
-#         p.set_color('green')
-#         ax.add_collection(p)
-
-#         ax.set_xlim(x_min, x_max)
-#         ax.set_ylim(y_min, y_max)
-#         ax.set_aspect('equal')
-#         ax.axis('off')
-
-#         # Zapis do pliku, z uwzględnieniem wymagań dotyczących braku marginesu i koloru tła oraz nazwy pliku źródłowego
-#         plt.savefig(f"./Image preprocessing/Gcode to image conversion/visualisation/filled/{file_path.split('/')[-1].split('.')[0]}.png", pad_inches=0, facecolor='black')
-
-#         # Przykładowa wizualizacja ścieżek cięcia
-#         plt.figure(figsize=(x_max/70, y_max/70), facecolor='black')
-#         for path in cutting_paths:
-#             plt.plot([x for x, y in path], [y for x, y in path], linestyle='-', marker=None, color='white')
-#         plt.plot([x_min, x_max, x_max, x_min, x_min], [y_min, y_min, y_max, y_max, y_min], linestyle='-', marker=None, color='white')
-#         plt.axis('off')
-#         ylim = plt.ylim([y_min, y_max])
-#         xlim = plt.xlim([x_min, x_max]) 
-        
-#         # Zapisanie do pliku, z uwzględnieniem wymagań dotyczących braku marginesu i koloru tła oraz nazwy pliku źródłowego
-#         plt.savefig(f"./Image preprocessing/Gcode to image conversion/visualisation/{file_path.split('/')[-1].split('.')[0]}.png", pad_inches=0, facecolor='black')
-        
-        
-    
-#     # Wyświetlenie wszystkich obrazów (przełączanie za pomocą slidera)
-#     for file_path in file_paths:
-#         cv2.imshow('image', cv2.imread(f"./Image preprocessing/Gcode to image conversion/visualisation/{file_path.split('/')[-1].split('.')[0]}.png"))
-#     cv2.createTrackbar('Trackbar', 'image', 0, 6, lambda x: cv2.imshow('image', cv2.imread(f"./Image preprocessing/Gcode to image conversion/visualisation/{file_paths[x].split('/')[-1].split('.')[0]}.png")))
-#     cv2.waitKey(0)
-    
-
-def calculate_hu_moments(contour):
-    moments = cv2.moments(contour)
-    hu_moments = cv2.HuMoments(moments)
-    # Logarytmiczna skala może być użyta do porównywania momentów Hu
-    for i in range(0, 7):
-        hu_moments[i] = -1 * np.copysign(1.0, hu_moments[i]) * np.log10(abs(hu_moments[i]))
-    return hu_moments.flatten()
-
-def calculate_fourier_descriptors(contour):
-    # Upewnij się, że kontur ma właściwy kształt przed przekształceniem na formę złożoną
-    contour_complex = np.empty((contour.shape[0],), dtype=complex)
-    contour_complex.real = contour[:, 0, 0]
-    contour_complex.imag = contour[:, 0, 1]
-
-    # Reszta funkcji pozostaje bez zmian
-    fourier_descriptors = np.fft.fft(contour_complex)
-    fourier_descriptors = np.abs(fourier_descriptors[1:]) / np.abs(fourier_descriptors[1])
-    return fourier_descriptors[:5]
-
-
-
-def extract_and_classify_contours(cutting_paths, x_max, y_max, size_similarity_threshold=0.1, circularity_similarity_threshold=0.1, hu_similarity_threshold=0.1, fourier_similarity_threshold=5):
-    contours_data = []
-    images = []
-    labels = []
-
-    for path in cutting_paths:
-        img = np.zeros((y_max, x_max), dtype=np.uint8)
-        for i in range(len(path) - 1):
-            cv2.line(img, (int(path[i][0]), int(path[i][1])), (int(path[i+1][0]), int(path[i+1][1])), 255, 1)
-        
-        contours, _ = cv2.findContours(img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        for contour in contours:
-            area = cv2.contourArea(contour)
-            perimeter = cv2.arcLength(contour, True)
-            circularity = 4 * np.pi * area / (perimeter ** 2) if perimeter else 0
-            hu_moments = calculate_hu_moments(contour)
-            fourier_descriptors = calculate_fourier_descriptors(contour)
-
-            label_found = False
-            for i, existing_contour in enumerate(contours_data):
-                # Porównujemy kontury pod względem nowych i istniejących cech
-                if abs(existing_contour['area'] - area) / area <= size_similarity_threshold and \
-                   abs(existing_contour['circularity'] - circularity) <= circularity_similarity_threshold and \
-                   np.linalg.norm(existing_contour['fourier_descriptors'][:5] - fourier_descriptors[:5]) < fourier_similarity_threshold:
-                    labels.append(labels[i])
-                    label_found = True
-                    break
-
-            if not label_found:
-                labels.append(len(set(labels)))
-
-            contours_data.append({
-                'contour': contour, 
-                'area': area, 
-                'circularity': circularity, 
-                'hu_moments': hu_moments, 
-                'fourier_descriptors': fourier_descriptors
-            })
-        images.append(img)
-
-    return images, labels
-
-
-
-
-def draw_labels_on_image(images, labels, x_max, y_max):
-    combined_image = np.zeros((y_max, x_max, 3), dtype=np.uint8)
-    
-    for img, label in zip(images, labels):
-        color = (np.random.randint(0, 255), np.random.randint(0, 255), np.random.randint(0, 255))
-        contours, _ = cv2.findContours(img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        for contour in contours:
-            M = cv2.moments(contour)
-            if M["m00"] != 0:
-                cX = int(M["m10"] / M["m00"])
-                cY = int(M["m01"] / M["m00"])
-                cv2.drawContours(combined_image, [contour], -1, color, 2)
-                cv2.putText(combined_image, str(label), (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-    
-    return combined_image
-
-
-# size_similarity_threshold=0.3, circularity_similarity_threshold=0.01, hu_similarity_threshold=50
-
-# Użycie funkcji w kodzie
 if __name__ == "__main__":
-    file_path = "./Image preprocessing/Gcode to image conversion/NC_files/Arkusz-4001.nc"  # Ścieżka do twojego pliku .nc
-    cutting_paths, x_min, x_max, y_min, y_max = visualize_cutting_paths(file_path)
-    images, labels = extract_and_classify_contours(cutting_paths, x_max, y_max, 0.3, 0.01, 109, 2)
-    labelled_image = draw_labels_on_image(images, labels, x_max, y_max)
     
-    cv2.imshow("Classified Shapes", labelled_image)
+    file_paths = ["./Image preprocessing/Gcode to image conversion/NC_files/Arkusz-1001.nc", 
+                  "./Image preprocessing/Gcode to image conversion/NC_files/arkusz-2001.nc", 
+                  "./Image preprocessing/Gcode to image conversion/NC_files/arkusz-3001.nc", 
+                  "./Image preprocessing/Gcode to image conversion/NC_files/Arkusz-4001.nc", 
+                  "./Image preprocessing/Gcode to image conversion/NC_files/Arkusz-5001.nc", 
+                  "./Image preprocessing/Gcode to image conversion/NC_files/Arkusz-6001.nc", 
+                  "./Image preprocessing/Gcode to image conversion/NC_files/Arkusz-7001.nc"]
+    
+    
+    for file_path in file_paths:
+        
+        # Przykładowe wywołanie funkcji
+        cutting_paths, x_min, x_max, y_min, y_max = visualize_cutting_paths(file_path)
+        
+        # Wizualizacja i wypełnianie ścieżek
+        fig, ax = plt.subplots(figsize=(x_max/100, y_max/100))
+        patches = []
+        for path in cutting_paths:
+            polygon = Polygon(path, closed=True, color='green')  # Poprawka tutaj
+            patches.append(polygon)
+            
+        p = PatchCollection(patches, alpha=0.4)
+        p.set_color('green')
+        ax.add_collection(p)
+
+        ax.set_xlim(x_min, x_max)
+        ax.set_ylim(y_min, y_max)
+        ax.set_aspect('equal')
+        ax.axis('off')
+
+        # Zapis do pliku, z uwzględnieniem wymagań dotyczących braku marginesu i koloru tła oraz nazwy pliku źródłowego
+        plt.savefig(f"./Image preprocessing/Gcode to image conversion/visualisation/filled/{file_path.split('/')[-1].split('.')[0]}.png", pad_inches=0, facecolor='black')
+
+        # Przykładowa wizualizacja ścieżek cięcia
+        plt.figure(figsize=(x_max/70, y_max/70), facecolor='black')
+        for path in cutting_paths:
+            plt.plot([x for x, y in path], [y for x, y in path], linestyle='-', marker=None, color='white')
+        plt.plot([x_min, x_max, x_max, x_min, x_min], [y_min, y_min, y_max, y_max, y_min], linestyle='-', marker=None, color='white')
+        plt.axis('off')
+        ylim = plt.ylim([y_min, y_max])
+        xlim = plt.xlim([x_min, x_max]) 
+        
+        # Zapisanie do pliku, z uwzględnieniem wymagań dotyczących braku marginesu i koloru tła oraz nazwy pliku źródłowego
+        plt.savefig(f"./Image preprocessing/Gcode to image conversion/visualisation/{file_path.split('/')[-1].split('.')[0]}.png", pad_inches=0, facecolor='black')
+        
+        
+    
+    # Wyświetlenie wszystkich obrazów (przełączanie za pomocą slidera)
+    for file_path in file_paths:
+        cv2.imshow('image', cv2.imread(f"./Image preprocessing/Gcode to image conversion/visualisation/{file_path.split('/')[-1].split('.')[0]}.png"))
+    cv2.createTrackbar('Trackbar', 'image', 0, 6, lambda x: cv2.imshow('image', cv2.imread(f"./Image preprocessing/Gcode to image conversion/visualisation/{file_paths[x].split('/')[-1].split('.')[0]}.png")))
     cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    
 
 
     

@@ -155,27 +155,32 @@ if __name__ == "__main__":
     file_paths = ["./Image preprocessing/Gcode to image conversion/NC_files/arkusz-2001.nc"]
     
     cutting_paths, x_min, x_max, y_min, y_max = visualize_cutting_paths(file_paths[0])
-    
-    first_element_name = list(cutting_paths.keys())[6]  # RAFAL TU ZMIENIAJ SE DO ZOABCZENIA KTORY ELEMENT
-    first_element_paths = cutting_paths[first_element_name]
-    element_paths = first_element_paths[0]
-    print("Element Name:", first_element_name)
-    print("Paths:", element_paths)
 
-    main_contour, holes = find_main_and_holes(first_element_paths)  # Convert element_paths to a list
-    centroid, _ = calculate_centroid(main_contour)
-    adjusted_centroid = adjust_centroid_if_in_hole(centroid, main_contour, holes)
-    fig, ax = plt.subplots()
-    contours = [main_contour] + holes
-    main_patch = Polygon(contours[0], closed=True, fill=None, edgecolor='red', linewidth=2)
-    ax.add_patch(main_patch)
-    for hole in contours[1:]:
-        hole_patch = Polygon(hole, closed=True, fill=None, edgecolor='blue', linewidth=2)
-        ax.add_patch(hole_patch)
+    fig, ax = plt.subplots()  # Inicjalizacja figury i osi przed pętlą
 
-    ax.plot(*centroid, 'go', label='Original Centroid')
-    ax.plot(*adjusted_centroid, 'ro', label='Adjusted Centroid + 2 Pixels')
-    ax.legend()
+    for i in range(len(cutting_paths)):
+        first_element_name = list(cutting_paths.keys())[i]
+        first_element_paths = cutting_paths[first_element_name]
+        element_paths = first_element_paths[0]
+        print("Element Name:", first_element_name)
+        print("Paths:", element_paths)
+
+        main_contour, holes = find_main_and_holes(first_element_paths)
+        centroid, _ = calculate_centroid(main_contour)
+        adjusted_centroid = adjust_centroid_if_in_hole(centroid, main_contour, holes)
+        
+        contours = [main_contour] + holes
+        main_patch = Polygon(contours[0], closed=True, fill=None, edgecolor='red', linewidth=2)
+        ax.add_patch(main_patch)
+        for hole in contours[1:]:
+            hole_patch = Polygon(hole, closed=True, fill=None, edgecolor='blue', linewidth=2)
+            ax.add_patch(hole_patch)
+
+        ax.plot(*centroid, 'go', label='Original Centroid')
+        ax.plot(*adjusted_centroid, 'ro', label='Adjusted Centroid + 2 Pixels')
+
+    # Umieszczamy legende poza petla, by wyswietlic ja tylko raz
+    # ax.legend()
     ax.set_xlim(0, 500)
     ax.set_ylim(0, 1000)
     plt.show()

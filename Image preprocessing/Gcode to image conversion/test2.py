@@ -27,31 +27,37 @@ from matplotlib.collections import PatchCollection
 # ------------------------------------------------------------------------------------- #
 
 def visualize_cutting_paths(file_path, x_max=500, y_max=1000):
-    # Odczyt pliku
     with open(file_path, 'r') as file:
         file_content = file.read().splitlines()
 
-    # Wyszukanie wszystkich instrukcji CNC (M10, M11, G01, G02, G03) w pliku przy użyciu wyrażenia regularnego
     pattern_cnc_commands_extended = re.compile(r'(M10|M11|G01X([0-9.]+)Y([0-9.]+)|G0[23]X([0-9.]+)Y([0-9.]+)I([0-9.-]+)J([0-9.-]+))')
     pattern_element_name = re.compile(r';@@\[DetailName\((.*?)\)\]')
 
     laser_on = False
     elements = {}
     current_element_name = 'Unnamed'
+    element_index = {}  # Słownik do przechowywania indeksów dla każdej nazwy elementu
     current_path = []
     current_position = (0, 0)
 
     for line in file_content:
         element_match = pattern_element_name.search(line)
-        if element_match:  # Nowy element
-            # Zapisz bieżącą ścieżkę, jeśli istnieje
+        if element_match:
+            name = element_match.group(1)
+            if name not in element_index:
+                element_index[name] = 1  # Rozpocznij liczenie od 1
+            else:
+                element_index[name] += 1
+
+            # Formatowanie nazwy z zerami wiodącymi
+            current_element_name = f"{name}_{element_index[name]:03d}"  # Dodaje zera wiodące do indeksu
+            
             if current_path:
                 if current_element_name not in elements:
                     elements[current_element_name] = []
                 elements[current_element_name].append(current_path)
                 current_path = []
-            # Ustaw nazwę nowego elementu
-            current_element_name = element_match.group(1)
+
         else:
             matches_cnc = pattern_cnc_commands_extended.findall(line)
             for match in matches_cnc:
@@ -72,7 +78,6 @@ def visualize_cutting_paths(file_path, x_max=500, y_max=1000):
                         current_path.append((x, y))
                         current_position = (x, y)
                     elif command.startswith('G02') or command.startswith('G03'):  # Ruch okrężny
-                        x, y, i, j = float(match[3]), float(match[4]), float(match[5]), float(match[6])  # Ruch okrężny (G02 - zgodnie z ruchem wskazówek zegara, G03 - przeciwnie do ruchu wskazówek zegara)
                         x, y, i, j = float(match[3]), float(match[4]), float(match[5]), float(match[6])
                         center_x = current_position[0] + i  # Środek łuku na osi X
                         center_y = current_position[1] + j  # Środek łuku na osi Y
@@ -108,12 +113,17 @@ def visualize_cutting_paths(file_path, x_max=500, y_max=1000):
 
 if __name__ == "__main__":
     
+    
+    
     file_paths = ["./Image preprocessing/Gcode to image conversion/NC_files/arkusz-2001.nc"]
     
     
     
     for file_path in file_paths:
         cutting_paths, x_min, x_max, y_min, y_max = visualize_cutting_paths(file_path)
+        
+        print(cutting_paths.keys())
+        
         fig, ax = plt.subplots()
         patches = []
         for element_name, paths in cutting_paths.items():
@@ -121,8 +131,6 @@ if __name__ == "__main__":
                 polygon = Polygon(path, closed=True)
                 patches.append(polygon)
                 
-        
-
         
         # Define a list of colors
 

@@ -149,10 +149,9 @@ def find_main_and_holes(contours):
 
 
 if __name__ == "__main__":
+
     
-    
-    
-    file_paths = ["./Image preprocessing/Gcode to image conversion/NC_files/arkusz-2001.nc"]
+    file_paths = ["./Image preprocessing/Gcode to image conversion/NC_files/Arkusz-4001.nc"]
     
     cutting_paths, x_min, x_max, y_min, y_max = visualize_cutting_paths(file_paths[0])
 
@@ -172,6 +171,7 @@ if __name__ == "__main__":
         contours = [main_contour] + holes
         main_patch = Polygon(contours[0], closed=True, fill=None, edgecolor='red', linewidth=2)
         ax.add_patch(main_patch)
+        ax.text(*centroid, first_element_name, fontsize=8, ha='center', va='center')
         for hole in contours[1:]:
             hole_patch = Polygon(hole, closed=True, fill=None, edgecolor='blue', linewidth=2)
             ax.add_patch(hole_patch)
@@ -179,12 +179,10 @@ if __name__ == "__main__":
         ax.plot(*centroid, 'go', label='Original Centroid')
         ax.plot(*adjusted_centroid, 'ro', label='Adjusted Centroid + 2 Pixels')
 
-    # Umieszczamy legende poza petla, by wyswietlic ja tylko raz
-    # ax.legend()
     ax.set_xlim(0, 500)
     ax.set_ylim(0, 1000)
     plt.show()
-
+    print(len(cutting_paths))
     # fig, ax = plt.subplots()
 
     # # Get the first element name and paths

@@ -4,7 +4,7 @@ import re # Obsługa wyrażeń regularnych
 import cv2 
 from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
-
+from shapely.geometry import Point, Polygon as ShapelyPolygon, LineString
 
 # ----------------- Funkcja do wizualizacji ścieżek cięcia z pliku NC ----------------- #
 # Funkcja plik .nc z kodem G-kodu i zwraca obraz z wizualizacją ścieżek cięcia.
@@ -109,6 +109,43 @@ def visualize_cutting_paths(file_path, x_max=500, y_max=1000):
     
     return elements, x_min, x_max, y_min, y_max
 
+def calculate_centroid(poly):
+    x, y = zip(*poly)
+    x = np.array(x)
+    y = np.array(y)
+    area = 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
+    centroid_x = (np.sum((x + np.roll(x, 1)) * (x * np.roll(y, 1) - np.roll(x, 1) * y)) / (6.0 * area))
+    centroid_y = (np.sum((y + np.roll(y, 1)) * (x * np.roll(y, 1) - np.roll(x, 1) * y)) / (6.0 * area))
+    return (centroid_x, centroid_y), area
+
+def adjust_centroid_if_in_hole(centroid, main_poly, holes, offset_distance=2):
+    point = Point(centroid)
+    main_polygon = ShapelyPolygon(main_poly)
+    closest_point = None
+    min_distance = float('inf')
+    for hole in holes:
+        hole_polygon = ShapelyPolygon(hole)
+        if point.within(hole_polygon):
+            boundary = LineString(hole_polygon.boundary)
+            projected_point = boundary.interpolate(boundary.project(point))
+            distance = point.distance(projected_point)
+            if distance < min_distance:
+                min_distance = distance
+                closest_point = projected_point
+    
+    if closest_point:
+        dir_vector = np.array(closest_point.coords[0]) - np.array(centroid)
+        norm_vector = dir_vector / np.linalg.norm(dir_vector)
+        new_centroid = np.array(centroid) + norm_vector * (min_distance + offset_distance)
+        return tuple(new_centroid)
+    return centroid
+
+def find_main_and_holes(contours):
+    areas = [(calculate_centroid(contour)[1], contour) for contour in contours]
+    areas.sort(reverse=True, key=lambda x: x[0])
+    main_contour = areas[0][1]
+    holes = [area[1] for area in areas[1:]]
+    return main_contour, holes
 
 
 if __name__ == "__main__":
@@ -117,55 +154,102 @@ if __name__ == "__main__":
     
     file_paths = ["./Image preprocessing/Gcode to image conversion/NC_files/arkusz-2001.nc"]
     
+    cutting_paths, x_min, x_max, y_min, y_max = visualize_cutting_paths(file_paths[0])
+    
+    first_element_name = list(cutting_paths.keys())[6]  # RAFAL TU ZMIENIAJ SE DO ZOABCZENIA KTORY ELEMENT
+    first_element_paths = cutting_paths[first_element_name]
+    element_paths = first_element_paths[0]
+    print("Element Name:", first_element_name)
+    print("Paths:", element_paths)
+
+    main_contour, holes = find_main_and_holes(first_element_paths)  # Convert element_paths to a list
+    centroid, _ = calculate_centroid(main_contour)
+    adjusted_centroid = adjust_centroid_if_in_hole(centroid, main_contour, holes)
+    fig, ax = plt.subplots()
+    contours = [main_contour] + holes
+    main_patch = Polygon(contours[0], closed=True, fill=None, edgecolor='red', linewidth=2)
+    ax.add_patch(main_patch)
+    for hole in contours[1:]:
+        hole_patch = Polygon(hole, closed=True, fill=None, edgecolor='blue', linewidth=2)
+        ax.add_patch(hole_patch)
+
+    ax.plot(*centroid, 'go', label='Original Centroid')
+    ax.plot(*adjusted_centroid, 'ro', label='Adjusted Centroid + 2 Pixels')
+    ax.legend()
+    ax.set_xlim(0, 500)
+    ax.set_ylim(0, 1000)
+    plt.show()
+
+    # fig, ax = plt.subplots()
+
+    # # Get the first element name and paths
+    # first_element_name = list(cutting_paths.keys())[0]
+    # first_element_paths = cutting_paths[first_element_name]
+
+    # # Plot the paths of the first element
+    # for path in first_element_paths:
+    #     polygon = Polygon(path, closed=True, facecolor='red', edgecolor='black', alpha=0.6)
+    #     ax.add_patch(polygon)
+
+    # # Set the plot limits based on the minimum and maximum coordinates
+    # ax.set_xlim(x_min, x_max)
+    # ax.set_ylim(y_min, y_max)
+
+    # # Show the plot
+    # plt.show()
     
     
-    for file_path in file_paths:
-        cutting_paths, x_min, x_max, y_min, y_max = visualize_cutting_paths(file_path)
+    
+    
+    
+    
+    # for file_path in file_paths:
+    #     cutting_paths, x_min, x_max, y_min, y_max = visualize_cutting_paths(file_path)
         
-        print(cutting_paths.keys())
+    #     print(cutting_paths.keys())
         
-        fig, ax = plt.subplots()
-        patches = []
-        for element_name, paths in cutting_paths.items():
-            for path in paths:
-                polygon = Polygon(path, closed=True)
-                patches.append(polygon)
+    #     fig, ax = plt.subplots()
+    #     patches = []
+    #     for element_name, paths in cutting_paths.items():
+    #         for path in paths:
+    #             polygon = Polygon(path, closed=True)
+    #             patches.append(polygon)
                 
         
-        # Define a list of colors
+    #     # Define a list of colors
 
-        colors = ['red', 'blue', 'green', 'yellow', 'orange', 'purple', 'pink', 'brown', 'gray', 'cyan', 'magenta', 'lime', 'teal', 'navy', 'maroon', 'olive', 'silver', 'aqua', 'indigo', 'gold']
+    #     colors = ['red', 'blue', 'green', 'yellow', 'orange', 'purple', 'pink', 'brown', 'gray', 'cyan', 'magenta', 'lime', 'teal', 'navy', 'maroon', 'olive', 'silver', 'aqua', 'indigo', 'gold']
 
-        for i, (element_name, paths) in enumerate(cutting_paths.items()):
-            color = colors[i % len(colors)]  # Get a color from the list based on the index
-            for path in paths:
-                polygon = Polygon(path, closed=True, facecolor=color, edgecolor="black", alpha=0.6)  # Set the edgecolor to the selected color
-                patches.append(polygon)
+    #     for i, (element_name, paths) in enumerate(cutting_paths.items()):
+    #         color = colors[i % len(colors)]  # Get a color from the list based on the index
+    #         for path in paths:
+    #             polygon = Polygon(path, closed=True, facecolor=color, edgecolor="black", alpha=0.6)  # Set the edgecolor to the selected color
+    #             patches.append(polygon)
                 
-        # Create a PatchCollection with all the polygons and add it to the plot
-        collection = PatchCollection(patches, match_original=True)
-        ax.add_collection(collection)
+    #     # Create a PatchCollection with all the polygons and add it to the plot
+    #     collection = PatchCollection(patches, match_original=True)
+    #     ax.add_collection(collection)
 
-        # Set the plot limits based on the minimum and maximum coordinates
-        ax.set_xlim(x_min, x_max)
-        ax.set_ylim(y_min, y_max)
+    #     # Set the plot limits based on the minimum and maximum coordinates
+    #     ax.set_xlim(x_min, x_max)
+    #     ax.set_ylim(y_min, y_max)
        
         
         
-        # Show the plot
-        plt.show()
-        # Remove blue fill color from shapes
-        for patch in patches:
-            patch.set_facecolor('none')
+    #     # Show the plot
+    #     plt.show()
+    #     # Remove blue fill color from shapes
+    #     for patch in patches:
+    #         patch.set_facecolor('none')
             
-                # # Add black dot at the center of gravity for each shape
-        # for element_name, paths in cutting_paths.items():
-        #     for path in paths:
-        #         x_coords = [point[0] for point in path]
-        #         y_coords = [point[1] for point in path]
-        #         center_x = sum(x_coords) / len(x_coords)
-        #         center_y = sum(y_coords) / len(y_coords)
-        #         ax.plot(center_x, center_y, 'ko')
+    #             # # Add black dot at the center of gravity for each shape
+    #     # for element_name, paths in cutting_paths.items():
+    #     #     for path in paths:
+    #     #         x_coords = [point[0] for point in path]
+    #     #         y_coords = [point[1] for point in path]
+    #     #         center_x = sum(x_coords) / len(x_coords)
+    #     #         center_y = sum(y_coords) / len(y_coords)
+    #     #         ax.plot(center_x, center_y, 'ko')
 
 
     

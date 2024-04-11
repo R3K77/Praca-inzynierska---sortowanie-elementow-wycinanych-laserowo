@@ -51,7 +51,7 @@ def visualize_cutting_paths(file_path, x_max=500, y_max=1000):
 
             # Formatowanie nazwy z zerami wiodącymi
             current_element_name = f"{name}_{element_index[name]:03d}"  # Dodaje zera wiodące do indeksu
-            
+            print(current_element_name)
             if current_path:
                 if current_element_name not in elements:
                     elements[current_element_name] = []
@@ -116,7 +116,8 @@ def calculate_centroid(poly):
     area = 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
     centroid_x = (np.sum((x + np.roll(x, 1)) * (x * np.roll(y, 1) - np.roll(x, 1) * y)) / (6.0 * area))
     centroid_y = (np.sum((y + np.roll(y, 1)) * (x * np.roll(y, 1) - np.roll(x, 1) * y)) / (6.0 * area))
-    return (centroid_x, centroid_y), area
+
+    return (abs(centroid_x), abs(centroid_y)), area
 
 def adjust_centroid_if_in_hole(centroid, main_poly, holes, offset_distance=2):
     point = Point(centroid)
@@ -151,23 +152,23 @@ def find_main_and_holes(contours):
 if __name__ == "__main__":
 
     
-    file_paths = ["./Image preprocessing/Gcode to image conversion/NC_files/Arkusz-4001.nc"]
+    file_paths = ["NC_files/Arkusz-1001.nc"]
     
     cutting_paths, x_min, x_max, y_min, y_max = visualize_cutting_paths(file_paths[0])
 
     fig, ax = plt.subplots()  # Inicjalizacja figury i osi przed pętlą
-
+    print(len(cutting_paths))
     for i in range(len(cutting_paths)):
         first_element_name = list(cutting_paths.keys())[i]
         first_element_paths = cutting_paths[first_element_name]
         element_paths = first_element_paths[0]
-        print("Element Name:", first_element_name)
-        print("Paths:", element_paths)
+
+        # print("Paths:", element_paths)
 
         main_contour, holes = find_main_and_holes(first_element_paths)
         centroid, _ = calculate_centroid(main_contour)
         adjusted_centroid = adjust_centroid_if_in_hole(centroid, main_contour, holes)
-        
+        print(f"Element name: {first_element_name} - Centroid: {centroid} - Adjusted centroid: {adjusted_centroid}")
         contours = [main_contour] + holes
         main_patch = Polygon(contours[0], closed=True, fill=None, edgecolor='red', linewidth=2)
         ax.add_patch(main_patch)

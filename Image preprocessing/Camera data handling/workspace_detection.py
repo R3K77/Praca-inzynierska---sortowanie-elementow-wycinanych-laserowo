@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-
+import matplotlib.pyplot as plt
 # ----------------- Funkcja do detekcji krawędzi i transformacji perspektywicznej ----------------- #
 # Funkcja przyjmuje obraz, wartości progów detekcji krawędzi oraz parametry filtracji obrazu
 # Funkcja zwraca obraz wynikowy, obraz z detekcją krawędzi oraz obraz po filtracji
@@ -88,7 +88,7 @@ def workspace_detection(img, Canny_threshold1, Canny_threshold2, bilateralFilter
 
         # Transformacja perspektywiczna
         matrix = cv2.getPerspectiveTransform(input_pts, converted_points)
-        img_output = cv2.warpPerspective(img_original, matrix, (max_width, max_height))
+        img_output = cv2.warpPerspective(img, matrix, (max_width, max_height))
 
         # Dopasowanie wymiarów obrazów w celu użycia funkcji hstack
         gray = np.stack((gray,)*3, axis=-1)
@@ -144,14 +144,14 @@ while True:
     threshold3 = cv2.getTrackbarPos('Threshold 3', 'Detekcja krawędziw')
     threshold4 = cv2.getTrackbarPos('Threshold 4', 'Detekcja krawędziw')
     threshold5 = cv2.getTrackbarPos('Threshold 5', 'Detekcja krawędziw')
-    
+
     # Wywołanie funkcji do detekcji krawędzi i transformacji perspektywicznej
     img_output, edged, gray = workspace_detection(img, threshold1, threshold2, threshold3, threshold4, threshold5)
-    
+
     # Wyświetlenie obrazów
     cv2.imshow('Detekcja krawędzi', edged)
     cv2.imshow('Detekcja krawędziw', img)
-        
+
     # img_hor = np.hstack((img_original, gray, edged, img))
     # cv2.imshow('Detekcja krawędzi', img_hor)
     cv2.imshow('Obraz wynikowy', img_output)
@@ -159,7 +159,49 @@ while True:
     # Oczekiwanie na klawisz 'q' do zakończenia pętli
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
+    # if img_output.size > 100:
+    #     break
 
 # Zwolnienie kamery i zamknięcie wszystkich okien
 cap.release()
 cv2.destroyAllWindows()
+
+print("------------------------------------------------")
+print("wyjscie z petli")
+# img_output edge detection
+gray = cv2.cvtColor(img_output, cv2.COLOR_BGR2GRAY)
+gray = cv2.bilateralFilter(gray, threshold3, threshold4, threshold5)
+edged_output = cv2.Canny(gray, threshold1, threshold2)
+
+# Wyszukanie elementów
+contours, _ = cv2.findContours(edged_output.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+
+figures_edge_points = []
+
+for contour in contours:
+    img = np.zeros(edged_output.shape, dtype=np.uint8)
+
+    cv2.drawContours(img, [contour], -1, (255), thickness=cv2.FILLED)
+
+    edge_points = np.where(img != 0)
+
+    edge_points_coordinates = list(zip(edge_points[1], edge_points[0]))
+
+    figures_edge_points.append(edge_points_coordinates)
+
+print(figures_edge_points)
+
+# Plot
+plt.figure()
+plt.imshow(cv2.cvtColor(img_output, cv2.COLOR_BGR2RGB))
+plt.show()
+plt.figure()
+plt.imshow(edged_output, cmap='gray')
+plt.show()
+
+# Tutaj można zrobić na dwa sposoby imo:
+# 1. Przebudowanie całej funkcji do klasyfikacji obrazu z gcode pod obraz rzeczywisty i zwracanie wyników (dużo roboty)
+# TODO
+# 2. Rzeczywisty obraz użyć do "reskalowania" obrazu z gcode i punktów środków, dodać do plota i zobaczyć jakie są wyniki
+# Wymagane do tego by było wydrukować jeden z plików wizualiacji ścieżek cięcia i przetestować na żywym obrazie jakie punkty środkowe złapie
+

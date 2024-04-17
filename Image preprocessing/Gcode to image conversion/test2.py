@@ -197,7 +197,7 @@ if __name__ == "__main__":
 
         main_contour, holes = find_main_and_holes(first_element_paths)
         centroid, _ = calculate_centroid(main_contour)
-        adjusted_centroid = adjust_centroid_if_in_hole(centroid, main_contour, holes)
+        adjusted_centroid = adjust_centroid_if_in_hole(centroid, main_contour, holes, 3)
     
         
         contours = [main_contour] + holes
@@ -209,9 +209,14 @@ if __name__ == "__main__":
             ax.add_patch(hole_patch)
 
         if point_in_polygon(adjusted_centroid, main_contour):
-            print(f"Element name: {first_element_name} - Centroid: {centroid} - Adjusted centroid: {adjusted_centroid}")
-            ax.plot(*centroid, 'go', label='Original Centroid')
-            ax.plot(*adjusted_centroid, 'ro', label='Adjusted Centroid')
+            for i in range(len(holes)):
+                if point_in_polygon(adjusted_centroid, holes[i]):
+                    print(f"Element name: {first_element_name} - Centroid: INSIDE HOLE")
+                    break
+            else:            
+                print(f"Element name: {first_element_name} - Centroid: {centroid} - Adjusted centroid: {adjusted_centroid}")
+                ax.plot(*centroid, 'go', label='Original Centroid')
+                ax.plot(*adjusted_centroid, 'ro', label='Adjusted Centroid')
         else:
             print(f"Element name: {first_element_name} - Centroid: OUSIDE")
 

@@ -56,13 +56,63 @@ def visualize(contours, centroid, adjusted_centroid):
     ax.set_ylim(0, 60)
     plt.show()
 
-# Define contours
+def point_in_polygon(point, polygon, distance=3):
+    num_vertices = len(polygon)
+    x, y = point[0], point[1]
+    inside = False
+
+    # Przechowaj pierwszy punkt jako poprzedni punkt
+    p1 = polygon[0]
+ 
+    # Iteruj przez wszystkie wierzchołki wielokąta
+    for i in range(1, num_vertices + 1):
+        # Przechowaj drugi punkt jako obecny punkt
+        p2 = polygon[i % num_vertices]
+ 
+        # Sprawdź, czy punkt jest poniżej maksymalnej współrzędnej y krawędzi
+        if y > min(p1[1], p2[1]):
+            # Sprawdź, czy punkt jest poniżej maksymalnej współrzędnej y krawędzi
+            if y <= max(p1[1], p2[1]):
+                # Sprawdź, czy punkt jest na lewo od maksymalnej współrzędnej x krawędzi
+                if x <= max(p1[0], p2[0]):
+                    # Sprawdź, czy krawędź przecina linię poziomą przechodzącą przez punkt
+                    x_intersection = (y - p1[1]) * (p2[0] - p1[0]) / (p2[1] - p1[1]) + p1[0]
+ 
+                    # Sprawdź, czy przecięcie jest na lewo od punktu
+                    if p1[0] == p2[0] or x <= x_intersection:
+                        # Sprawdź, czy punkt jest co najmniej 3 piksele od krawędzi
+                        if min(abs(x - p1[0]), abs(x - p2[0]), abs(y - p1[1]), abs(y - p2[1])) >= distance:
+                            # Zmień flagę wewnętrzną
+                            inside = not inside
+ 
+        # Przesuń punkt drugi do punktu pierwszego
+        p1 = p2
+ 
+    # Zwróć True, jeśli punkt znajduje się wewnątrz wielokąta, w przeciwnym razie False
+    return inside
+
+
+# Definicja konturów
 contours = [
-    [(10, 10), (10, 50), (50, 50), (50, 10)],  # Possible main contour
-    [(23, 23), (23, 35), (35, 35), (35, 23)],  # Possible hole
+    [(10, 10), (10, 50), (50, 50), (50, 10)],  # Główny kontur
+    [(23, 23), (23, 35), (35, 35), (35, 23)],  # Otwór 1
 ]
 
 main_contour, holes = find_main_and_holes(contours)
 centroid, _ = calculate_centroid(main_contour)
 adjusted_centroid = adjust_centroid_if_in_hole(centroid, main_contour, holes)
+print(adjusted_centroid)
+if point_in_polygon(adjusted_centroid, main_contour):
+    print("Point is inside the polygon")
+else:
+    print("Point is outside the polygon")
 visualize([main_contour] + holes, centroid, adjusted_centroid)
+
+
+
+
+
+
+
+
+

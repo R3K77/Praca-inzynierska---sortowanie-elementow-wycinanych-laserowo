@@ -152,7 +152,7 @@ def find_main_and_holes(contours):
 if __name__ == "__main__":
 
     
-    file_paths = ["NC_files/Arkusz-1001.nc"]
+    file_paths = ["./Image preprocessing/Gcode to image conversion/NC_files/arkusz-3001.nc"]
     
     cutting_paths, x_min, x_max, y_min, y_max = visualize_cutting_paths(file_paths[0])
 
@@ -184,76 +184,3 @@ if __name__ == "__main__":
     ax.set_ylim(0, 1000)
     plt.show()
     print(len(cutting_paths))
-    # fig, ax = plt.subplots()
-
-    # # Get the first element name and paths
-    # first_element_name = list(cutting_paths.keys())[0]
-    # first_element_paths = cutting_paths[first_element_name]
-
-    # # Plot the paths of the first element
-    # for path in first_element_paths:
-    #     polygon = Polygon(path, closed=True, facecolor='red', edgecolor='black', alpha=0.6)
-    #     ax.add_patch(polygon)
-
-    # # Set the plot limits based on the minimum and maximum coordinates
-    # ax.set_xlim(x_min, x_max)
-    # ax.set_ylim(y_min, y_max)
-
-    # # Show the plot
-    # plt.show()
-    
-    
-    
-    
-    
-    
-    # for file_path in file_paths:
-    #     cutting_paths, x_min, x_max, y_min, y_max = visualize_cutting_paths(file_path)
-        
-    #     print(cutting_paths.keys())
-        
-    #     fig, ax = plt.subplots()
-    #     patches = []
-    #     for element_name, paths in cutting_paths.items():
-    #         for path in paths:
-    #             polygon = Polygon(path, closed=True)
-    #             patches.append(polygon)
-                
-        
-    #     # Define a list of colors
-
-    #     colors = ['red', 'blue', 'green', 'yellow', 'orange', 'purple', 'pink', 'brown', 'gray', 'cyan', 'magenta', 'lime', 'teal', 'navy', 'maroon', 'olive', 'silver', 'aqua', 'indigo', 'gold']
-
-    #     for i, (element_name, paths) in enumerate(cutting_paths.items()):
-    #         color = colors[i % len(colors)]  # Get a color from the list based on the index
-    #         for path in paths:
-    #             polygon = Polygon(path, closed=True, facecolor=color, edgecolor="black", alpha=0.6)  # Set the edgecolor to the selected color
-    #             patches.append(polygon)
-                
-    #     # Create a PatchCollection with all the polygons and add it to the plot
-    #     collection = PatchCollection(patches, match_original=True)
-    #     ax.add_collection(collection)
-
-    #     # Set the plot limits based on the minimum and maximum coordinates
-    #     ax.set_xlim(x_min, x_max)
-    #     ax.set_ylim(y_min, y_max)
-       
-        
-        
-    #     # Show the plot
-    #     plt.show()
-    #     # Remove blue fill color from shapes
-    #     for patch in patches:
-    #         patch.set_facecolor('none')
-            
-    #             # # Add black dot at the center of gravity for each shape
-    #     # for element_name, paths in cutting_paths.items():
-    #     #     for path in paths:
-    #     #         x_coords = [point[0] for point in path]
-    #     #         y_coords = [point[1] for point in path]
-    #     #         center_x = sum(x_coords) / len(x_coords)
-    #     #         center_y = sum(y_coords) / len(y_coords)
-    #     #         ax.plot(center_x, center_y, 'ko')
-
-
-    

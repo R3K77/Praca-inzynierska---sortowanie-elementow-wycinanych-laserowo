@@ -208,17 +208,22 @@ if __name__ == "__main__":
             hole_patch = Polygon(hole, closed=True, fill=None, edgecolor='blue', linewidth=2)
             ax.add_patch(hole_patch)
 
+
+        ## SPRWADZENIE CZY PUNKTY UCHWYTU NIE ZNAJDUJĄ SIĘ W DZIURACH ##
+        ## ORAZ CZY PUNKTY UCHWYTU ZNAJDUJĄ SIĘ W POLU GŁÓWNYM        ##
         if point_in_polygon(adjusted_centroid, main_contour):
             for i in range(len(holes)):
                 if point_in_polygon(adjusted_centroid, holes[i]):
-                    print(f"Element name: {first_element_name} - Centroid: INSIDE HOLE")
+                    print(f"Element name: {first_element_name} - Centroid: {centroid} - Adjusted centroid: INSIDE HOLE")
                     break
             else:            
                 print(f"Element name: {first_element_name} - Centroid: {centroid} - Adjusted centroid: {adjusted_centroid}")
                 ax.plot(*centroid, 'go', label='Original Centroid')
                 ax.plot(*adjusted_centroid, 'ro', label='Adjusted Centroid')
         else:
-            print(f"Element name: {first_element_name} - Centroid: OUSIDE")
+            print(f"Element name: {first_element_name} - Centroid: {centroid} - Adjusted centroid: OUSIDE")
+
+        # DODAĆ SPRAWDZENIE CZY ZNAJDUJE SIE W MINIMALNEJ DOPUSZCZALNEJ ODLEGLOSCI OD KRAWĘDZI POLA GŁÓWNEGO BĘDĄC W ŚRODKU #
 
     ax.set_xlim(0, 500)
     ax.set_ylim(0, 1000)

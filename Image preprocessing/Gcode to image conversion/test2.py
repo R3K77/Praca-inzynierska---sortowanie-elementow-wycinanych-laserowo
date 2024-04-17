@@ -218,8 +218,3 @@ if __name__ == "__main__":
     ax.set_xlim(0, 500)
     ax.set_ylim(0, 1000)
     plt.show()
-
-if point_in_polygon(adjusted_centroid, main_contour):
-    print("Point is inside the polygon")
-else:
-    print("Point is outside the polygon")

@@ -51,7 +51,6 @@ def visualize_cutting_paths(file_path, x_max=500, y_max=1000):
 
             # Formatowanie nazwy z zerami wiodącymi
             current_element_name = f"{name}_{element_index[name]:03d}"  # Dodaje zera wiodące do indeksu
-            print(current_element_name)
             if current_path:
                 if current_element_name not in elements:
                     elements[current_element_name] = []
@@ -148,16 +147,47 @@ def find_main_and_holes(contours):
     holes = [area[1] for area in areas[1:]]
     return main_contour, holes
 
+def point_in_polygon(point, polygon):
+    num_vertices = len(polygon)
+    x, y = point[0], point[1]
+    inside = False
+
+    # Przechowaj pierwszy punkt jako poprzedni punkt
+    p1 = polygon[0]
+ 
+    # Iteruj przez wszystkie wierzchołki wielokąta
+    for i in range(1, num_vertices + 1):
+        # Przechowaj drugi punkt jako obecny punkt
+        p2 = polygon[i % num_vertices]
+ 
+        # Sprawdź, czy punkt jest poniżej maksymalnej współrzędnej y krawędzi
+        if y > min(p1[1], p2[1]):
+            # Sprawdź, czy punkt jest poniżej maksymalnej współrzędnej y krawędzi
+            if y <= max(p1[1], p2[1]):
+                # Sprawdź, czy punkt jest na lewo od maksymalnej współrzędnej x krawędzi
+                if x <= max(p1[0], p2[0]):
+                    # Sprawdź, czy krawędź przecina linię poziomą przechodzącą przez punkt
+                    x_intersection = (y - p1[1]) * (p2[0] - p1[0]) / (p2[1] - p1[1]) + p1[0]
+ 
+                    # Sprawdź, czy przecięcie jest na lewo od punktu
+                    if p1[0] == p2[0] or x <= x_intersection:
+                        # Zmień flagę wewnętrzną
+                        inside = not inside
+ 
+        # Przesuń punkt drugi do punktu pierwszego
+        p1 = p2
+ 
+    # Zwróć True, jeśli punkt znajduje się wewnątrz wielokąta, w przeciwnym razie False
+    return inside
+
 
 if __name__ == "__main__":
 
-    
-    file_paths = ["./Image preprocessing/Gcode to image conversion/NC_files/arkusz-3001.nc"]
+    file_paths = ["./Image preprocessing/Gcode to image conversion/NC_files/arkusz-2001.nc"]
     
     cutting_paths, x_min, x_max, y_min, y_max = visualize_cutting_paths(file_paths[0])
 
     fig, ax = plt.subplots()  # Inicjalizacja figury i osi przed pętlą
-    print(len(cutting_paths))
     for i in range(len(cutting_paths)):
         first_element_name = list(cutting_paths.keys())[i]
         first_element_paths = cutting_paths[first_element_name]
@@ -168,7 +198,8 @@ if __name__ == "__main__":
         main_contour, holes = find_main_and_holes(first_element_paths)
         centroid, _ = calculate_centroid(main_contour)
         adjusted_centroid = adjust_centroid_if_in_hole(centroid, main_contour, holes)
-        print(f"Element name: {first_element_name} - Centroid: {centroid} - Adjusted centroid: {adjusted_centroid}")
+    
+        
         contours = [main_contour] + holes
         main_patch = Polygon(contours[0], closed=True, fill=None, edgecolor='red', linewidth=2)
         ax.add_patch(main_patch)
@@ -177,10 +208,18 @@ if __name__ == "__main__":
             hole_patch = Polygon(hole, closed=True, fill=None, edgecolor='blue', linewidth=2)
             ax.add_patch(hole_patch)
 
-        ax.plot(*centroid, 'go', label='Original Centroid')
-        ax.plot(*adjusted_centroid, 'ro', label='Adjusted Centroid + 2 Pixels')
+        if point_in_polygon(adjusted_centroid, main_contour):
+            print(f"Element name: {first_element_name} - Centroid: {centroid} - Adjusted centroid: {adjusted_centroid}")
+            ax.plot(*centroid, 'go', label='Original Centroid')
+            ax.plot(*adjusted_centroid, 'ro', label='Adjusted Centroid')
+        else:
+            print(f"Element name: {first_element_name} - Centroid: OUSIDE")
 
     ax.set_xlim(0, 500)
     ax.set_ylim(0, 1000)
     plt.show()
-    print(len(cutting_paths))
+
+if point_in_polygon(adjusted_centroid, main_contour):
+    print("Point is inside the polygon")
+else:
+    print("Point is outside the polygon")

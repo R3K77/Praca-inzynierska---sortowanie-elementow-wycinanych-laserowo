@@ -22,10 +22,14 @@
 │       ├─── NC_files
 │       ├─── visualisation
 │       └─── visualisation_nc_file.py    # Function to read NC file and visualize cutting paths
+├─── Robot simulation
+|   └─── simulation.py
 └───Pre-project presentation
     ├─── Projekt_przejściowy___prezentacja.pdf
     └─── videos
 ```
+
+
 
 
 

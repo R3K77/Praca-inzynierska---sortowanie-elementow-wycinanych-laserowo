@@ -5,6 +5,7 @@ import cv2
 from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
 from shapely.geometry import Point, Polygon as ShapelyPolygon, LineString
+from centroid import calculate_centroid
 
 # ----------------- Funkcja do wizualizacji ścieżek cięcia z pliku NC ----------------- #
 # Funkcja plik .nc z kodem G-kodu i zwraca obraz z wizualizacją ścieżek cięcia.
@@ -108,73 +109,6 @@ def visualize_cutting_paths(file_path, x_max=500, y_max=1000):
     
     return elements, x_min, x_max, y_min, y_max
 
-def calculate_centroid(poly):
-    x, y = zip(*poly)
-    x = np.array(x)
-    y = np.array(y)
-    area = 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
-    centroid_x = (np.sum((x + np.roll(x, 1)) * (x * np.roll(y, 1) - np.roll(x, 1) * y)) / (6.0 * area))
-    centroid_y = (np.sum((y + np.roll(y, 1)) * (x * np.roll(y, 1) - np.roll(x, 1) * y)) / (6.0 * area))
-
-    return (abs(centroid_x), abs(centroid_y)), area
-
-def adjust_centroid_if_in_hole(centroid, main_poly, holes, offset_distance=2):
-    point = Point(centroid)
-    main_polygon = ShapelyPolygon(main_poly)
-    closest_point = None
-    min_distance = float('inf')
-    for hole in holes:
-        hole_polygon = ShapelyPolygon(hole)
-        if point.within(hole_polygon):
-            boundary = LineString(hole_polygon.boundary)
-            projected_point = boundary.interpolate(boundary.project(point))
-            distance = point.distance(projected_point)
-            if distance < min_distance:
-                min_distance = distance
-                closest_point = projected_point
-    
-    if closest_point:
-        dir_vector = np.array(closest_point.coords[0]) - np.array(centroid)
-        norm_vector = dir_vector / np.linalg.norm(dir_vector)
-        new_centroid = np.array(centroid) + norm_vector * (min_distance + offset_distance)
-        return tuple(new_centroid)
-    return centroid
-
-def adjust_centroid_if_outside(centroid, main_poly, offset_distance=2):
-    point = Point(centroid)
-    main_polygon = ShapelyPolygon(main_poly)
-    closest_point = None
-    min_distance = float('inf')
-    if not point.within(main_polygon):
-        boundary = LineString(main_polygon.boundary)
-        projected_point = boundary.interpolate(boundary.project(point))
-        distance = point.distance(projected_point)
-        if distance < min_distance:
-            min_distance = distance
-            closest_point = projected_point
-    if closest_point:
-        dir_vector = np.array(closest_point.coords[0]) - np.array(centroid)
-        norm_vector = dir_vector / np.linalg.norm(dir_vector)
-        new_centroid = np.array(centroid) + norm_vector * (min_distance + offset_distance)
-        return tuple(new_centroid)
-    return centroid
-
-def point_near_edge(point, main_polygon, holes, min_distance=3):
-    shapely_point = Point(point)
-    shapely_main_polygon = ShapelyPolygon(main_polygon)
-
-    # Sprawdzenie dystansu do głównego kształtu
-    distance_to_main_boundary = shapely_main_polygon.boundary.distance(shapely_point)
-    if distance_to_main_boundary < min_distance:
-        return False  # Za blisko krawędzi
-
-    # Sprawdzenie dystansu od otworów
-    for hole in holes:
-        shapely_hole_polygon = ShapelyPolygon(hole)
-        distance_to_hole_boundary = shapely_hole_polygon.boundary.distance(shapely_point)
-        if distance_to_hole_boundary < min_distance:
-            return False  # Za blisko krawędzi
-    return True
 
 def find_main_and_holes(contours):
     areas = [(calculate_centroid(contour)[1], contour) for contour in contours]
@@ -215,55 +149,3 @@ def point_in_polygon(point, polygon):
  
     # Zwróć True, jeśli punkt znajduje się wewnątrz wielokąta, w przeciwnym razie False
     return inside
-
-
-if __name__ == "__main__":
-
-    file_paths = ["./Image preprocessing/Gcode to image conversion/NC_files/arkusz-2001.nc"]
-    
-    cutting_paths, x_min, x_max, y_min, y_max = visualize_cutting_paths(file_paths[0])
-
-    fig, ax = plt.subplots()  # Inicjalizacja figury i osi przed pętlą
-    for i in range(len(cutting_paths)):
-        first_element_name = list(cutting_paths.keys())[i]
-        first_element_paths = cutting_paths[first_element_name]
-        element_paths = first_element_paths[0]
-
-        # print("Paths:", element_paths)
-
-        main_contour, holes = find_main_and_holes(first_element_paths)
-        centroid, _ = calculate_centroid(main_contour)
-        adjusted_centroid = adjust_centroid_if_outside(centroid, main_contour, 3)
-        adjusted_centroid = adjust_centroid_if_in_hole(adjusted_centroid, main_contour, holes, 3)
-    
-        
-        contours = [main_contour] + holes
-        main_patch = Polygon(contours[0], closed=True, fill=None, edgecolor='red', linewidth=2)
-        ax.add_patch(main_patch)
-        ax.text(*centroid, first_element_name, fontsize=8, ha='center', va='center')
-        for hole in contours[1:]:
-            hole_patch = Polygon(hole, closed=True, fill=None, edgecolor='blue', linewidth=2)
-            ax.add_patch(hole_patch)
-
-        ## SPRWADZENIE CZY PUNKTY UCHWYTU NIE ZNAJDUJĄ SIĘ W DZIURACH ##
-        ## ORAZ CZY PUNKTY UCHWYTU ZNAJDUJĄ SIĘ W POLU GŁÓWNYM        ##
-        if point_in_polygon(adjusted_centroid, main_contour):
-            for i in range(len(holes)):
-                if point_in_polygon(adjusted_centroid, holes[i]):
-                    print(f"Element name: {first_element_name} - Centroid: {centroid} - Adjusted centroid: INSIDE HOLE")
-                    break
-            else:                
-                if point_near_edge(adjusted_centroid, main_contour, holes, 3):
-                    print(f"Element name: {first_element_name} - Centroid: {centroid} - Adjusted centroid: {adjusted_centroid}")
-                    ax.plot(*centroid, 'go', label='Original Centroid')
-                    ax.plot(*adjusted_centroid, 'ro', label='Adjusted Centroid')
-                else:
-                    print(f"Element name: {first_element_name} - Centroid: {centroid} - Adjusted centroid: TOO CLOSE TO EDGE")   
-        else:
-            print(f"Element name: {first_element_name} - Centroid: {centroid} - Adjusted centroid: OUSIDE")
-
-        # DODAĆ SPRAWDZENIE CZY ZNAJDUJE SIE W MINIMALNEJ DOPUSZCZALNEJ ODLEGLOSCI OD KRAWĘDZI POLA GŁÓWNEGO BĘDĄC W ŚRODKU #
-
-    ax.set_xlim(0, 500)
-    ax.set_ylim(0, 1000)
-    plt.show()

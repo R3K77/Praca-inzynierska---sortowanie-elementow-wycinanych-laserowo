@@ -26,7 +26,25 @@ def adjust_centroid_if_in_hole(centroid, main_poly, holes, offset_distance=2):
             if distance < min_distance:
                 min_distance = distance
                 closest_point = projected_point
-    
+    if closest_point:
+        dir_vector = np.array(closest_point.coords[0]) - np.array(centroid)
+        norm_vector = dir_vector / np.linalg.norm(dir_vector)
+        new_centroid = np.array(centroid) + norm_vector * (min_distance + offset_distance)
+        return tuple(new_centroid)
+    return centroid
+
+def adjust_centroid_if_outside(centroid, main_poly, offset_distance=2):
+    point = Point(centroid)
+    main_polygon = ShapelyPolygon(main_poly)
+    closest_point = None
+    min_distance = float('inf')
+    if not point.within(main_polygon):
+        boundary = LineString(main_polygon.boundary)
+        projected_point = boundary.interpolate(boundary.project(point))
+        distance = point.distance(projected_point)
+        if distance < min_distance:
+            min_distance = distance
+            closest_point = projected_point
     if closest_point:
         dir_vector = np.array(closest_point.coords[0]) - np.array(centroid)
         norm_vector = dir_vector / np.linalg.norm(dir_vector)
@@ -48,7 +66,6 @@ def visualize(contours, centroid, adjusted_centroid):
     for hole in contours[1:]:
         hole_patch = Polygon(hole, closed=True, fill=None, edgecolor='blue', linewidth=2)
         ax.add_patch(hole_patch)
-
     ax.plot(*centroid, 'go', label='Original Centroid')
     ax.plot(*adjusted_centroid, 'ro', label='Adjusted Centroid + 2 Pixels')
     ax.legend()
@@ -93,14 +110,22 @@ def point_in_polygon(point, polygon, distance=3):
 
 
 # Definicja konturów
+# contours = [
+#     [(10, 10), (10, 50), (50, 50), (50, 10)],  # Główny kontur
+#     [(23, 23), (23, 35), (35, 35), (35, 23)],  # Otwór 1
+# ]
+
 contours = [
-    [(10, 10), (10, 50), (50, 50), (50, 10)],  # Główny kontur
-    [(23, 23), (23, 35), (35, 35), (35, 23)],  # Otwór 1
+    [(10, 40), (20, 40), (20, 8), (50, 8), (50, 2), (10, 2)],  # Główny kontur litery "L"
+    [(13, 25), (18, 25), (18, 10), (13,10)]
 ]
+
+
 
 main_contour, holes = find_main_and_holes(contours)
 centroid, _ = calculate_centroid(main_contour)
-adjusted_centroid = adjust_centroid_if_in_hole(centroid, main_contour, holes)
+adjusted_centroid = adjust_centroid_if_outside(centroid, main_contour, 4)
+# adjusted_centroid = adjust_centroid_if_in_hole(adjusted_centroid, main_contour, holes, 3)
 print(adjusted_centroid)
 if point_in_polygon(adjusted_centroid, main_contour):
     print("Point is inside the polygon")

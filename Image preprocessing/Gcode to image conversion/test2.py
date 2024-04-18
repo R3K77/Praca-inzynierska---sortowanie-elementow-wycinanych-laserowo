@@ -140,6 +140,25 @@ def adjust_centroid_if_in_hole(centroid, main_poly, holes, offset_distance=2):
         return tuple(new_centroid)
     return centroid
 
+def adjust_centroid_if_outside(centroid, main_poly, offset_distance=2):
+    point = Point(centroid)
+    main_polygon = ShapelyPolygon(main_poly)
+    closest_point = None
+    min_distance = float('inf')
+    if not point.within(main_polygon):
+        boundary = LineString(main_polygon.boundary)
+        projected_point = boundary.interpolate(boundary.project(point))
+        distance = point.distance(projected_point)
+        if distance < min_distance:
+            min_distance = distance
+            closest_point = projected_point
+    if closest_point:
+        dir_vector = np.array(closest_point.coords[0]) - np.array(centroid)
+        norm_vector = dir_vector / np.linalg.norm(dir_vector)
+        new_centroid = np.array(centroid) + norm_vector * (min_distance + offset_distance)
+        return tuple(new_centroid)
+    return centroid
+
 def find_main_and_holes(contours):
     areas = [(calculate_centroid(contour)[1], contour) for contour in contours]
     areas.sort(reverse=True, key=lambda x: x[0])
@@ -197,7 +216,8 @@ if __name__ == "__main__":
 
         main_contour, holes = find_main_and_holes(first_element_paths)
         centroid, _ = calculate_centroid(main_contour)
-        adjusted_centroid = adjust_centroid_if_in_hole(centroid, main_contour, holes, 3)
+        adjusted_centroid = adjust_centroid_if_outside(centroid, main_contour, 3)
+        adjusted_centroid = adjust_centroid_if_in_hole(adjusted_centroid, main_contour, holes, 3)
     
         
         contours = [main_contour] + holes

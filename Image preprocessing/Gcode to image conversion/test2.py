@@ -159,6 +159,23 @@ def adjust_centroid_if_outside(centroid, main_poly, offset_distance=2):
         return tuple(new_centroid)
     return centroid
 
+def point_near_edge(point, main_polygon, holes, min_distance=3):
+    shapely_point = Point(point)
+    shapely_main_polygon = ShapelyPolygon(main_polygon)
+
+    # Sprawdzenie dystansu do głównego kształtu
+    distance_to_main_boundary = shapely_main_polygon.boundary.distance(shapely_point)
+    if distance_to_main_boundary < min_distance:
+        return False  # Za blisko krawędzi
+
+    # Sprawdzenie dystansu od otworów
+    for hole in holes:
+        shapely_hole_polygon = ShapelyPolygon(hole)
+        distance_to_hole_boundary = shapely_hole_polygon.boundary.distance(shapely_point)
+        if distance_to_hole_boundary < min_distance:
+            return False  # Za blisko krawędzi
+    return True
+
 def find_main_and_holes(contours):
     areas = [(calculate_centroid(contour)[1], contour) for contour in contours]
     areas.sort(reverse=True, key=lambda x: x[0])
@@ -228,7 +245,6 @@ if __name__ == "__main__":
             hole_patch = Polygon(hole, closed=True, fill=None, edgecolor='blue', linewidth=2)
             ax.add_patch(hole_patch)
 
-
         ## SPRWADZENIE CZY PUNKTY UCHWYTU NIE ZNAJDUJĄ SIĘ W DZIURACH ##
         ## ORAZ CZY PUNKTY UCHWYTU ZNAJDUJĄ SIĘ W POLU GŁÓWNYM        ##
         if point_in_polygon(adjusted_centroid, main_contour):
@@ -236,10 +252,13 @@ if __name__ == "__main__":
                 if point_in_polygon(adjusted_centroid, holes[i]):
                     print(f"Element name: {first_element_name} - Centroid: {centroid} - Adjusted centroid: INSIDE HOLE")
                     break
-            else:            
-                print(f"Element name: {first_element_name} - Centroid: {centroid} - Adjusted centroid: {adjusted_centroid}")
-                ax.plot(*centroid, 'go', label='Original Centroid')
-                ax.plot(*adjusted_centroid, 'ro', label='Adjusted Centroid')
+            else:                
+                if point_near_edge(adjusted_centroid, main_contour, holes, 3):
+                    print(f"Element name: {first_element_name} - Centroid: {centroid} - Adjusted centroid: {adjusted_centroid}")
+                    ax.plot(*centroid, 'go', label='Original Centroid')
+                    ax.plot(*adjusted_centroid, 'ro', label='Adjusted Centroid')
+                else:
+                    print(f"Element name: {first_element_name} - Centroid: {centroid} - Adjusted centroid: TOO CLOSE TO EDGE")   
         else:
             print(f"Element name: {first_element_name} - Centroid: {centroid} - Adjusted centroid: OUSIDE")
 

@@ -59,6 +59,25 @@ def find_main_and_holes(contours):
     holes = [area[1] for area in areas[1:]]
     return main_contour, holes
 
+def point_near_edge(point, main_polygon, holes, min_distance=3):
+    shapely_point = Point(point)
+    shapely_main_polygon = ShapelyPolygon(main_polygon)
+
+    # Check distance to the main polygon boundary
+    distance_to_main_boundary = shapely_main_polygon.boundary.distance(shapely_point)
+    if distance_to_main_boundary < min_distance:
+        return False  # Too close to the main boundary
+    
+    # Now check each hole to ensure the point is not inside and is sufficiently distant
+    for hole in holes:
+        shapely_hole_polygon = ShapelyPolygon(hole)
+        distance_to_hole_boundary = shapely_hole_polygon.boundary.distance(shapely_point)
+        if distance_to_hole_boundary < min_distance:
+            return False  # Too close to a hole boundary
+
+    return True  # Passed all checks
+
+
 def visualize(contours, centroid, adjusted_centroid):
     fig, ax = plt.subplots()
     main_patch = Polygon(contours[0], closed=True, fill=None, edgecolor='red', linewidth=2)
@@ -131,8 +150,15 @@ if point_in_polygon(adjusted_centroid, main_contour):
     print("Point is inside the polygon")
 else:
     print("Point is outside the polygon")
+    
+    
+if point_near_edge(adjusted_centroid, main_contour, holes, 3):
+    print("Adjusted centroid is inside the polygon and at least 3 pixels from any edge.")
+else:
+    print("Adjusted centroid does not meet the criteria.")
+    
+    
 visualize([main_contour] + holes, centroid, adjusted_centroid)
-
 
 
 

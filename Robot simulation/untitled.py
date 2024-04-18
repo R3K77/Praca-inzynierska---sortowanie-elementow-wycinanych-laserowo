@@ -19,7 +19,7 @@ robot = rtb.DHRobot(
         rtb.RevoluteDH(a=0.035, alpha=-np.pi/2, qlim=[-np.deg2rad(210), np.deg2rad(66)]),
         rtb.RevoluteDH(d=0.420, alpha=np.pi/2, qlim=[-np.deg2rad(185), np.deg2rad(185)]),
         rtb.RevoluteDH(alpha=-np.pi/2, qlim=[-np.deg2rad(120), np.deg2rad(120)]),
-        rtb.RevoluteDH(d=0.160, a=0.000, qlim=[-np.deg2rad(350), np.deg2rad(350)]) # To Center Point
+        rtb.RevoluteDH(d=0.160, a=0.000, qlim=[-np.deg2rad(350), np.deg2rad(350)]) # Tool Center Point
     ], name='KUKA KR6 sixx R900'
     )
 

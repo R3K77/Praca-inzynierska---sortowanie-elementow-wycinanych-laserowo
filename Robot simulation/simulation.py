@@ -39,13 +39,8 @@ robot.base = SE3(-200, 500, 0) # Ustawienie punktu bazowego robota
 robot.default_backend = 'pyplot'
 robot.q = [0, 0, 0, 0, 0, 0] # Ustawienie pozycji startowej robota
 
-
-
 fig = robot.plot(robot.q)
 ax = fig.ax
-
-print(robot.base.t)
-
 
 file_paths = [
     "./Image preprocessing/Gcode to image conversion/NC_files/arkusz-2001.nc"

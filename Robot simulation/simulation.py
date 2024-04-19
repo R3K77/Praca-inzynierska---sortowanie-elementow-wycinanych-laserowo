@@ -9,7 +9,7 @@ import time
 from matplotlib.patches import Polygon
 import matplotlib.pyplot as plt
 
-sys.path.append('C:\\Users\\macie\\Desktop\\semestr 6\\projekt przejściowy\\Projekt-Przejsciowy---sortowanie-elementow-wycinanych-laserowo\\Image preprocessing\\Gcode to image conversion')
+sys.path.append('.\\Image preprocessing\\Gcode to image conversion')
 
 from gcode_analize import *
 

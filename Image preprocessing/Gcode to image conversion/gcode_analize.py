@@ -1,10 +1,5 @@
-import matplotlib.pyplot as plt
 import numpy as np
-import re # Obsługa wyrażeń regularnych
-import cv2 
-from matplotlib.patches import Polygon
-from matplotlib.collections import PatchCollection
-from shapely.geometry import Point, Polygon as ShapelyPolygon, LineString
+import re 
 from centroid import calculate_centroid
 
 # ----------------- Funkcja do wizualizacji ścieżek cięcia z pliku NC ----------------- #
@@ -110,6 +105,20 @@ def visualize_cutting_paths(file_path, x_max=500, y_max=1000):
     return elements, x_min, x_max, y_min, y_max
 
 
+
+
+
+# ----------------- Funkcja do znalezienia głównego konturu i otworów ----------------- #
+# Funkcja przyjmuje listę konturów i zwraca główny kontur i otwory.
+# ------------------------------------------------------------------------------------- #
+# Założenia funkcji:
+# - Główny kontur jest konturem z największym polem powierzchni.
+# - Otwory są konturami z mniejszym polem powierzchni.
+# ------------------------------------------------------------------------------------- #
+# Przykład użycia:
+# main_contour, holes = find_main_and_holes(contours)
+# ------------------------------------------------------------------------------------- #
+
 def find_main_and_holes(contours):
     areas = [(calculate_centroid(contour)[1], contour) for contour in contours]
     areas.sort(reverse=True, key=lambda x: x[0])
@@ -117,19 +126,27 @@ def find_main_and_holes(contours):
     holes = [area[1] for area in areas[1:]]
     return main_contour, holes
 
+
+
+
+# ------------- Funkcja do sprawdzenia, czy punkt znajduje się w wielokącie ----------- #
+# Funkcja przyjmuje punkt i wielokąt i zwraca True, jeśli punkt znajduje się wewnątrz wielokąta.
+# Źródło: https://www.geeksforgeeks.org/how-to-check-if-a-given-point-lies-inside-a-polygon/
+# ------------------------------------------------------------------------------------- #
+# Przykład użycia:
+# point_in_polygon(adjusted_centroid, main_contour)
+# ------------------------------------------------------------------------------------- #
+
 def point_in_polygon(point, polygon):
     num_vertices = len(polygon)
     x, y = point[0], point[1]
     inside = False
-
-    # Przechowaj pierwszy punkt jako poprzedni punkt
-    p1 = polygon[0]
+    p1 = polygon[0] # Pierwszy punkt wielokąta
  
     # Iteruj przez wszystkie wierzchołki wielokąta
     for i in range(1, num_vertices + 1):
-        # Przechowaj drugi punkt jako obecny punkt
-        p2 = polygon[i % num_vertices]
- 
+        p2 = polygon[i % num_vertices] # Drugi punkt wielokąta
+
         # Sprawdź, czy punkt jest poniżej maksymalnej współrzędnej y krawędzi
         if y > min(p1[1], p2[1]):
             # Sprawdź, czy punkt jest poniżej maksymalnej współrzędnej y krawędzi
@@ -138,12 +155,10 @@ def point_in_polygon(point, polygon):
                 if x <= max(p1[0], p2[0]):
                     # Sprawdź, czy krawędź przecina linię poziomą przechodzącą przez punkt
                     x_intersection = (y - p1[1]) * (p2[0] - p1[0]) / (p2[1] - p1[1]) + p1[0]
- 
                     # Sprawdź, czy przecięcie jest na lewo od punktu
                     if p1[0] == p2[0] or x <= x_intersection:
                         # Zmień flagę wewnętrzną
                         inside = not inside
- 
         # Przesuń punkt drugi do punktu pierwszego
         p1 = p2
  

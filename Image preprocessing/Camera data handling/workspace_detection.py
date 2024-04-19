@@ -96,6 +96,8 @@ def workspace_detection(img, Canny_threshold1, Canny_threshold2, bilateralFilter
         edged = np.stack((edged,)*3, axis=-1)
         # Obliczenie kąta obrotu figury
         angle = np.arctan2(input_pts[1][1] - input_pts[0][1], input_pts[1][0] - input_pts[0][0]) * 180 / np.pi
+        # Adjust do układu osi prawoskrętnego.
+        angle = -angle
         return img_output, edged, gray, angle
     
 

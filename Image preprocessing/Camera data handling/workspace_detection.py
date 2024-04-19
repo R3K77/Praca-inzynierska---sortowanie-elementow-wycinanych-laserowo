@@ -51,7 +51,8 @@ def workspace_detection(img, Canny_threshold1, Canny_threshold2, bilateralFilter
     if biggest.size == 0:
         cv2.imshow('Detekcja krawędzi', edged)
         cv2.imshow('Detekcja krawędziw', gray)
-        return np.zeros((1, 1, 3), dtype="uint8"), edged, gray
+
+        return np.zeros((1, 1, 3), dtype="uint8"), edged, gray, None
     # W przeciwnym wypadku wyznaczane są współrzędne narożników obrazu wynikowego
     else:
         points = biggest.reshape((4, 2))
@@ -93,8 +94,9 @@ def workspace_detection(img, Canny_threshold1, Canny_threshold2, bilateralFilter
         # Dopasowanie wymiarów obrazów w celu użycia funkcji hstack
         gray = np.stack((gray,)*3, axis=-1)
         edged = np.stack((edged,)*3, axis=-1)
-        
-        return img_output, edged, gray
+        # Obliczenie kąta obrotu figury
+        angle = np.arctan2(input_pts[1][1] - input_pts[0][1], input_pts[1][0] - input_pts[0][0]) * 180 / np.pi
+        return img_output, edged, gray, angle
     
 
 # ----------------- Funkcja do kalibracji kamery ----------------- #
@@ -115,13 +117,37 @@ def camera_calibration(frame):
     frame = frame[y:y + h, x:x + w]
     return frame  
 
+# ----------------- Funkcja do detekcji punktu referencyjnego ----------------- #
+# Funkcja przyjmuje obraz, dolną i górną granicę koloru HSV
+# Funkcja zwraca współrzędne punktu referencyjnego o danym kolorze
+# --------------------------------------------------------------------------- #
+def RefPoint_Detection(img, lower, upper):
+    if img.size == 0:
+        return 0, 0
+
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    mask = cv2.inRange(hsv, lower, upper)
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    avg_x = avg_y = 0
+    for contour in contours:
+        hull = cv2.convexHull(contour)
+        sum_x = sum_y = 0
+        for point in hull:
+            sum_x += point[0][0]
+            sum_y += point[0][1]
+        avg_x = sum_x / len(hull)
+        avg_y = sum_y / len(hull)
+    return avg_x, avg_y
 
 # Utworzenie obiektu kamery
 cap = cv2.VideoCapture(0)
+lower_red = np.array([129, 125, 187])
+upper_red = np.array([179, 255, 255])
 
 # Utworzenie okien do wyświetlania obrazów i suwaków do zmiany parametrów detekcji krawędzi i filtracji 
 cv2.namedWindow('Detekcja krawędzi')
-cv2.createTrackbar('Threshold 1', 'Detekcja krawędzi', 18, 100, lambda x: None) 
+cv2.createTrackbar('Threshold 1', 'Detekcja krawędzi', 18, 100, lambda x: None)
 cv2.createTrackbar('Threshold 2', 'Detekcja krawędzi', 53, 200, lambda x: None)
 cv2.namedWindow('Detekcja krawędziw')
 cv2.createTrackbar('Threshold 3', 'Detekcja krawędziw', 5, 100, lambda x: None)
@@ -144,18 +170,19 @@ while True:
     threshold3 = cv2.getTrackbarPos('Threshold 3', 'Detekcja krawędziw')
     threshold4 = cv2.getTrackbarPos('Threshold 4', 'Detekcja krawędziw')
     threshold5 = cv2.getTrackbarPos('Threshold 5', 'Detekcja krawędziw')
+    # Punkt referencyjny początku układu współrzędnych robota
 
+    avg_x, avg_y = RefPoint_Detection(img, lower_red, upper_red)
     # Wywołanie funkcji do detekcji krawędzi i transformacji perspektywicznej
-    img_output, edged, gray = workspace_detection(img, threshold1, threshold2, threshold3, threshold4, threshold5)
-
+    img_output, edged, gray, angle = workspace_detection(img, threshold1, threshold2, threshold3, threshold4, threshold5)
     # Wyświetlenie obrazów
-    cv2.imshow('Detekcja krawędzi', edged)
-    cv2.imshow('Detekcja krawędziw', img)
+    cv2.imshow('edged', edged)
+    cv2.imshow('img', img)
 
-    # img_hor = np.hstack((img_original, gray, edged, img))
-    # cv2.imshow('Detekcja krawędzi', img_hor)
-    cv2.imshow('Obraz wynikowy', img_output)
-
+    print(f'Obrot = {angle}')
+    print(f'Punkt referencyjny: ({avg_x}, {avg_y})')
+    print("------------------------------")
+    cv2.imshow('img_output', img_output)
     # Oczekiwanie na klawisz 'q' do zakończenia pętli
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
@@ -165,43 +192,7 @@ while True:
 # Zwolnienie kamery i zamknięcie wszystkich okien
 cap.release()
 cv2.destroyAllWindows()
-
 print("------------------------------------------------")
 print("wyjscie z petli")
-# img_output edge detection
-gray = cv2.cvtColor(img_output, cv2.COLOR_BGR2GRAY)
-gray = cv2.bilateralFilter(gray, threshold3, threshold4, threshold5)
-edged_output = cv2.Canny(gray, threshold1, threshold2)
 
-# Wyszukanie elementów
-contours, _ = cv2.findContours(edged_output.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-
-figures_edge_points = []
-
-for contour in contours:
-    img = np.zeros(edged_output.shape, dtype=np.uint8)
-
-    cv2.drawContours(img, [contour], -1, (255), thickness=cv2.FILLED)
-
-    edge_points = np.where(img != 0)
-
-    edge_points_coordinates = list(zip(edge_points[1], edge_points[0]))
-
-    figures_edge_points.append(edge_points_coordinates)
-
-print(figures_edge_points)
-
-# Plot
-plt.figure()
-plt.imshow(cv2.cvtColor(img_output, cv2.COLOR_BGR2RGB))
-plt.show()
-plt.figure()
-plt.imshow(edged_output, cmap='gray')
-plt.show()
-
-# Tutaj można zrobić na dwa sposoby imo:
-# 1. Przebudowanie całej funkcji do klasyfikacji obrazu z gcode pod obraz rzeczywisty i zwracanie wyników (dużo roboty)
-# TODO
-# 2. Rzeczywisty obraz użyć do "reskalowania" obrazu z gcode i punktów środków, dodać do plota i zobaczyć jakie są wyniki
-# Wymagane do tego by było wydrukować jeden z plików wizualiacji ścieżek cięcia i przetestować na żywym obrazie jakie punkty środkowe złapie
-
+# Translacja i obrot w osi z.

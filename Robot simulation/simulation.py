@@ -76,8 +76,6 @@ for i in range(len(cutting_paths)):
 for i in range(0, len(sheet), 2):
     ax.plot(sheet[i], sheet[i+1], 'b-')
 
-
-
 ax.set_xlim([-300, 1000])
 # ax.set_ylim([-1, 1.5])
 # ax.set_zlim([0, 1.5])

@@ -6,6 +6,15 @@ from spatialmath.base import *
 from spatialmath.base.symbolic import *
 import time
 
+from matplotlib.patches import Polygon
+import matplotlib.pyplot as plt
+
+sys.path.append('C:\\Users\\macie\\Desktop\\semestr 6\\projekt przejściowy\\Projekt-Przejsciowy---sortowanie-elementow-wycinanych-laserowo\\Image preprocessing\\Gcode to image conversion')
+
+from gcode_analize import *
+
+# pip3 install "scipy<1.12" roboticstoolbox-python sympy imageio qpsolvers[quadprog]
+
 # Inicjalizacja robota KUKA KR6 R900 za pomocą notacji Denavita-Hartenberga
 # Wyliczone parametry DH na podstawie dokumentacji technicznej robota:
 # https://www.kuka.com/-/media/kuka-downloads/imported/8350ff3ca11642998dbdc81dcc2ed44c/0000205456_en.pdf
@@ -14,35 +23,69 @@ import time
 
 robot = rtb.DHRobot(
     [
-        rtb.RevoluteDH(d=0.400, a=0.025, alpha=-np.pi/2, qlim=[-np.deg2rad(170), np.deg2rad(170)]),
-        rtb.RevoluteDH(offset=-np.pi/2, a=0.455, qlim=[-np.deg2rad(100), np.deg2rad(135)]),
-        rtb.RevoluteDH(a=0.035, alpha=-np.pi/2, qlim=[-np.deg2rad(210), np.deg2rad(66)]),
-        rtb.RevoluteDH(d=0.420, alpha=np.pi/2, qlim=[-np.deg2rad(185), np.deg2rad(185)]),
+        rtb.RevoluteDH(d=400, a=25, alpha=-np.pi/2, qlim=[-np.deg2rad(170), np.deg2rad(170)]),
+        rtb.RevoluteDH(offset=-np.pi/2, a=455, qlim=[-np.deg2rad(100), np.deg2rad(135)]),
+        rtb.RevoluteDH(a=35, alpha=-np.pi/2, qlim=[-np.deg2rad(210), np.deg2rad(66)]),
+        rtb.RevoluteDH(d=420, alpha=np.pi/2, qlim=[-np.deg2rad(185), np.deg2rad(185)]),
         rtb.RevoluteDH(alpha=-np.pi/2, qlim=[-np.deg2rad(120), np.deg2rad(120)]),
-        rtb.RevoluteDH(d=0.160, a=0.000, qlim=[-np.deg2rad(350), np.deg2rad(350)]) # Tool Center Point
+        rtb.RevoluteDH(d=160, a=0, qlim=[-np.deg2rad(350), np.deg2rad(350)]) # Tool Center Point
     ], name='KUKA KR6 sixx R900'
     )
 
 robot.manufacturer = 'KUKA'
 robot.comment = 'Created by Maciej Mróz'
 
-robot.base = SE3(0, 0, 0) # Ustawienie punktu bazowego robota
+robot.base = SE3(-200, 500, 0) # Ustawienie punktu bazowego robota
 robot.default_backend = 'pyplot'
 robot.q = [0, 0, 0, 0, 0, 0] # Ustawienie pozycji startowej robota
 
 
 
+fig = robot.plot(robot.q)
+ax = fig.ax
 
-# robot.plot(robot.qd, block = True)
-robot.teach(robot.q)
-
-# print(robot.__str__().encode('utf-8', 'replace').decode())
-
-# print(robot.__str__().encode(encoding='utf-8', errors='replace').decode())
+print(robot.base.t)
 
 
-# T = SE3(0.7, 0.2, 0.1) * SE3.OA([0, 1, 0], [0, 0, -1])
-# solution = robot.ikine_LM(T)
-# traj = rtb.jtraj(robot.q, solution.q, 100)
-# robot.plot(traj.q, backend = 'pyplot', limits=[-0.25, 1.25, -0.5, 0.5, 0, 1], block=True)
+file_paths = [
+    "./Image preprocessing/Gcode to image conversion/NC_files/arkusz-2001.nc"
+    ]
 
+cutting_paths, x_min, x_max, y_min, y_max = visualize_cutting_paths(file_paths[0])
+
+offsetX = 0
+offsetY = 0
+
+sheetX = x_max
+sheetY = y_max
+
+sheet = [[offsetX, offsetX], [offsetY, sheetY + offsetY],
+         [offsetX, sheetX + offsetX], [sheetY + offsetY, sheetY + offsetY],
+         [offsetX, sheetX + offsetX], [offsetY, offsetY],
+         [sheetX + offsetX, sheetX + offsetX], [offsetY, sheetY + offsetY]]
+
+for i in range(len(cutting_paths)):
+    first_element_name = list(cutting_paths.keys())[i]
+    first_element_paths = cutting_paths[first_element_name]
+    element_paths = first_element_paths[0]
+
+    main_contour, holes = find_main_and_holes(first_element_paths)
+    centroid, _ = calculate_centroid(main_contour)
+        
+    contours = [main_contour] + holes
+    for line in contours:
+        for i in range(1, len(line), 1):
+            ax.plot([line[i-1][0], line[i][0]], [line[i-1][1], line[i][1]], 'r-')
+
+
+for i in range(0, len(sheet), 2):
+    ax.plot(sheet[i], sheet[i+1], 'b-')
+
+
+
+ax.set_xlim([-300, 1000])
+# ax.set_ylim([-1, 1.5])
+# ax.set_zlim([0, 1.5])
+plt.legend()
+plt.show()
+fig.hold()

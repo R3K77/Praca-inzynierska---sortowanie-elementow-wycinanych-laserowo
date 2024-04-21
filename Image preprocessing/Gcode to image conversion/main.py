@@ -1,3 +1,10 @@
+# ---------------------------------------------------------------------------------------
+# Autor: Bartłomiej Szalwach
+# Kod realizuje odczytanie ścieżek cięcia z pliku NC i wizualizację ich na wykresie.
+# Kod wykorzystuje funkcje z centroid.py i gcode_analize.py do obliczenia centroidu i znalezienia głównego konturu i otworów.
+# Szczegółowe informacje na temat funkcji znajdują się w plikach centroid.py i gcode_analize.py.
+# ---------------------------------------------------------------------------------------
+
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
 

@@ -1,3 +1,11 @@
+# --------------------------------------------------------------------------------------------------
+# Autor: Bartłomiej Szalwach
+# Kod przedstawia przykładowe użycie funkcji do obliczenia centroidu, znalezienia głównego konturu i otworów,
+# Jako prosty przykład służy litera "L" z głównym konturem i jednym otworem lub prostokąt z prostokątnym otworem.
+# Kod używany do testowania funkcji z centroid.py i gcode_analize.py
+# --------------------------------------------------------------------------------------------------
+
+
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
 from centroid import *

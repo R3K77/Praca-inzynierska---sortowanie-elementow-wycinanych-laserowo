@@ -3,6 +3,7 @@ import re
 from centroid import calculate_centroid
 
 # ----------------- Funkcja do wizualizacji ścieżek cięcia z pliku NC ----------------- #
+# Autor: Bartłomiej Szalwach
 # Funkcja plik .nc z kodem G-kodu i zwraca obraz z wizualizacją ścieżek cięcia.
 # Funkcja wykorzystuje bibliotekę matplotlib, numpy i re. 
 # Funkcja zwraca ścieżki cięcia, minimalne i maksymalne współrzędne X i Y.
@@ -109,6 +110,7 @@ def visualize_cutting_paths(file_path, x_max=500, y_max=1000):
 
 
 # ----------------- Funkcja do znalezienia głównego konturu i otworów ----------------- #
+# Autor: Bartłomiej Szalwach
 # Funkcja przyjmuje listę konturów i zwraca główny kontur i otwory.
 # ------------------------------------------------------------------------------------- #
 # Założenia funkcji:

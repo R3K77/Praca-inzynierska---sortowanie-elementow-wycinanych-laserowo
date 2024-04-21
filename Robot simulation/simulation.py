@@ -1,3 +1,14 @@
+# ----------------------------------------------------------------
+# Autor: Maciej Mróz
+# Kod realizuje wizualizację ścieżek cięcia z pliku NC na wykresie wraz z obramowaniem arkusza
+# oraz robotem KUKA KR6 R900 używanym do przeniesienia sklasyfikowanych elementów.
+# Docelowo kod ma posłużyć do symulacji ruchu robota podczas przeniesienia elementów z arkusza.
+# Kod wykorzystuje funkcje z centroid.py i gcode_analize.py. 
+# Szczegółowe informacje na temat funkcji znajdują się w plikach centroid.py i gcode_analize.py.
+# ----------------------------------------------------------------
+
+
+
 import roboticstoolbox as rtb
 import numpy as np
 import math

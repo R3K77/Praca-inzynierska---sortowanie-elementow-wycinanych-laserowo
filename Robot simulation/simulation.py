@@ -43,7 +43,7 @@ fig = robot.plot(robot.q)
 ax = fig.ax
 
 file_paths = [
-    "./Image preprocessing/Gcode to image conversion/NC_files/arkusz-2001.nc"
+    "./Image preprocessing/Gcode to image conversion/NC_files/Arkusz-3001.nc"
     ]
 
 cutting_paths, x_min, x_max, y_min, y_max = visualize_cutting_paths(file_paths[0])
@@ -65,7 +65,7 @@ for i in range(len(cutting_paths)):
     element_paths = first_element_paths[0]
 
     main_contour, holes = find_main_and_holes(first_element_paths)
-    centroid, _ = calculate_centroid(main_contour)
+    # centroid, _ = calculate_centroid(main_contour)
         
     contours = [main_contour] + holes
     for line in contours:
@@ -76,9 +76,8 @@ for i in range(len(cutting_paths)):
 for i in range(0, len(sheet), 2):
     ax.plot(sheet[i], sheet[i+1], 'b-')
 
-ax.set_xlim([-300, 1000])
-# ax.set_ylim([-1, 1.5])
+ax.set_xlim([-300, 600])
+ax.set_ylim([0, 1000])
 # ax.set_zlim([0, 1.5])
-plt.legend()
 plt.show()
 fig.hold()

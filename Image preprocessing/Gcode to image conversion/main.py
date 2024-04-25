@@ -14,15 +14,18 @@ import re
 
 if __name__ == "__main__":
     file_paths = [
-    "./Image preprocessing/Gcode to image conversion/NC_files/4.nc"
+    "./Image preprocessing/Gcode to image conversion/NC_files/5.nc"
     ]
     
     cutting_paths, x_min, x_max, y_min, y_max = visualize_cutting_paths(file_paths[0])
-
+    
     fig, ax = plt.subplots()
     for i in range(len(cutting_paths)):
         first_element_name = list(cutting_paths.keys())[i]
-        
+        if first_element_name == "blacha5_005_001":
+            with open("points.txt", "w") as file:
+                for point in element_paths:
+                    file.write(f"{point[0]}, {point[1]}\n")
         if len(first_element_name) == 4:
             continue
         

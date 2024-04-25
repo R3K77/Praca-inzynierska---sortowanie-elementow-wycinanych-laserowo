@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import time
 import matplotlib.pyplot as plt
 # ----------------- Funkcja do detekcji krawędzi i transformacji perspektywicznej ----------------- #
 # Funkcja przyjmuje obraz, wartości progów detekcji krawędzi oraz parametry filtracji obrazu
@@ -49,8 +50,8 @@ def workspace_detection(img, Canny_threshold1, Canny_threshold2, bilateralFilter
     
     # W przypadku braku znalezienia konturów zwracany jest pusty obraz
     if biggest.size == 0:
-        cv2.imshow('Detekcja krawędzi', edged)
-        cv2.imshow('Detekcja krawędziw', gray)
+        # cv2.imshow('Detekcja krawędzi', edged)
+        # cv2.imshow('Detekcja krawędziw', gray)
 
         return np.zeros((1, 1, 3), dtype="uint8"), edged, gray, None
     # W przeciwnym wypadku wyznaczane są współrzędne narożników obrazu wynikowego
@@ -94,11 +95,8 @@ def workspace_detection(img, Canny_threshold1, Canny_threshold2, bilateralFilter
         # Dopasowanie wymiarów obrazów w celu użycia funkcji hstack
         gray = np.stack((gray,)*3, axis=-1)
         edged = np.stack((edged,)*3, axis=-1)
-        # Obliczenie kąta obrotu figury
-        angle = np.arctan2(input_pts[1][1] - input_pts[0][1], input_pts[1][0] - input_pts[0][0]) * 180 / np.pi
-        # Adjust do układu osi prawoskrętnego.
-        angle = -angle
-        return img_output, edged, gray, angle
+
+        return img_output, edged, gray, input_pts
     
 
 # ----------------- Funkcja do kalibracji kamery ----------------- #
@@ -126,11 +124,11 @@ def camera_calibration(frame):
 def RefPoint_Detection(img, lower, upper):
     if img.size == 0:
         return 0, 0
-
+    kernel = np.ones((3,3),np.uint8)
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     mask = cv2.inRange(hsv, lower, upper)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
     avg_x = avg_y = 0
     for contour in contours:
         hull = cv2.convexHull(contour)
@@ -140,21 +138,44 @@ def RefPoint_Detection(img, lower, upper):
             sum_y += point[0][1]
         avg_x = sum_x / len(hull)
         avg_y = sum_y / len(hull)
-    return avg_x, avg_y
+    return avg_x, avg_y, mask
+
+def Calculate_angle(base_x, base_y, xAxis_x, xAxis_y, yAxis_x, yAxis_y, rec_edge_points):
+    if rec_edge_points is None:
+        return 0, 0, 0
+
+    base = np.array([base_x, base_y])
+    xAxis = np.array([xAxis_x, xAxis_y])
+    # Wektor osi X
+    vec_x = xAxis - base
+    vec_rec = rec_edge_points[1] - rec_edge_points[0]
+
+    # Obliczanie kąta między wektorami
+    angle_z = np.arctan2(np.linalg.det([vec_x, vec_rec]), np.dot(vec_x, vec_rec))
+    angle_z = np.degrees(angle_z)
+
+    #translacja
+    TR_x = rec_edge_points[1][0] - base_x
+    TR_y = rec_edge_points[1][1] - base_y
+    angle_z = 180 + angle_z
+    return TR_x, TR_y, angle_z
 
 # Utworzenie obiektu kamery
 cap = cv2.VideoCapture(0)
-lower_red = np.array([129, 125, 187])
-upper_red = np.array([179, 255, 255])
 
-# Utworzenie okien do wyświetlania obrazów i suwaków do zmiany parametrów detekcji krawędzi i filtracji 
-cv2.namedWindow('Detekcja krawędzi')
-cv2.createTrackbar('Threshold 1', 'Detekcja krawędzi', 18, 100, lambda x: None)
-cv2.createTrackbar('Threshold 2', 'Detekcja krawędzi', 53, 200, lambda x: None)
-cv2.namedWindow('Detekcja krawędziw')
-cv2.createTrackbar('Threshold 3', 'Detekcja krawędziw', 5, 100, lambda x: None)
-cv2.createTrackbar('Threshold 4', 'Detekcja krawędziw', 10, 100, lambda x: None)
-cv2.createTrackbar('Threshold 5', 'Detekcja krawędziw', 10, 200, lambda x: None)
+## Dolna i górna granica kolorów
+#Czerwone
+lower_red = np.array([132, 94, 127])
+upper_red = np.array([179, 255, 255])
+#Niebieskie
+lower_blue = np.array([77, 127, 102])
+upper_blue = np.array([111, 255, 255])
+#Zielone
+lower_green = np.array([34, 49, 154])
+upper_green = np.array([71, 255, 255])
+
+# Zapisz aktualny czas
+last_print_time = time.time()
 
 # Główna pętla programu
 while True:
@@ -167,24 +188,29 @@ while True:
     img_original = img.copy()
 
     # Pobranie wartości progów detekcji krawędzi i filtracji
-    threshold1 = cv2.getTrackbarPos('Threshold 1', 'Detekcja krawędzi')
-    threshold2 = cv2.getTrackbarPos('Threshold 2', 'Detekcja krawędzi')
-    threshold3 = cv2.getTrackbarPos('Threshold 3', 'Detekcja krawędziw')
-    threshold4 = cv2.getTrackbarPos('Threshold 4', 'Detekcja krawędziw')
-    threshold5 = cv2.getTrackbarPos('Threshold 5', 'Detekcja krawędziw')
-    # Punkt referencyjny początku układu współrzędnych robota
+    # Punkt referencyjny początku układu współrzędnych koncówki oraz punkty osi X i Y
+    base_x, base_y, mask_red = RefPoint_Detection(img, lower_red, upper_red)
+    xAxis_x, xAxis_y, mask_blue = RefPoint_Detection(img, lower_blue, upper_blue)
+    yAxis_x, yAxis_y, mask_green = RefPoint_Detection(img, lower_green, upper_green)
+    # Draw circles at the points of interest
+    cv2.circle(img, (int(base_x), int(base_y)), 5, (255, 0, 0), -1)  # Base point in red
+    cv2.circle(img, (int(xAxis_x), int(xAxis_y)), 5, (0, 255, 0), -1)  # X-axis point in blue
+    cv2.circle(img, (int(yAxis_x), int(yAxis_y)), 5, (0, 0, 255), -1)  # Y-axis point in green
 
-    avg_x, avg_y = RefPoint_Detection(img, lower_red, upper_red)
     # Wywołanie funkcji do detekcji krawędzi i transformacji perspektywicznej
-    img_output, edged, gray, angle = workspace_detection(img, threshold1, threshold2, threshold3, threshold4, threshold5)
+    img_output, edged, gray, rec_edge_points = workspace_detection(img, 18, 53, 5, 10, 10)
+    # Translacja oraz kąt obrotu
+    TR_x, TR_y, angle = Calculate_angle(base_x, base_y, xAxis_x, xAxis_y, yAxis_x, yAxis_y, rec_edge_points)
     # Wyświetlenie obrazów
-    cv2.imshow('edged', edged)
+    # cv2.imshow('edged', edged)
     cv2.imshow('img', img)
-
-    print(f'Obrot = {angle}')
-    print(f'Punkt referencyjny: ({avg_x}, {avg_y})')
-    print("------------------------------")
     cv2.imshow('img_output', img_output)
+
+    current_time = time.time()
+    if current_time - last_print_time >= 0.5:
+        print(f"\rTR_x: {TR_x} TR_y: {TR_y} angle: {angle}", end=' '*10)
+        last_print_time = current_time
+
     # Oczekiwanie na klawisz 'q' do zakończenia pętli
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break

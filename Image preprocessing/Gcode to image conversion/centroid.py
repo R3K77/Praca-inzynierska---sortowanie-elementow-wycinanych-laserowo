@@ -21,6 +21,8 @@ from shapely.geometry import Point, Polygon as ShapelyPolygon, LineString
 # ------------------------------------------------------------------------------------------ #
 
 def calculate_centroid(poly):
+    if len(poly) < 3:
+        return (None, None), 0 
     x, y = zip(*poly)
     x = np.array(x)
     y = np.array(y)
@@ -28,6 +30,9 @@ def calculate_centroid(poly):
     # Obliczanie powierzchni wielokąta (A) przy użyciu formuły Shoelace:
     # A = 0.5 * abs(sum(x_i * y_(i+1) - y_i * x_(i+1)))
     area = 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
+    
+    if area == 0:
+        return (None, None), 0
     
     # Obliczanie współrzędnej x centroidu (C_x) wielokąta:
     # C_x = (1 / (6 * A)) * sum((x_i + x_(i+1)) * (x_i * y_(i+1) - x_(i+1) * y_i))
@@ -59,11 +64,15 @@ def calculate_centroid(poly):
 # ------------------------------------------------------------------------------------------ #
 
 def adjust_centroid_if_in_hole(centroid, main_poly, holes, offset_distance=2):
+    if len(main_poly) < 4:
+        return centroid
     point = Point(centroid)
     main_polygon = ShapelyPolygon(main_poly)
     closest_point = None
     min_distance = float('inf')
     for hole in holes:
+        if len(hole) < 4:
+            continue
         hole_polygon = ShapelyPolygon(hole)
         if point.within(hole_polygon):
             boundary = LineString(hole_polygon.boundary)

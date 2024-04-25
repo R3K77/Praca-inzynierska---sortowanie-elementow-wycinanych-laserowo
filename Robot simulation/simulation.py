@@ -23,6 +23,7 @@ import matplotlib.pyplot as plt
 sys.path.append('.\\Image preprocessing\\Gcode to image conversion')
 
 from gcode_analize import *
+from centroid import *
 
 # pip3 install "scipy<1.12" roboticstoolbox-python sympy imageio qpsolvers[quadprog]
 
@@ -54,7 +55,7 @@ fig = robot.plot(robot.q)
 ax = fig.ax
 
 file_paths = [
-    "./Image preprocessing/Gcode to image conversion/NC_files/Arkusz-3001.nc"
+    "./Image preprocessing/Gcode to image conversion/NC_files/Arkusz-7001.nc"
     ]
 
 cutting_paths, x_min, x_max, y_min, y_max = visualize_cutting_paths(file_paths[0])
@@ -76,13 +77,18 @@ for i in range(len(cutting_paths)):
     element_paths = first_element_paths[0]
 
     main_contour, holes = find_main_and_holes(first_element_paths)
-    # centroid, _ = calculate_centroid(main_contour)
+    centroid, _ = calculate_centroid(main_contour)
+    adjusted_centroid = adjust_centroid_if_outside(centroid, main_contour, 3)
+    adjusted_centroid = adjust_centroid_if_in_hole(adjusted_centroid, main_contour, holes, 3)
         
     contours = [main_contour] + holes
     for line in contours:
         for i in range(1, len(line), 1):
             ax.plot([line[i-1][0], line[i][0]], [line[i-1][1], line[i][1]], 'r-')
 
+    ax.plot(*adjusted_centroid, 'ro', label='Adjusted Centroid')
+
+    
 
 for i in range(0, len(sheet), 2):
     ax.plot(sheet[i], sheet[i+1], 'b-')

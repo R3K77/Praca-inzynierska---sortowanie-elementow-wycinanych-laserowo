@@ -10,10 +10,11 @@ from matplotlib.patches import Polygon
 
 from gcode_analize import *
 from centroid import *
+import re
 
 if __name__ == "__main__":
     file_paths = [
-    "./Image preprocessing/Gcode to image conversion/NC_files/arkusz-2001.nc"
+    "./Image preprocessing/Gcode to image conversion/NC_files/4.nc"
     ]
     
     cutting_paths, x_min, x_max, y_min, y_max = visualize_cutting_paths(file_paths[0])
@@ -21,13 +22,17 @@ if __name__ == "__main__":
     fig, ax = plt.subplots()
     for i in range(len(cutting_paths)):
         first_element_name = list(cutting_paths.keys())[i]
+        
+        if len(first_element_name) == 4:
+            continue
+        
         first_element_paths = cutting_paths[first_element_name]
         element_paths = first_element_paths[0]
 
         main_contour, holes = find_main_and_holes(first_element_paths)
         centroid, _ = calculate_centroid(main_contour)
-        adjusted_centroid = adjust_centroid_if_outside(centroid, main_contour, 3)
-        adjusted_centroid = adjust_centroid_if_in_hole(adjusted_centroid, main_contour, holes, 3)
+        adjusted_centroid = adjust_centroid_if_outside(centroid, main_contour, 18)
+        adjusted_centroid = adjust_centroid_if_in_hole(adjusted_centroid, main_contour, holes, 18)
         
         contours = [main_contour] + holes
         main_patch = Polygon(contours[0], closed=True, fill=None, edgecolor='red', linewidth=2)
@@ -43,7 +48,7 @@ if __name__ == "__main__":
                     print(f"Element name: {first_element_name} - Centroid: {centroid} - Adjusted centroid: INSIDE HOLE")
                     break
             else:                
-                if point_near_edge(adjusted_centroid, main_contour, holes, 3):
+                if point_near_edge(adjusted_centroid, main_contour, holes, 17):
                     print(f"Element name: {first_element_name} - Centroid: {centroid} - Adjusted centroid: {adjusted_centroid}")
                     ax.plot(*centroid, 'go', label='Original Centroid')
                     ax.plot(*adjusted_centroid, 'ro', label='Adjusted Centroid')
@@ -52,6 +57,6 @@ if __name__ == "__main__":
         else:
             print(f"Element name: {first_element_name} - Centroid: {centroid} - Adjusted centroid: OUSIDE")
 
-    ax.set_xlim(0, 500)
-    ax.set_ylim(0, 1000)
+    # ax.set_xlim(0, 500)
+    # ax.set_ylim(0, 1000)
     plt.show()

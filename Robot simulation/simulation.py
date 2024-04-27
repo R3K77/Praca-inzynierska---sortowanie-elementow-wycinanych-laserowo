@@ -16,7 +16,7 @@ from spatialmath import *
 from spatialmath.base import *
 from spatialmath.base.symbolic import *
 import time
-
+from roboticstoolbox.tools.trajectory import *
 from matplotlib.patches import Polygon
 import matplotlib.pyplot as plt
 
@@ -51,6 +51,10 @@ robot.base = SE3(-200, 500, 0) # Ustawienie punktu bazowego robota
 robot.default_backend = 'pyplot'
 robot.q = [0, 0, 0, 0, 0, 0] # Ustawienie pozycji startowej robota
 
+T = SE3(0, 0, 0) * SE3.OA([0, 1, 0], [0, 0, -1])
+solution = robot.ikine_LM(T)
+traj = jtraj(robot.q, solution.q, 50)
+
 fig = robot.plot(robot.q)
 ax = fig.ax
 
@@ -71,31 +75,50 @@ sheet = [[offsetX, offsetX], [offsetY, sheetY + offsetY],
          [offsetX, sheetX + offsetX], [offsetY, offsetY],
          [sheetX + offsetX, sheetX + offsetX], [offsetY, sheetY + offsetY]]
 
-for i in range(len(cutting_paths)):
-    first_element_name = list(cutting_paths.keys())[i]
 
-    if len(first_element_name) == 4:
-            continue
-    
-    first_element_paths = cutting_paths[first_element_name]
-    element_paths = first_element_paths[0]
+for j in range(len(traj.q)):
+    robot.q = traj.q[j]
+    fig = robot.plot(robot.q)
+    ax = fig.ax
 
-    main_contour, holes = find_main_and_holes(first_element_paths)
-    centroid, _ = calculate_centroid(main_contour)
-    adjusted_centroid = adjust_centroid_if_outside(centroid, main_contour, 18)
-    adjusted_centroid = adjust_centroid_if_in_hole(adjusted_centroid, main_contour, holes, 18)
+    for i in range(len(cutting_paths)):
+        first_element_name = list(cutting_paths.keys())[i]
+
+        if len(first_element_name) == 4:
+                continue
         
-    contours = [main_contour] + holes
-    for line in contours:
-        for i in range(1, len(line), 1):
-            ax.plot([line[i-1][0], line[i][0]], [line[i-1][1], line[i][1]], 'r-')
+        first_element_paths = cutting_paths[first_element_name]
+        element_paths = first_element_paths[0]
 
-    ax.plot(*adjusted_centroid, 'b*', label='Adjusted Centroid')
+        main_contour, holes = find_main_and_holes(first_element_paths)
+        centroid, _ = calculate_centroid(main_contour)
+        adjusted_centroid = adjust_centroid_if_outside(centroid, main_contour, 18)
+        adjusted_centroid = adjust_centroid_if_in_hole(adjusted_centroid, main_contour, holes, 18)
+            
+        contours = [main_contour] + holes
+        for line in contours:
+            for i in range(1, len(line), 1):
+                for j in range(len(traj.q)):
+                    robot.q = traj.q[j]
+                    robot.plot(robot.q)
+                    ax.plot([line[i-1][0], line[i][0]], [line[i-1][1], line[i][1]], 'r-')
+
+        ax.plot(*adjusted_centroid, 'b*', label='Adjusted Centroid')
+
 
     
 
 for i in range(0, len(sheet), 2):
     ax.plot(sheet[i], sheet[i+1], 'b--')
+
+
+# for j in range(len(traj.q)):
+#     robot.q = traj.q[i]
+#     fig(robot.q)
+
+#     time.sleep(0.05)
+#     plt.draw()
+#     plt.pause(0.001)
 
 ax.set_xlim([-300, 600])
 ax.set_ylim([0, 1000])

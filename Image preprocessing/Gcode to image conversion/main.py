@@ -14,7 +14,7 @@ import re
 
 if __name__ == "__main__":
     file_paths = [
-    "./Image preprocessing/Gcode to image conversion/NC_files/5.nc"
+    "./Image preprocessing/Gcode to image conversion/NC_files/4.nc"
     ]
     
     cutting_paths, x_min, x_max, y_min, y_max = visualize_cutting_paths(file_paths[0])
@@ -36,6 +36,9 @@ if __name__ == "__main__":
         centroid, _ = calculate_centroid(main_contour)
         adjusted_centroid = adjust_centroid_if_outside(centroid, main_contour, 18)
         adjusted_centroid = adjust_centroid_if_in_hole(adjusted_centroid, main_contour, holes, 18)
+
+        with open("./Robot simulation/centroids.csv", "a") as file:
+            file.write(f"{adjusted_centroid[0]},{adjusted_centroid[1]}\n")
         
         contours = [main_contour] + holes
         main_patch = Polygon(contours[0], closed=True, fill=None, edgecolor='red', linewidth=2)

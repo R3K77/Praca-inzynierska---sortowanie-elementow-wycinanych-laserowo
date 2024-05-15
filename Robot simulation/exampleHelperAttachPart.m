@@ -1,4 +1,4 @@
-function ur5e = exampleHelperAttachPart(ur5e,rotation)
+function robot = exampleHelperAttachPart(robot,rotation)
   % part Dimenssions
     partwidth = 0.0508; % 2 inch
     partheight = 0.0508; % 2 inch
@@ -24,6 +24,6 @@ function ur5e = exampleHelperAttachPart(ur5e,rotation)
     partJoint = rigidBodyJoint('partJoint','fixed');
     part.Joint = partJoint;
     setFixedTransform(part.Joint, transformPart);
-    curEndEffectorBodyName = ur5e.BodyNames{14};
-    addBody(ur5e,part,curEndEffectorBodyName);
+    curEndEffectorBodyName = robot.BodyNames{10};
+    addBody(robot,part,curEndEffectorBodyName);
 end

@@ -1,10 +1,10 @@
-function [RefPose,partID,goalZoffset] = exampleHelperSelectPart(partGT,binCenterPosition)
+function [RefPose,partID,goalZoffset] = exampleHelperSelectPart(partGT)
 
 % Select the part which is closest to the center
 % Find euclidean distance from bin center
 dist = zeros(1,size(partGT,1));
 for i=1:size(partGT,1)
-    dist(i) = norm(partGT(i,1:2) - binCenterPosition(1:2));
+    dist(i) = partGT(i,1:2);
 end
 
 [~,I] = min(dist);

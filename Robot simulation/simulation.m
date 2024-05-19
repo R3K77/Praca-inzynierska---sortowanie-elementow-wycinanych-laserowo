@@ -2,7 +2,7 @@ close all
 clear
 clc
 
-clear exampleHelperSelectPart
+clear selectPart
 
 % Load the robot model
 ur5eRBT = loadrobot('universalUR5e','DataFormat','row');
@@ -54,7 +54,7 @@ for i = 1:numberOfParts
 end
 
 % Adjust the camera and axis limits
-axis auto;
+axis([-0.3 0.7 -0.3 0.8 -0.01 0.7]);
 view([120 70]);
 
 drawnow;
@@ -120,7 +120,7 @@ for p = 1:numberOfParts
     planner.MaxConnectionDistance = 0.1;
     planner.ValidationDistance = 0.1;
     planner.SkippedSelfCollisions = 'parent';
-    numIter = 20;
+    numIter = 50;
 
     % Plan approach trajectory and compute path
     path = plan(planner,homePosition,goalRegion);
@@ -132,7 +132,7 @@ for p = 1:numberOfParts
 
     % Show animation of the interpolated path
     if showAnimation
-        rateObj = rateControl(30);
+        rateObj = rateControl(60);
         for i = 1 : size(interpConfigurations, 1)
             show(ur5e,interpConfigurations(i,:),'PreservePlot',false,'Frames','off','Collisions','off','Visuals','on','FastUpdate',true);
             drawnow
@@ -251,7 +251,7 @@ for p = 1:numberOfParts
     % Show animation of the interpolated configuration for retract trajectory
     if showAnimation
         rateObj = rateControl(60);
-        for i = 1 : 5 : size(interpConfigurations, 1)
+        for i = 1 : 1 : size(interpConfigurations, 1)
             show(ur5e,interpConfigurations(i,:),'PreservePlot',false,'Frames','off','Collisions','off','Visuals','on','FastUpdate',true);
             waitfor(rateObj);
         end
@@ -331,7 +331,7 @@ for p = 1:numberOfParts
 
     % Show animation of the interpolated configuration for place trajectory
     if showAnimation
-        rateObj = rateControl(30);
+        rateObj = rateControl(60);
         for i = 1 : size(interpConfigurations, 1)
             show(ur5e,interpConfigurations(i,:),'PreservePlot',false,'Frames','off','Collisions','off','Visuals','on','FastUpdate',true);
             waitfor(rateObj);
@@ -381,7 +381,7 @@ for p = 1:numberOfParts
     % Show animation of final interpolated trajectory if flag is enabled
     if showAnimationTraj
         hold on;
-        rateObj = rateControl(30);
+        rateObj = rateControl(60);
         for i = 1 : size(q,2)
             show(ur5e,q(:,i)','PreservePlot',false,'Frames','off','Collisions','off','Visuals','on','FastUpdate',true);
             waitfor(rateObj);
@@ -415,7 +415,7 @@ for p = 1:numberOfParts
     % Show animation of the trajectory
     if showAnimationTraj
         hold on;
-        rateObj = rateControl(30);
+        rateObj = rateControl(60);
         for i = 1 : size(q,2)
             show(ur5e,q(:,i)','PreservePlot',false,'Frames','off','Collisions','off','Visuals','on','FastUpdate',true);
             waitfor(rateObj);

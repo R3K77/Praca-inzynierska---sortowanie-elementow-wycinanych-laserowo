@@ -1,7 +1,4 @@
-function [partGT, env] = exampleHelperGenerateGT(binLength, binWidth, binHeight, binCenterPosition, binRotation, numberOfParts, env)
-    % Load part positions from CSV
-    partPositions = readmatrix('centroids.csv') / 1000; % Convert mm to meters
-    
+function [partGT, env] = generateGroundTruth(numberOfParts, env)
     % Initialize partGT with positions from CSV
     partGT = [[ones(numberOfParts, 1)*0.15, zeros(numberOfParts, 1)], zeros(numberOfParts, 1), zeros(numberOfParts, 1)];
     

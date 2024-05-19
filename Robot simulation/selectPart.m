@@ -1,4 +1,4 @@
-function [RefPose, partID, goalZoffset] = exampleHelperSelectPart(partGT, binCenterPosition, goalPoints, movedParts)
+function [RefPose, partID, goalZoffset] = selectPart(partGT,goalPoints)
     persistent partCounter;  % Counter to keep track of the current part
     if isempty(partCounter)
         partCounter = 1;

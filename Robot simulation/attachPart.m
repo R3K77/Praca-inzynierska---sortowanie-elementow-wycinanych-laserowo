@@ -1,4 +1,4 @@
-function ur5e = exampleHelperAttachPart(ur5e, rotation, partID)
+function ur5e = attachPart(ur5e, rotation, partID)
   % Part Dimensions
   filename = sprintf('meshes/output_%d.stl', partID - 1);
   FV = stlread(filename);

@@ -6,7 +6,7 @@ clear exampleHelperSelectPart
 
 % Load the robot model
 ur5eRBT = loadrobot('universalUR5e','DataFormat','row');
-ur5e = exampleHelperAddGripper(ur5eRBT);
+ur5e = addGripper(ur5eRBT);
 
 % Home Position
 homePosition = deg2rad([-15 -126 113 -80 -91 76]);
@@ -29,12 +29,12 @@ hold on
 % Bin dimension
 binLength = 0.5; % Along X axis
 binWidth = 0.5; % Along Y axis
-binHeight = 0.11;
+binHeight = 0.0;
 binCenterPosition = [0.5+0.15 0.5 0];
 binRotation = 0;
 
 % Initialize environment
-env = exampleHelperPlotBin(binLength, binWidth, binHeight, binCenterPosition, binRotation);
+env = {};
 hold on
 
 % Load parts and generate ground truth
@@ -43,7 +43,7 @@ goalPoints = readmatrix('centroids.csv')/1000;
 goalPoints = sortrows(goalPoints, 1);
 numberOfParts = size(goalPoints, 1);
 
-[partGT, env] = exampleHelperGenerateGT(binLength, binWidth, binHeight, binCenterPosition, binRotation, numberOfParts, env);
+[partGT, env] = generateGroundTruth(numberOfParts, env);
 
 % Plot Parts
 partHandles = gobjects(numberOfParts, 1);
@@ -96,7 +96,7 @@ for p = 1:numberOfParts
     goalRegion.Bounds(6, :) = [0 0];  % Rotation about the X-axis
 
     % Select Part to pick using the part selection algorithm
-    [RefPose, partID, goalZoffset] = exampleHelperSelectPart(partGT, binCenterPosition, goalPoints, movedParts);
+    [RefPose, partID, goalZoffset] = selectPart(partGT, goalPoints);
     movedParts = [movedParts, partID]; % Add the partID to the list of moved parts
 
     % Create goal region based on part position and its reference pose
@@ -145,7 +145,7 @@ for p = 1:numberOfParts
     eulerAtEndEffector = tform2eul(endEffectorApproachTransform);
 
     % Add part as a collision box with the robot end-effector tool
-    ur5e = exampleHelperAttachPart(ur5e,-deg2rad(partGT(partID,4))+eulerAtEndEffector(1)+pi, partID);
+    ur5e = attachPart(ur5e,-deg2rad(partGT(partID,4))+eulerAtEndEffector(1)+pi, partID);
 
     % Remove part from the collision environment (remove part from the bin
     % as it attached to the robot end-effector tool)

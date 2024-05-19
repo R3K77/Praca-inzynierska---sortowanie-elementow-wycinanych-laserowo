@@ -1,4 +1,4 @@
-function outputRobot = exampleHelperAddGripper(inputRobot)
+function outputRobot = addGripper(inputRobot)
 %exampleHelperAddGripper attaches Robotiq EPick gripper and IO Coupling to
 %UR5e robot
 %   The single bellow is made with MathWorks tools

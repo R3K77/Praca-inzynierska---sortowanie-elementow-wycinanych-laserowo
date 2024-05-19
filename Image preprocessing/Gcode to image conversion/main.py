@@ -37,7 +37,7 @@ if __name__ == "__main__":
         adjusted_centroid = adjust_centroid_if_outside(centroid, main_contour, 18)
         adjusted_centroid = adjust_centroid_if_in_hole(adjusted_centroid, main_contour, holes, 18)
 
-        with open("./Robot simulation/centroids.csv", "a") as file:
+        with open("./Robot simulation/centroids.csv", "w") as file:
             file.write(f"{adjusted_centroid[0]},{adjusted_centroid[1]}\n")
         
         contours = [main_contour] + holes

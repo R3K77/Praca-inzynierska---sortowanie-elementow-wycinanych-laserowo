@@ -211,10 +211,10 @@ for p = 1:numberOfParts
         path = plan(planner,interpConfigurations(end,:),goalRegion);
     else
         % Pre-computed retract goal configuration
-        goalConfigurarion = [-0.2240   -1.3443    1.2348   -1.4613   -1.5708    1.3468];
+        goalConfiguration = [-0.2240   -1.3443    1.2348   -1.4613   -1.5708    1.3468];
 
         % Show goal frame
-        goalFrame.Pose = getTransform(ur5e,goalConfigurarion,ur5e.BodyNames{end});
+        goalFrame.Pose = getTransform(ur5e,goalConfiguration,ur5e.BodyNames{end});
         hold on;
         show(goalFrame,gca);
         drawnow;

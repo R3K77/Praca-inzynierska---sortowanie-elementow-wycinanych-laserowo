@@ -14,7 +14,7 @@ function [RefPose, partID, goalZoffset] = selectPart(partGT,goalPoints)
     partID = partCounter;
     
     % Ensure the STL file for the current partID exists
-    stlFile = sprintf('meshes/output_%d.stl', partID - 1)
+    stlFile = sprintf('meshes/output_%d.stl', partID - 1);
     if ~isfile(stlFile)
         error('STL file for partID %d does not exist.', partID - 1);
     end

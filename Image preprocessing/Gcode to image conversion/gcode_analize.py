@@ -28,6 +28,7 @@ def visualize_cutting_paths(file_path, x_max=500, y_max=1000):
         file_content = file.read().splitlines()
 
     pattern_cnc_commands_extended = re.compile(r'(M10|M11|G01X([0-9.]+)Y([0-9.]+)|G0[23]X([0-9.]+)Y([0-9.]+)I([0-9.-]+)J([0-9.-]+))')
+    
     pattern_element_name = re.compile(r';@@\[DetailName\((.*?)\)\]')
 
     laser_on = False
@@ -61,7 +62,7 @@ def visualize_cutting_paths(file_path, x_max=500, y_max=1000):
                 if command == 'M10':  # Laser ON
                     laser_on = True 
                 elif command == 'M11':  # Laser OFF
-                    if laser_on and current_path: # Dodajemy ścieżkę do bieżącego elementu
+                    if laser_on and current_path: # Zapis ścieżki do bieżącego elementu
                         if current_element_name not in elements:
                             elements[current_element_name] = []
                         elements[current_element_name].append(current_path)
@@ -74,11 +75,11 @@ def visualize_cutting_paths(file_path, x_max=500, y_max=1000):
                         current_path.append((x, y))
                         current_position = (x, y)
                     elif command.startswith('G02') or command.startswith('G03'):  # Ruch okrężny
-                        x, y, i, j = float(match[3]), float(match[4]), float(match[5]), float(match[6])
+                        x, y, i, j = (float(match[3]), float(match[4]), 
+                                      float(match[5]), float(match[6]))
                         center_x = current_position[0] + i  # Środek łuku na osi X
                         center_y = current_position[1] + j  # Środek łuku na osi Y
-                        radius = np.sqrt(i**2 + j**2)  # Obliczenie promienia łuku
-                        
+                        radius = np.sqrt(i**2 + j**2)       # Promień łuku
                         start_angle = np.arctan2(current_position[1] - center_y, current_position[0] - center_x) # Kąt początkowy łuku (w radianach)
                         end_angle = np.arctan2(y - center_y, x - center_x) # Kąt końcowy łuku (w radianach) 
                         

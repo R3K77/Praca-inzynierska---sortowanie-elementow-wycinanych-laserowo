@@ -30,11 +30,12 @@ for x in x_range:
 composite_shape = MultiPolygon([outer_shape, hole1, hole2])
 
 # Obliczanie środka masy całej figury z uwzględnieniem otworów
-shape_with_holes = outer_shape  # Define shape_with_holes as outer_shape initially
-holes = [hole1, hole2]  # Dodaj tutaj inne dziury, jeśli są dostępne
+shape_with_holes = outer_shape  # Początkowa figura bez otworów
+holes = [hole1, hole2]  # Definicja otworów
 for hole in holes:
-    shape_with_holes = shape_with_holes.difference(hole)
-# Obliczenie środka masy
+    # Odejmowanie otworów od figury
+    shape_with_holes = shape_with_holes.difference(hole) 
+# Obliczenie środka masy za pomocą funkcji centroid
 mass_center = shape_with_holes.centroid.coords[0]
 
 # mass_center = composite_shape.centroid.coords[0]
@@ -47,22 +48,69 @@ distances_to_mass_center = np.linalg.norm(np.array(valid_points) - np.array(mass
 closest_to_mass_center_index = np.argmin(distances_to_mass_center)
 closest_to_mass_center = valid_points[closest_to_mass_center_index]
 
+import matplotlib.pyplot as plt
+
 # Rysowanie figury, otworów i możliwych punktów przyłożenia
 fig, ax = plt.subplots()
+ax.set_facecolor('#F5E6CA')  # Ustawienie tła na #F5E6CA
+
 x_outer, y_outer = outer_shape.exterior.xy
-ax.fill(x_outer, y_outer, alpha=0.5, fc='blue', label='Outer Shape')
+ax.fill(x_outer, y_outer, alpha=1, fc='#343F56', label='Blacha')
 for hole in [hole1, hole2]:
     x_hole, y_hole = hole.exterior.xy
-    ax.fill(x_hole, y_hole, alpha=1, fc='white', label='Holes')
-ax.plot(mass_center[0], mass_center[1], 'ro', label='Center of Mass')
+    ax.fill(x_hole, y_hole, alpha=1, fc='#F5E6CA', label='Otwór')
+ax.plot(mass_center[0], mass_center[1], 'ro', label='Środek masy')
 for point in valid_points:
-    circle = plt.Circle(point, circle_radius, color='green', alpha=0.1)
+    circle = plt.Circle(point, circle_radius, color='#019D86', alpha=0.2)
     ax.add_patch(circle)
-circle = plt.Circle(closest_to_mass_center, circle_radius, color='yellow', alpha=0.5, label='Closest to Center of Mass')
+circle = plt.Circle(closest_to_mass_center, circle_radius, color='yellow', alpha=0.5, label='Najbliższy do środka masy')
 ax.add_patch(circle)
 ax.set_xlim(-10, 110)
 ax.set_ylim(-10, 110)
 ax.set_aspect('equal', adjustable='datalim')
-ax.set_title('Optimal Circle Placement Near Center of Mass with Two Holes')
+ax.set_title('Optymalne umiejscowienie okręgu w pobliżu środka masy')
 ax.legend()
+# plt.show()
+
+
+# Zmiana tła poza wykresem
+fig.patch.set_facecolor('#F5E6CA')
+
+
 plt.show()
+# fig, ax = plt.subplots()
+# x_outer, y_outer = outer_shape.exterior.xy
+# ax.fill(x_outer, y_outer, alpha=1, fc='#343F56', label='Blacha')
+# for hole in [hole1, hole2]:
+#     x_hole, y_hole = hole.exterior.xy
+#     ax.fill(x_hole, y_hole, alpha=1, fc='#F5E6CA', label='Otwór')
+# ax.plot(mass_center[0], mass_center[1], 'ro', label='Środek masy')
+# for point in valid_points:
+#     circle = plt.Circle(point, circle_radius, color='#F5E6CA', alpha=0.3)
+#     ax.add_patch(circle)
+# circle = plt.Circle(closest_to_mass_center, circle_radius, color='yellow', alpha=0.5, label='Najbliższy do środka masy')
+# ax.add_patch(circle)
+# ax.set_xlim(-10, 110)
+# ax.set_ylim(-10, 110)
+# ax.set_aspect('equal', adjustable='datalim')
+# ax.set_title('Optymalne umiejscowienie okręgu w pobliżu środka masy')
+# ax.legend()
+# plt.show()
+# fig, ax = plt.subplots()
+# x_outer, y_outer = outer_shape.exterior.xy
+# ax.fill(x_outer, y_outer, alpha=0.5, fc='blue', label='Outer Shape')
+# for hole in [hole1, hole2]:
+#     x_hole, y_hole = hole.exterior.xy
+#     ax.fill(x_hole, y_hole, alpha=1, fc='white', label='Holes')
+# ax.plot(mass_center[0], mass_center[1], 'ro', label='Center of Mass')
+# for point in valid_points:
+#     circle = plt.Circle(point, circle_radius, color='green', alpha=0.1)
+#     ax.add_patch(circle)
+# circle = plt.Circle(closest_to_mass_center, circle_radius, color='yellow', alpha=0.5, label='Closest to Center of Mass')
+# ax.add_patch(circle)
+# ax.set_xlim(-10, 110)
+# ax.set_ylim(-10, 110)
+# ax.set_aspect('equal', adjustable='datalim')
+# ax.set_title('Optimal Circle Placement Near Center of Mass with Two Holes')
+# ax.legend()
+# plt.show()

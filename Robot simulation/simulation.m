@@ -200,7 +200,7 @@ for p = 1:numberOfParts
         goalRegion.Bounds(5, :) = [0 0];  % Rotation about the Y-axis
         goalRegion.Bounds(6, :) = [0 0];  % Rotation about the X-axis
 
-        goalRegion.ReferencePose(1:3,4) = [binCenterPosition(1)-0.18 binCenterPosition(2) 0.22]';
+        goalRegion.ReferencePose(1:3,4) = [goalPoints(p, 1) + 0.15 goalPoints(p, 2) 0.05]';
         goalRegion.EndEffectorOffsetPose = trvec2tform([0 0 0]);
         goalRegion.EndEffectorOffsetPose = ...
             goalRegion.EndEffectorOffsetPose*eul2tform([0 0 0],"ZYX");

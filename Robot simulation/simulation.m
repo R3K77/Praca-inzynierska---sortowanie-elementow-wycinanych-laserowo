@@ -144,8 +144,11 @@ for p = 1:numberOfParts
     endEffectorApproachTransform = getTransform(ur5e,interpConfigurations(end,:),ur5e.BodyNames{end});
     eulerAtEndEffector = tform2eul(endEffectorApproachTransform);
 
+
     % Add part as a collision box with the robot end-effector tool
-    ur5e = attachPart(ur5e,-deg2rad(partGT(partID,4))+eulerAtEndEffector(1)+pi, partID);
+    ur5e = attachPart(ur5e, -deg2rad(partGT(partID,4))+eulerAtEndEffector(1)+pi, partID, [-goalPoints(p, :) 0], [-goalPoints(p, :) 0]);
+
+    % goalPoints(1, :) = [];
 
     % Remove part from the collision environment (remove part from the bin
     % as it attached to the robot end-effector tool)

@@ -97,7 +97,6 @@ for p = 1:numberOfParts
 
     % Select Part to pick using the part selection algorithm
     [RefPose, partID, goalZoffset] = selectPart(partGT, goalPoints);
-    movedParts = [movedParts, partID]; % Add the partID to the list of moved parts
 
     % Create goal region based on part position and its reference pose
     goalRegion.ReferencePose = trvec2tform(RefPose);

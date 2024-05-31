@@ -44,7 +44,7 @@ while True:
     upper_red = np.array([u_h, u_s, u_v])
     mask = cv2.inRange(hsv, lower_red, upper_red)
     res = cv2.bitwise_and(frame, frame, mask=mask)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+    mask2 = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
     # Find contours in the mask
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -70,6 +70,7 @@ while True:
 
     cv2.imshow('frame', frame)
     cv2.imshow('mask', mask)
+    cv2.imshow('mask2', mask2)
     cv2.imshow('res', res)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):

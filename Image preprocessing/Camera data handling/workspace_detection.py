@@ -124,6 +124,7 @@ def camera_calibration(frame):
 def RefPoint_Detection(img, lower, upper):
     if img.size == 0:
         return 0, 0
+
     kernel = np.ones((3,3),np.uint8)
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     mask = cv2.inRange(hsv, lower, upper)
@@ -149,11 +150,9 @@ def Calculate_angle(base_x, base_y, xAxis_x, xAxis_y, yAxis_x, yAxis_y, rec_edge
     # Wektor osi X
     vec_x = xAxis - base
     vec_rec = rec_edge_points[1] - rec_edge_points[0]
-
     # Obliczanie kąta między wektorami
     angle_z = np.arctan2(np.linalg.det([vec_x, vec_rec]), np.dot(vec_x, vec_rec))
     angle_z = np.degrees(angle_z)
-
     #translacja
     TR_x = rec_edge_points[1][0] - base_x
     TR_y = rec_edge_points[1][1] - base_y

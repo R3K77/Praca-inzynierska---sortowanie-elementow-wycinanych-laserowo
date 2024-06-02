@@ -47,9 +47,19 @@ def Workspace_detection(frame):
             max_area = area
             max_area_index = i
 
+
+    # kąt obrotu
     x, y, w, h = cv2.boundingRect(cntrs[max_area_index])
+    rect = cv2.minAreaRect(cntrs[max_area_index])
+    (width_box, height_box), angle = rect[1], rect[2]
+
+    if width_box > height_box:
+        angle += 90
+
+    if cntrs[max_area_index][0][0][0] < cntrs[max_area_index][1][0][0]:
+        angle += 180
+
     cv2.drawContours(birdEye, cntrs, max_area_index, (0,255,0), 2)
-    # cv2.drawContours(birdEye, cntrs, -1, (255, 0, 255), 3)
 
     # Rogi prostokąta
     left_upper_corner = (x, y)
@@ -61,13 +71,16 @@ def Workspace_detection(frame):
     cv2.circle(birdEye, right_upper_corner, 5, (0, 0, 255), -1)
     cv2.circle(birdEye, right_bottom_corner, 5, (0, 0, 255), -1)
 
+
+
+
     pts_org = np.array([left_upper_corner, right_upper_corner, right_bottom_corner, left_bottom_corner], np.float32)
     pts_dst = np.array([[0, 0], [w, 0], [w, h], [0, h]], np.float32)
 
     matrix = cv2.getPerspectiveTransform(pts_org, pts_dst)
     workplace = cv2.warpPerspective(birdEye, matrix, (w, h))
 
-    return birdEye, workplace, thresh, blur, gray
+    return birdEye, workplace, thresh, blur, gray, right_bottom_corner
 
 
 cap = cv2.VideoCapture(0)
@@ -75,7 +88,7 @@ cap = cv2.VideoCapture(0)
 while True:
     rd, frame = cap.read()
     frame = camera_calibration(frame)
-    birdEye, workplace, thresh, blur, gray = Workspace_detection(frame)
+    birdEye, workplace, thresh, blur, gray, _ = Workspace_detection(frame)
     cv2.imshow('thresh', thresh)
     cv2.imshow('blur', blur)
     cv2.imshow('gray', gray)

@@ -1,5 +1,6 @@
 import socket
 import time
+import csv
 
 # Konfiguracja serwera
 HOST = '0.0.0.0'  # Nasłuchiwanie na wszystkich interfejsach sieciowych
@@ -20,29 +21,55 @@ def main():
         print(f"Połączono z {client_address}")
 
         try:
-            # Wartości do wysłania
-            send_valueX = 1234.5778
-            send_valueY = 4245.4777
+            
+            # Odczyt danych z pliku CSV
+            with open('element_details.csv', 'r') as file:
+                reader = csv.reader(file)
+                next(reader)  # Pominięcie nagłówka
 
-            # Formatowanie danych do wysłania
-            response = f"{send_valueX},{send_valueY}\n"
-            client_socket.send(response.encode('utf-8'))
-            print(f"Wysłano dane: {response}")
+                for row in reader:
+                    detail_x = float(row[0])
+                    detail_y = float(row[1])
+                    print(f"Odczytano dane z csv: {detail_x}, {detail_y}")
+                    box_x = float(row[2])
+                    box_y = float(row[3])
 
-            # Odbieranie danych od robota
-            data = client_socket.recv(1024).decode('utf-8', errors='ignore')
-            if not data:
+                    # Wartości do wysłania
+                    send_valueY = detail_x
+                    send_valueX = detail_y
+
+                    # Formatowanie danych do wysłania
+                    response = f"{send_valueX:09.4f}{send_valueY:09.4f}"
+                    print(f"Przygotowano dane: {response}")
+                    client_socket.send(response.encode('ascii'))
+                    print(f"Wysłano dane: {response}")
+
+                    # Oczekiwanie na informację zwrotną od robota
+                    data = client_socket.recv(1024).decode('utf-8', errors='ignore')
+                    print(f"Otrzymane dane: {data}")
+                    # while data.strip() != "koniec":
+                    #     data = client_socket.recv(1024).decode('utf-8', errors='ignore')
+                    
+                    # Sprawdzenie warunku zakończenia połączenia
+                    if not row:
+                        print("Koniec pliku CSV")
+                        send_valueX = 2000.0
+                        send_valueY = 2000.0
+
+                        # Formatowanie danych do wysłania
+                        response = f"{send_valueX:09.4f}{send_valueY:09.4f}"
+                        print(f"Przygotowano dane: {response}")
+                        client_socket.send(response.encode('ascii'))
+                        # print(f"Wysłano dane: {response}")
+
+                        # Oczekiwanie na informację zwrotną od robota
+                        data = client_socket.recv(1024).decode('utf-8', errors='ignore')
+
+            # Sprawdzenie warunku zakończenia połączenia
+            if not row:
                 break
-            # Przetwarzanie odebranych danych (zakładamy, że są oddzielone przecinkami)
-            values = data.split(',')
-            if len(values) != 2:
-                print(f"Nieoczekiwany format danych: {data}")
-                continue
 
-            valueX = float(values[0])
-            valueY = float(values[1])
-
-            print(f"Odebrano dane: {valueX}, {valueY}")
+            # Kontynuuj dalszą część pętli
 
         except Exception as e:
             print(f"Wystąpił błąd: {e}")
@@ -53,3 +80,33 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
+    # 2  - otwarcie
+    # 5  - zamkniecie
+    
+    # Dwupołożeniowy bistabilny
+    
+    # Włączenie ciśnienia:
+    # 2 - ON
+    # 5 - OFF
+    
+    # Wyłączenie ciśnienia:
+    # 2 - OFF
+    # 5 - ON
+    
+    
+    
+    #  # Wartości do wysłania
+    #         send_valueX = 101.0
+    #         send_valueY = 187.005
+
+    #         # Formatowanie danych do wysłania
+    #         response = f"{send_valueX:09.4f}{send_valueY:09.4f}"
+    #         print(f"Przygotowano dane: {response}")
+    #         client_socket.send(response.encode('ascii'))
+    #         # print(f"Wysłano dane: {response}")
+
+    #         # Odbieranie danych od robota
+    #         data = client_socket.recv(1024).decode('utf-8', errors='ignore')
+    #         if not data:
+    #             break

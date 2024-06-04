@@ -2,8 +2,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from shapely.geometry import Point, Polygon as ShapelyPolygon
 from matplotlib.patches import Circle, Polygon
-from gcode_analize import *
-from centroid import *
+from gcode_analize import visualize_cutting_paths, find_main_and_holes
+# from centroid import *
 import re
 import csv  # Import the csv module
 
@@ -59,7 +59,7 @@ for file_path in file_paths:
         if valid_points:
             distances = [np.linalg.norm(np.array(p) - np.array(centroid)) for p in valid_points]
             best_point = valid_points[np.argmin(distances)]
-            if np.linalg.norm(np.array(best_point) - np.array(centroid)) < 300:
+            if np.linalg.norm(np.array(best_point) - np.array(centroid)) < 60:
                 ax.plot(*best_point, 'go', label='Valid Circle Center')
                 circle = Circle(best_point, circle_radius, color='green', alpha=1, label='Suction Cup Area')
                 ax.add_patch(circle)

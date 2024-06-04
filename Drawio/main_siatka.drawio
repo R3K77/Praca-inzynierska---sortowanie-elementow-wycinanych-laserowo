@@ -1,0 +1,190 @@
+<mxfile host="65bd71144e">
+    <diagram id="vwsBcXSHYVoXoT90g7Te" name="Page-1">
+        <mxGraphModel dx="739" dy="942" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" background="#ffffff" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="6" value="" style="edgeStyle=none;html=1;strokeColor=#000000;fontFamily=Garamond;fontSize=15;" parent="1" source="2" target="4" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="2" value="Start" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e3c800;fontColor=#000000;strokeColor=#B09500;fontFamily=Garamond;fontSize=15;" parent="1" vertex="1">
+                    <mxGeometry x="70" y="30" width="120" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="3" value="Koniec" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e3c800;fontColor=#000000;strokeColor=#B09500;fontFamily=Garamond;fontSize=15;" parent="1" vertex="1">
+                    <mxGeometry x="70" y="550" width="120" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="9" value="" style="edgeStyle=none;html=1;strokeColor=#000000;fontFamily=Garamond;fontSize=15;" parent="1" source="4" target="8" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="4" value="Odczytanie ścieżek za pomocą funkcji" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;fontColor=#333333;strokeColor=#666666;fontFamily=Garamond;fontSize=15;" parent="1" vertex="1">
+                    <mxGeometry x="70" y="140" width="120" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="10" value="" style="edgeStyle=none;html=1;strokeColor=#000000;fontFamily=Garamond;fontSize=15;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="8" target="12" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="130" y="340" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="130" y="320"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="8" value="Inicjalizacja średnicy przyssawki" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;fontColor=#333333;strokeColor=#666666;fontFamily=Garamond;fontSize=15;" parent="1" vertex="1">
+                    <mxGeometry x="70" y="230" width="120" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="14" value="" style="edgeStyle=none;html=1;strokeColor=#000000;fontFamily=Garamond;fontSize=15;fontColor=#000000;" parent="1" source="12" target="13" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="59" value="" style="edgeStyle=none;html=1;strokeColor=#000000;fontFamily=Garamond;fontSize=15;fontColor=#000000;" parent="1" source="12" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="130" y="440" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="12" value="Czy istnieje &lt;br&gt;zapisana jakaś ścieżka w danym arkuszu?" style="rhombus;whiteSpace=wrap;html=1;fontFamily=Garamond;fontSize=15;fillColor=#ffe6cc;strokeColor=#d79b00;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="50" y="330" width="160" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="16" value="" style="edgeStyle=none;html=1;strokeColor=#000000;fontFamily=Garamond;fontSize=15;fontColor=#000000;" parent="1" source="13" target="15" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="13" value="Określenie głównego kształtu detalu oraz otworów za pomoca funkcji" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;fontColor=#333333;strokeColor=#666666;fontFamily=Garamond;fontSize=15;" parent="1" vertex="1">
+                    <mxGeometry x="250" y="330" width="130" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="18" value="" style="edgeStyle=none;html=1;strokeColor=#000000;fontFamily=Garamond;fontSize=15;fontColor=#000000;" parent="1" source="15" target="17" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="15" value="Obliczenie środka masy elementu uwzględniając otwory" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;fontColor=#333333;strokeColor=#666666;fontFamily=Garamond;fontSize=15;" parent="1" vertex="1">
+                    <mxGeometry x="255" y="230" width="120" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="20" value="" style="edgeStyle=none;html=1;strokeColor=#000000;fontFamily=Garamond;fontSize=15;fontColor=#000000;" parent="1" source="17" target="19" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="17" value="Utworzenie siatki punktów, będących kandydatami do umiejscowania przyssawki" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;fontColor=#333333;strokeColor=#666666;fontFamily=Garamond;fontSize=15;" parent="1" vertex="1">
+                    <mxGeometry x="420" y="220" width="120" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="22" value="" style="edgeStyle=none;html=1;strokeColor=#000000;fontFamily=Garamond;fontSize=15;fontColor=#000000;" parent="1" source="19" target="21" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="23" value="tak" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=15;fontFamily=Garamond;fontColor=#000000;labelBackgroundColor=none;" parent="22" connectable="0" vertex="1">
+                    <mxGeometry x="-0.6655" relative="1" as="geometry">
+                        <mxPoint x="5" y="-10" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="40" value="" style="edgeStyle=none;html=1;strokeColor=#000000;fontFamily=Garamond;fontSize=15;fontColor=#000000;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="19" target="28" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="480" y="480" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="19" value="Czy istnieje &lt;br&gt;jeszcze jakiś kandydat na punkt przyłożenia?" style="rhombus;whiteSpace=wrap;html=1;fontFamily=Garamond;fontSize=15;fillColor=#ffe6cc;strokeColor=#d79b00;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="400" y="350" width="160" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="25" value="" style="edgeStyle=none;html=1;strokeColor=#000000;fontFamily=Garamond;fontSize=15;fontColor=#000000;" parent="1" source="21" target="24" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="26" value="tak" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=15;fontFamily=Garamond;fontColor=#000000;labelBackgroundColor=none;" parent="25" connectable="0" vertex="1">
+                    <mxGeometry x="-0.4376" relative="1" as="geometry">
+                        <mxPoint x="15" y="-4" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="35" style="edgeStyle=none;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#000000;fontFamily=Garamond;fontSize=15;fontColor=#000000;" parent="1" source="21" target="19" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="670" y="330"/>
+                            <mxPoint x="480" y="330"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="21" value="Czy kandydat spełnia wszystkie kryteria?" style="rhombus;whiteSpace=wrap;html=1;fontFamily=Garamond;fontSize=15;fillColor=#ffe6cc;strokeColor=#d79b00;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="590" y="350" width="160" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="24" value="Dodanie punktu &lt;br&gt;do wektora valid_points" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;fontColor=#333333;strokeColor=#666666;fontFamily=Garamond;fontSize=15;" parent="1" vertex="1">
+                    <mxGeometry x="610" y="480" width="120" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="47" value="" style="edgeStyle=none;html=1;strokeColor=#000000;fontFamily=Garamond;fontSize=15;fontColor=#000000;" parent="1" source="28" target="46" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="28" value="Obliczenie odległości &lt;br&gt;każdego punktu &quot;valid_points&quot; od środka masy&amp;nbsp;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;fontColor=#333333;strokeColor=#666666;fontFamily=Garamond;fontSize=15;" parent="1" vertex="1">
+                    <mxGeometry x="412.5" y="480" width="135" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="32" value="nie" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=15;fontFamily=Garamond;fontColor=#000000;labelBackgroundColor=none;" parent="1" connectable="0" vertex="1">
+                    <mxGeometry x="690" y="340.0033333333332" as="geometry">
+                        <mxPoint x="-6" y="2" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="33" value="nie" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=15;fontFamily=Garamond;fontColor=#000000;labelBackgroundColor=none;" parent="1" connectable="0" vertex="1">
+                    <mxGeometry x="500" y="450.0033333333332" as="geometry">
+                        <mxPoint x="-6" y="2" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="36" value="tak" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=15;fontFamily=Garamond;fontColor=#000000;labelBackgroundColor=none;" parent="1" connectable="0" vertex="1">
+                    <mxGeometry x="586" y="404" as="geometry">
+                        <mxPoint x="-366" y="-44" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="44" value="" style="edgeStyle=none;html=1;strokeColor=#000000;fontFamily=Garamond;fontSize=15;fontColor=#000000;" parent="1" source="37" target="43" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="45" style="edgeStyle=none;html=1;strokeColor=#000000;fontFamily=Garamond;fontSize=15;fontColor=#000000;" parent="1" source="37" target="51" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="370" y="770" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="37" value="Czy odległość &lt;br&gt;punktu od środka masy jest mniejsza niż &lt;br&gt;60mm?" style="rhombus;whiteSpace=wrap;html=1;fontFamily=Garamond;fontSize=15;fillColor=#ffe6cc;strokeColor=#d79b00;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="400" y="690" width="160" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="62" style="edgeStyle=none;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#000000;fontFamily=Garamond;fontSize=15;fontColor=#000000;" parent="1" source="43" target="12" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="20" y="740"/>
+                            <mxPoint x="20" y="310"/>
+                            <mxPoint x="130" y="310"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="43" value="Znaleziono punkt przyłożenia" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;fontColor=#333333;strokeColor=#666666;fontFamily=Garamond;fontSize=15;" parent="1" vertex="1">
+                    <mxGeometry x="230" y="700" width="135" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="48" value="" style="edgeStyle=none;html=1;strokeColor=#000000;fontFamily=Garamond;fontSize=15;fontColor=#000000;" parent="1" source="46" target="37" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="46" value="Wybór punktu położonego najbliżej środka masy" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;fontColor=#333333;strokeColor=#666666;fontFamily=Garamond;fontSize=15;" parent="1" vertex="1">
+                    <mxGeometry x="412.5" y="590" width="135" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="50" value="tak" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=15;fontFamily=Garamond;fontColor=#000000;labelBackgroundColor=none;" parent="1" connectable="0" vertex="1">
+                    <mxGeometry x="459.9975862068965" y="330" as="geometry">
+                        <mxPoint x="-72" y="401" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="56" style="edgeStyle=none;html=1;strokeColor=#000000;fontFamily=Garamond;fontSize=15;fontColor=#000000;" parent="1" source="51" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="130" y="330" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="20" y="860"/>
+                            <mxPoint x="20" y="310"/>
+                            <mxPoint x="130" y="310"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="51" value="Punkt przyłożenia nie spełnia kryteriów, brak możliwości podniesienia detalu" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;fontColor=#333333;strokeColor=#666666;fontFamily=Garamond;fontSize=15;" parent="1" vertex="1">
+                    <mxGeometry x="412.5" y="820" width="135" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="52" value="nie" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=15;fontFamily=Garamond;fontColor=#000000;labelBackgroundColor=none;" parent="1" connectable="0" vertex="1">
+                    <mxGeometry x="441" y="525.0033333333332" as="geometry">
+                        <mxPoint x="54" y="270" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="53" value="Wizualizacja detali wraz z punktami przyłożenia" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;fontColor=#333333;strokeColor=#666666;fontFamily=Garamond;fontSize=15;" parent="1" vertex="1">
+                    <mxGeometry x="62.5" y="440" width="135" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="64" value="" style="edgeStyle=none;html=1;strokeColor=#000000;fontFamily=Garamond;fontSize=15;fontColor=#000000;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" parent="1" source="53" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="130" y="550" as="targetPoint"/>
+                        <mxPoint x="140" y="400" as="sourcePoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="66" value="nie" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=15;fontFamily=Garamond;fontColor=#000000;labelBackgroundColor=none;" parent="1" connectable="0" vertex="1">
+                    <mxGeometry x="514" y="459.0033333333332" as="geometry">
+                        <mxPoint x="-371" y="-41" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

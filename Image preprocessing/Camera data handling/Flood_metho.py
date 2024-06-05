@@ -1,6 +1,8 @@
 import cv2
 import numpy as np
 import time # Tylko do printowania co jakiś czas
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 
 
 def RefPoint_Detection(img, lower, upper):
@@ -32,7 +34,7 @@ def RefPoint_Detection(img, lower, upper):
     return cX, cY, mask
 
 
-def Calculate_angle(base_x, base_y, xAxis_x, xAxis_y, yAxis_x, yAxis_y, rec_edge_points):
+def Calculate_angle(base_x, base_y, xAxis_x, xAxis_y, rec_edge_points):
     if rec_edge_points is None:
         return 0, 0, 0
 
@@ -47,7 +49,6 @@ def Calculate_angle(base_x, base_y, xAxis_x, xAxis_y, yAxis_x, yAxis_y, rec_edge
     # translacja
     TR_x = rec_edge_points[2][0] - base_x
     TR_y = rec_edge_points[2][1] - base_y
-    angle_z = angle_z
     return TR_x, TR_y, angle_z
 
 
@@ -106,7 +107,7 @@ def Workspace_detection(frame):
         return birdEye, None, thresh, blur, gray, None, None, None
     if len(poly) == 4:
         cv2.drawContours(birdEye, [poly], 0, (0), 5)
-        cv2.drawContours(birdEye, cntrs, max_area_index, (0, 255, 0), 2)
+        # cv2.drawContours(birdEye, cntrs, max_area_index, (0, 255, 0), 2)
         poly = poly[np.argsort(poly[:, 0][:, 1])]
         # Rogi prostokąta
         left_upper_corner = poly[0][0]
@@ -133,10 +134,23 @@ def Workspace_detection(frame):
             angle = -(90 - angle)
         return birdEye, workplace, thresh3, blur, gray, right_bottom_corner, angle, pts_org
 
+def draw_line_through_points(image, point1, point2):
+    # Współrzędne dwóch punktów
+
+    # Obliczanie współczynnika kierunkowego m
+    m = (point2[1] - point1[1]) / (point2[0] - point1[0])
+
+    # Obliczanie współczynnika b
+    b = point1[1] - m * point1[0]
+
+    # Obliczanie punktów na krańcach ekranu, które leżą na linii
+    y_at_x_min = int(m * 0 + b)
+    y_at_x_max = int(m * image.shape[1] + b)
+    cv2.line(image, (0, y_at_x_min), (image.shape[1], y_at_x_max), (0, 255, 0), 2)
 
 ## Dolna i górna granica kolorów
 # Czerwone
-lower_red = np.array([132, 94, 127])
+lower_red = np.array([167, 100, 97])
 upper_red = np.array([179, 255, 255])
 # Niebieskie
 lower_blue = np.array([77, 127, 102])
@@ -159,19 +173,25 @@ while True:
     cv2.circle(birdEye, (int(base_x), int(base_y)), 5, (255, 0, 0), -1)  # Base point in red
     cv2.circle(birdEye, (int(xAxis_x), int(xAxis_y)), 5, (0, 255, 0), -1)  # X-axis point in blue
     cv2.circle(birdEye, (int(yAxis_x), int(yAxis_y)), 5, (0, 0, 255), -1)  # Y-axis point in green
-    TR_x, TR_y, angle_2 = Calculate_angle(base_x, base_y, xAxis_x, xAxis_y, yAxis_x, yAxis_y, pts_org)
+    TR_x, TR_y, angle_2 = Calculate_angle(base_x, base_y, xAxis_x, xAxis_y, pts_org)
 
     # Linia do translacji
-    start_point = (int(base_x), int(base_y))
-    end_point = (int(base_x + TR_x), int(base_y + TR_y))
-    cv2.line(birdEye, start_point, end_point, (0, 255, 0), 2)
+    # start_point = (int(base_x), int(base_y))
+    # end_point = (int(base_x + TR_x), int(base_y + TR_y))
+    # cv2.line(birdEye, start_point, end_point, (0, 255, 0), 2)
+    # Linie osi układu bazowego
+    if pts_org is not None:
+        draw_line_through_points(birdEye, (base_x, base_y), (xAxis_x, xAxis_y))
+        draw_line_through_points(birdEye, tuple(pts_org[2]), tuple(pts_org[1]))
 
     cv2.imshow('thresh', thresh)
     cv2.imshow('blur', blur)
     # cv2.imshow('gray', gray)
     # if workplace is not None:
     #     cv2.imshow('workplace', workplace)
-
+    cv2.imshow('mask_red', mask_red)
+    cv2.imshow('mask_blue', mask_blue)
+    cv2.imshow('mask_green', mask_green)
     cv2.imshow('birdEye', birdEye)
     current_time = time.time()
     if current_time - last_print_time >= 0.5:
@@ -187,7 +207,45 @@ while True:
 
 cap.release()
 cv2.destroyAllWindows()
+# Create a PdfPages object
+pdf = PdfPages('output.pdf')
 
+# List of images to save
+birdEye = cv2.cvtColor(birdEye, cv2.COLOR_BGR2RGB)
+images = [thresh, blur, mask_red, mask_blue, mask_green, birdEye]
+image_names = ['thresh', 'blur', 'mask_red', 'mask_blue', 'Wykrycie zielonego', 'Kąt']
+
+# For each image
+for img, name in zip(images, image_names):
+    # Create a new figure
+    fig = plt.figure()
+
+    # Display the image
+    plt.imshow(img, cmap='gray')
+    plt.title(name)
+
+    # Save the figure to the SVG file with no extra white space
+    plt.savefig(f'Images/{name}.svg', format='svg', bbox_inches='tight')
+
+    # Close the figure
+    plt.close(fig)
+
+for img, name in zip(images, image_names):
+    # Create a PdfPages object with the image name
+    pdf = PdfPages(f'Images/{name}.pdf')
+
+    # Create a new figure
+    fig = plt.figure()
+
+    # Display the image
+    plt.imshow(img, cmap='gray')
+    plt.title(name)
+
+    # Save the figure to the pdf file with no extra white space
+    pdf.savefig(fig, bbox_inches='tight')
+
+    # Close the pdf file
+    pdf.close()
 # TODO - translacja powinna być podana w mm, więc trzeba przeskalować na podstawie obsługiwanej blachy, może info z CSV?
 
 

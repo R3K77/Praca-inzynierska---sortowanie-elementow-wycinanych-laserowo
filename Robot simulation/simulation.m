@@ -38,9 +38,12 @@ env = {};
 hold on
 
 % Load parts and generate ground truth
-
-goalPoints = readmatrix('centroids.csv')/1000;
-goalPoints = sortrows(goalPoints, 1);
+data = readmatrix("element_details.csv");
+data = sortrows(data, 1);
+dataElement = data(:, 1:2);
+dataBox = data(:, 3:4);
+goalPoints = dataElement/1000;
+goalBoxes = dataBox/1000;
 numberOfParts = size(goalPoints, 1);
 
 [partGT, env] = generateGroundTruth(numberOfParts, env);
@@ -267,7 +270,7 @@ for p = 1:numberOfParts
     if isDesign
         % Fixed End-Position so using IK instead of the work space goal region
         targetPoseAngle = [-deg2rad(partGT(partID,4))+eulerAtEndEffector(1)-pi/2 pi 0];
-        targetPoseXYZ = [0.5 0.7 0.01];
+        targetPoseXYZ = [goalBoxes(partID, :) 0];
         targetPose = trvec2tform(targetPoseXYZ)*eul2tform(targetPoseAngle,"ZYX");
         goalFrame.Pose = targetPose;
 

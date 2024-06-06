@@ -17,13 +17,13 @@ element_list = []
 
 file_paths = [
     "./Image preprocessing/Gcode to image conversion/NC_files/8.nc",
-    # "./Image preprocessing/Gcode to image conversion/NC_files/7.nc",
-    # "./Image preprocessing/Gcode to image conversion/NC_files/6.nc",
-    # "./Image preprocessing/Gcode to image conversion/NC_files/5.nc",
-    # "./Image preprocessing/Gcode to image conversion/NC_files/4.nc",
-    # "./Image preprocessing/Gcode to image conversion/NC_files/3.nc",
-    "./Image preprocessing/Gcode to image conversion/NC_files/2.nc",
-    "./Image preprocessing/Gcode to image conversion/NC_files/1.nc"
+    # "./Image preprocessing/Gcode to image conversion/NC_files/7.nc", # nieużywany
+    # "./Image preprocessing/Gcode to image conversion/NC_files/6.nc", # nieużywany
+    # "./Image preprocessing/Gcode to image conversion/NC_files/5.nc", # nieużywany
+    # "./Image preprocessing/Gcode to image conversion/NC_files/4.nc", # nieużywany
+    # "./Image preprocessing/Gcode to image conversion/NC_files/3.nc", # nieużywany
+    # "./Image preprocessing/Gcode to image conversion/NC_files/2.nc",
+    # "./Image preprocessing/Gcode to image conversion/NC_files/1.nc"
     ]
 
 for file_path in file_paths:

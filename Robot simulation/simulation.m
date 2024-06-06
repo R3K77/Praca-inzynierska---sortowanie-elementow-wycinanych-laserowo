@@ -267,7 +267,7 @@ for p = 1:numberOfParts
     if isDesign
         % Fixed End-Position so using IK instead of the work space goal region
         targetPoseAngle = [-deg2rad(partGT(partID,4))+eulerAtEndEffector(1)-pi/2 pi 0];
-        targetPoseXYZ = [0 0.7 0.01];
+        targetPoseXYZ = [0.5 0.7 0.01];
         targetPose = trvec2tform(targetPoseXYZ)*eul2tform(targetPoseAngle,"ZYX");
         goalFrame.Pose = targetPose;
 

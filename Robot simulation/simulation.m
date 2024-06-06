@@ -57,7 +57,7 @@ for i = 1:numberOfParts
 end
 
 % Adjust the camera and axis limits
-axis([-0.3 0.7 -0.3 0.8 -0.01 0.7]);
+axis([-0.3 0.7 -0.6 0.6 -0.01 0.7]);
 view([120 70]);
 
 drawnow;
@@ -270,7 +270,7 @@ for p = 1:numberOfParts
     if isDesign
         % Fixed End-Position so using IK instead of the work space goal region
         targetPoseAngle = [-deg2rad(partGT(partID,4))+eulerAtEndEffector(1)-pi/2 pi 0];
-        targetPoseXYZ = [goalBoxes(partID, :) 0];
+        targetPoseXYZ = [goalBoxes(partID, :) 0] + [0.15 -0.05 0];
         targetPose = trvec2tform(targetPoseXYZ)*eul2tform(targetPoseAngle,"ZYX");
         goalFrame.Pose = targetPose;
 

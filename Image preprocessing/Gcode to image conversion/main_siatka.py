@@ -39,7 +39,7 @@ for file_path in file_paths:
             continue
         first_element_paths = cutting_paths[first_element_name]
         element_paths = first_element_paths[0]
-
+        
         main_contour, holes = find_main_and_holes(first_element_paths)
         
         shapely_main_contour = ShapelyPolygon(main_contour)
@@ -80,36 +80,37 @@ for file_path in file_paths:
             
 
     # Pojemniki na te same kształty
-    box1 = Point(-100, 0)
-    box2 = Point(-100, 100)
-    box3 = Point(-100, 200)
-    box4 = Point(-100, 300)
-    box5 = Point(-100, 400)
-    box6 = Point(-200, 0)
-    box7 = Point(-200, 100)
-    box8 = Point(-200, 200)
-    box9 = Point(-200, 300)
-    box10 = Point(-200, 400)
-    box11 = Point(-300, 0)
-    box12 = Point(-300, 100)
-    box13 = Point(-300, 200)
-    box14 = Point(-300, 300)
-    box15 = Point(-300, 400)
-    box16 = Point(-400, 0)
-    box17 = Point(-400, 100)
-    box18 = Point(-400, 200)
-    box19 = Point(-400, 300)
-    box20 = Point(-400, 400)
-    box21 = Point(-500, 0) 
-    box22 = Point(-500, 100)
-    box23 = Point(-500, 200)
-    box24 = Point(-500, 300)
-    box25 = Point(-500, 400)
-    box26 = Point(-600, 0)
-    box27 = Point(-600, 100)
-    box28 = Point(-600, 200)
-    box29 = Point(-600, 300)
-    box30 = Point(-600, 400)
+    box1 = Point(338, 140)
+    box2 = Point(338, 240)
+    box3 = Point(338, 340)
+    box4 = Point(338, 440)
+    box5 = Point(338, 338)
+    box6 = Point(180, 300)
+    box7 = Point(180, 300)
+    box8 = Point(180, 300)
+    box9 = Point(180, 300)
+    box10 = Point(180, 500)
+    box11 = Point(180, 500)
+    box12 = Point(180, 500)
+    box13 = Point(180, 500)
+    box14 = Point(180, 500)
+    box15 = Point(180, 500)
+    box16 = Point(180, 500)
+    box17 = Point(180, 500)
+    box18 = Point(180, 500)
+    box19 = Point(180, 500)
+    box20 = Point(180, 500)
+    box21 = Point(180, 500)
+    box22 = Point(180, 500)
+    box23 = Point(180, 500)
+    box24 = Point(180, 500)
+    box25 = Point(180, 500)
+    box26 = Point(180, 500)
+    box27 = Point(180, 500)
+    box28 = Point(180, 500)
+    box29 = Point(180, 500)
+    box30 = Point(180, 500)
+    
 
     boxes = [box1, box2, box3, box4, box5, box6, box7, box8, box9, box10,
             box11, box12, box13, box14, box15, box16, box17, box18, box19, box20,

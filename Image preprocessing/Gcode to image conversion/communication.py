@@ -28,6 +28,8 @@ def main():
                 next(reader)  # Pominięcie nagłówka
 
                 for row in reader:
+                    
+                    # ------------- POBRANIE DETALU -------------
                     detail_x = float(row[0])
                     detail_y = float(row[1])
                     print(f"Odczytano dane z csv: {detail_x}, {detail_y}")
@@ -39,7 +41,7 @@ def main():
                     send_valueX = detail_y
 
                     # Formatowanie danych do wysłania
-                    response = f"{send_valueX:09.4f}{send_valueY:09.4f}"
+                    response = f"{send_valueX:09.4f}{send_valueY:09.4f}a"
                     print(f"Przygotowano dane: {response}")
                     client_socket.send(response.encode('ascii'))
                     print(f"Wysłano dane: {response}")
@@ -47,26 +49,28 @@ def main():
                     # Oczekiwanie na informację zwrotną od robota
                     data = client_socket.recv(1024).decode('utf-8', errors='ignore')
                     print(f"Otrzymane dane: {data}")
-                    # while data.strip() != "koniec":
-                    #     data = client_socket.recv(1024).decode('utf-8', errors='ignore')
                     
-                    # Sprawdzenie warunku zakończenia połączenia
-                    if not row:
-                        print("Koniec pliku CSV")
-                        send_valueX = 2000.0
-                        send_valueY = 2000.0
+                    
+                    # ------------- ODŁOŻENIE DETALU -------------
+                    print(f"Odczytano dane z csv: {box_x}, {box_y}")
 
-                        # Formatowanie danych do wysłania
-                        response = f"{send_valueX:09.4f}{send_valueY:09.4f}"
-                        print(f"Przygotowano dane: {response}")
-                        client_socket.send(response.encode('ascii'))
-                        # print(f"Wysłano dane: {response}")
+                    # Wartości do wysłania
+                    send_valueY = box_x
+                    send_valueX = box_y
 
-                        # Oczekiwanie na informację zwrotną od robota
-                        data = client_socket.recv(1024).decode('utf-8', errors='ignore')
+                    # Formatowanie danych do wysłania
+                    response = f"{send_valueX:09.4f}{send_valueY:09.4f}b"
+                    print(f"Przygotowano dane: {response}")
+                    client_socket.send(response.encode('ascii'))
+                    print(f"Wysłano dane: {response}")
 
+                    # Oczekiwanie na informację zwrotną od robota
+                    data = client_socket.recv(1024).decode('utf-8', errors='ignore')
+                    print(f"Otrzymane dane: {data}")
+                
             # Sprawdzenie warunku zakończenia połączenia
             if not row:
+                
                 break
 
             # Kontynuuj dalszą część pętli
@@ -75,6 +79,18 @@ def main():
             print(f"Wystąpił błąd: {e}")
 
         finally:
+            print("Koniec pliku CSV")
+            send_valueX = 2000.0
+            send_valueY = 2000.0
+
+            # Formatowanie danych do wysłania
+            response = f"{send_valueX:09.4f}{send_valueY:09.4f}c"
+            print(f"Przygotowano dane: {response}")
+            client_socket.send(response.encode('ascii'))
+            print(f"Wysłano dane: {response}")
+
+            # Oczekiwanie na informację zwrotną od robota
+            data = client_socket.recv(1024).decode('utf-8', errors='ignore')
             client_socket.close()
             print("Połączenie zamknięte")
 

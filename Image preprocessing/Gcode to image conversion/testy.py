@@ -3,10 +3,10 @@ import numpy as np
 from shapely.geometry import Point, Polygon, MultiPolygon
 
 # Definicja figury z dwoma otworami i średnicą okręgu
-outer_shape = Polygon([(0, 0), (100, 0), (100, 100), (0, 100)])
-hole1 = Polygon([(40, 40), (60, 40), (60, 60), (40, 60)])
+outer_shape = Polygon([(0, 0), (40,0), (40,70), (60,70), (60,50), (100, 50), (100, 100), (0, 100)])
+hole1 = Polygon([(40, 40), (60, 60), (70, 60), (40, 70)])
 # hole2 = Polygon([(20, 80), (30, 80), (30, 90), (20, 90)])
-hole2 = Polygon([(5, 62), (50, 62), (50, 98), (5, 98)])
+hole2 = Polygon([(8, 62), (25, 62), (25, 90), (8, 90)])
 circle_diameter = 10
 circle_radius = circle_diameter / 2
 
@@ -18,20 +18,20 @@ def is_valid_circle(center, radius, shape, holes):
 # Tworzenie siatki punktów do sprawdzenia
 x_range = np.arange(0, 101, 5)  # Co 5 jednostek na osi X
 y_range = np.arange(0, 101, 5)  # Co 5 jednostek na osi Y
-
+holes = [hole2]  # Definicja otworów
 # Wyszukiwanie punktów spełniających kryteria
 valid_points = []
 for x in x_range:
     for y in y_range:
-        if is_valid_circle((x, y), circle_radius, outer_shape, [hole1, hole2]):
+        if is_valid_circle((x, y), circle_radius, outer_shape, holes):
             valid_points.append((x, y))
 
 # Utworzenie figury z otworami jako MultiPolygon
-composite_shape = MultiPolygon([outer_shape, hole1, hole2])
+composite_shape = MultiPolygon([outer_shape, holes])
 
 # Obliczanie środka masy całej figury z uwzględnieniem otworów
 shape_with_holes = outer_shape  # Początkowa figura bez otworów
-holes = [hole1, hole2]  # Definicja otworów
+
 for hole in holes:
     # Odejmowanie otworów od figury
     shape_with_holes = shape_with_holes.difference(hole) 
@@ -56,9 +56,9 @@ ax.set_facecolor('#F5E6CA')  # Ustawienie tła na #F5E6CA
 
 x_outer, y_outer = outer_shape.exterior.xy
 ax.fill(x_outer, y_outer, alpha=1, fc='#343F56', label='Blacha')
-for hole in [hole1, hole2]:
+for hole in holes:
     x_hole, y_hole = hole.exterior.xy
-    ax.fill(x_hole, y_hole, alpha=1, fc='#F5E6CA', label='Otwór')
+    ax.fill(x_hole, y_hole, alpha=1, fc='#F5E6CA')
 ax.plot(mass_center[0], mass_center[1], 'ro', label='Środek masy')
 for point in valid_points:
     circle = plt.Circle(point, circle_radius, color='#019D86', alpha=0.2)

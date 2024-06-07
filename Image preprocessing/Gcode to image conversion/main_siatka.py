@@ -16,14 +16,14 @@ def is_valid_circle(center, radius, shape, holes):
 element_list = []
 
 file_paths = [
-    "./Image preprocessing/Gcode to image conversion/NC_files/8.nc",
+    "./Image preprocessing/Gcode to image conversion/NC_files/8_fixed.nc",
     # "./Image preprocessing/Gcode to image conversion/NC_files/7.nc", # nieużywany
     # "./Image preprocessing/Gcode to image conversion/NC_files/6.nc", # nieużywany
     # "./Image preprocessing/Gcode to image conversion/NC_files/5.nc", # nieużywany
     # "./Image preprocessing/Gcode to image conversion/NC_files/4.nc", # nieużywany
-    # "./Image preprocessing/Gcode to image conversion/NC_files/3.nc", # nieużywany
-    # "./Image preprocessing/Gcode to image conversion/NC_files/2.nc",
-    # "./Image preprocessing/Gcode to image conversion/NC_files/1.nc"
+    "./Image preprocessing/Gcode to image conversion/NC_files/3_fixed.nc", # nieużywany
+    "./Image preprocessing/Gcode to image conversion/NC_files/2.nc",
+    # "./Image preprocessing/Gcode to image conversion/NC_files/1.nc" # nieużywany
     ]
 
 for file_path in file_paths:
@@ -50,8 +50,8 @@ for file_path in file_paths:
         centroid = shapely_polygon.centroid.coords[0]
         
         valid_points = []
-        x_range = np.linspace(min(x for x, _ in main_contour), max(x for x, _ in main_contour), num=50)
-        y_range = np.linspace(min(y for _, y in main_contour), max(y for _, y in main_contour), num=50)
+        x_range = np.linspace(min(x for x, _ in main_contour), max(x for x, _ in main_contour), num=500)
+        y_range = np.linspace(min(y for _, y in main_contour), max(y for _, y in main_contour), num=500)
         for x in x_range:
             for y in y_range:
                 if is_valid_circle((x, y), circle_radius, shapely_main_contour, shapely_holes):
@@ -80,10 +80,10 @@ for file_path in file_paths:
             
 
     # Pojemniki na te same kształty
-    box1 = Point(338, 140)
-    box2 = Point(338, 240)
-    box3 = Point(338, 340)
-    box4 = Point(338, 440)
+    box1 = Point(338, 300)
+    box2 = Point(338, 450)
+    box3 = Point(338, 600)
+    box4 = Point(338, 750)
     box5 = Point(338, 500)
     box6 = Point(338, 500)
     box7 = Point(338, 500)

@@ -54,10 +54,10 @@ def Calculate_angle(base_x, base_y, xAxis_x, xAxis_y, rec_edge_points):
 
 def camera_calibration(frame):
     # Wczytanie parametrów kamery z pliku
-    loaded_mtx = np.loadtxt('settings/mtx_matrix.txt', delimiter=',')
-    loaded_dist = np.loadtxt('settings/distortion_matrix.txt', delimiter=',')
-    loaded_newcameramtx = np.loadtxt('settings/new_camera_matrix.txt', delimiter=',')
-    loaded_roi = np.loadtxt('settings/roi_matrix.txt', delimiter=',')
+    loaded_mtx = np.loadtxt('../../settings/mtx_matrix.txt', delimiter=',')
+    loaded_dist = np.loadtxt('../../settings/distortion_matrix.txt', delimiter=',')
+    loaded_newcameramtx = np.loadtxt('../../settings/new_camera_matrix.txt', delimiter=',')
+    loaded_roi = np.loadtxt('../../settings/roi_matrix.txt', delimiter=',')
 
     # Kalibracja kamery
     frame = cv2.undistort(frame, loaded_mtx, loaded_dist, None, loaded_newcameramtx)

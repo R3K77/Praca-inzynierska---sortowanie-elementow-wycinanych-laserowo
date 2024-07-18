@@ -2,12 +2,14 @@ import numpy as np
 import cv2
 from skimage import data, filters
 
+# ------------------ Skrypt do wykrywania nowych elementów na obrazie - TEST ------------------- #
+
 #na podstawie
 #https://learnopencv.com/simple-background-estimation-in-videos-using-opencv-c-python/
 #https://learnopencv.com/moving-object-detection-with-opencv/
 
 # Open Video
-cap = cv2.VideoCapture('./bgr_video/bgr_video.mp4')
+cap = cv2.VideoCapture('../../bgr_video/bgr_video.mp4')
 
 # Randomly select 25 frames
 frameIds = cap.get(cv2.CAP_PROP_FRAME_COUNT) * np.random.uniform(size=25)
@@ -72,7 +74,7 @@ while (ret):
         combined_image = cv2.resize(combined_image, (combined_image.shape[1] // 2, combined_image.shape[0] // 2))
 
         if out is None:
-            out = cv2.VideoWriter('output.mp4', fourcc, 20.0, (combined_image.shape[1], combined_image.shape[0]))
+            out = cv2.VideoWriter('../../output.mp4', fourcc, 20.0, (combined_image.shape[1], combined_image.shape[0]))
 
         out.write(combined_image)
         cv2.imshow('Combined Image', combined_image)

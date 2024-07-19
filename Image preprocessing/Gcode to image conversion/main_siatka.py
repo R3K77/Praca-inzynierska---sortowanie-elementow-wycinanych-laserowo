@@ -3,82 +3,105 @@ import numpy as np
 from shapely.geometry import Point, Polygon as ShapelyPolygon
 from matplotlib.patches import Circle, Polygon
 from gcode_analize import visualize_cutting_paths, find_main_and_holes
-# from centroid import *
-import re
-import csv  # Import the csv module
+import csv  
+
 
 def is_valid_circle(center, radius, shape, holes):
     """Sprawdza, czy okrąg mieści się w figury bez nakładania na otwory."""
     circle = Point(center).buffer(radius)
     return shape.contains(circle) and all(not hole.intersects(circle) for hole in holes)
 
+# Deklaracja listy elementów
+processedElements = []
 
-element_list = []
-
-file_paths = [
-    "./Image preprocessing/Gcode to image conversion/NC_files/8_fixed.nc",
+# Pliki NC do analizy
+ncFilePaths = [
+    #"./Image preprocessing/Gcode to image conversion/NC_files/8_fixed.nc",
     # "./Image preprocessing/Gcode to image conversion/NC_files/7.nc", # nieużywany
     # "./Image preprocessing/Gcode to image conversion/NC_files/6.nc", # nieużywany
     # "./Image preprocessing/Gcode to image conversion/NC_files/5.nc", # nieużywany
     # "./Image preprocessing/Gcode to image conversion/NC_files/4.nc", # nieużywany
-    "./Image preprocessing/Gcode to image conversion/NC_files/3_fixed.nc", # nieużywany
-    "./Image preprocessing/Gcode to image conversion/NC_files/2.nc",
-    # "./Image preprocessing/Gcode to image conversion/NC_files/1.nc" # nieużywany
+    # "./Image preprocessing/Gcode to image conversion/NC_files/3_fixed.nc", # nieużywany
+    #"./Image preprocessing/Gcode to image conversion/NC_files/2.nc",
+     "./Image preprocessing/Gcode to image conversion/NC_files/1.nc" # nieużywany
     ]
 
-for file_path in file_paths:
-    cutting_paths, x_min, x_max, y_min, y_max = visualize_cutting_paths(file_path)
-    
+# Deklaracja rozmiaru przyssawki
+suctionDiameter = 19                        # ŚREDNICA PRZYSSAWKI
+suctionRadius = suctionDiameter / 2         # PROMIEŃ PR
+xRangeCenterAdjCache = {}
+yRangeCenterAdjCache = {}
+
+maxDistanceToCenter = 50
+
+# Główna pętla
+for ncFilePath in ncFilePaths:
+    cuttingPaths, x_min, x_max, y_min, y_max = visualize_cutting_paths(ncFilePath)
     fig, ax = plt.subplots()
-    circle_diameter = 19  # ŚREDNICA PRZYSSAWKI
-    circle_radius = circle_diameter / 2
 
-    for i in range(len(cutting_paths)):
-        first_element_name = list(cutting_paths.keys())[i]
-        if len(first_element_name) == 4:
+    for currentElementName, currentElementPaths in cuttingPaths.items():
+        print(f"Processing element: {currentElementName}")
+        if len(currentElementName) == 4:
+            # Ignorowanie obcięcia arkusza. Końcowe obcięcie nie ma nazwy, więc zostaje w nim tylko nazwa o 4 znakach
+            print(f"Element name: {currentElementName} - Ignored - final trimming of the unused section of sheet metal")
             continue
-        first_element_paths = cutting_paths[first_element_name]
-        element_paths = first_element_paths[0]
         
-        main_contour, holes = find_main_and_holes(first_element_paths)
-        
-        shapely_main_contour = ShapelyPolygon(main_contour)
-        shapely_holes = [ShapelyPolygon(hole) for hole in holes]
-        shapely_polygon = ShapelyPolygon(main_contour)
-        for hole in holes:
-            shapely_polygon = shapely_polygon.difference(ShapelyPolygon(hole))
-        centroid = shapely_polygon.centroid.coords[0]
-        
-        valid_points = []
-        x_range = np.linspace(min(x for x, _ in main_contour), max(x for x, _ in main_contour), num=500)
-        y_range = np.linspace(min(y for _, y in main_contour), max(y for _, y in main_contour), num=500)
-        for x in x_range:
-            for y in y_range:
-                if is_valid_circle((x, y), circle_radius, shapely_main_contour, shapely_holes):
-                    valid_points.append((x, y))
-        if valid_points:
-            distances = [np.linalg.norm(np.array(p) - np.array(centroid)) for p in valid_points]
-            best_point = valid_points[np.argmin(distances)]
-            if np.linalg.norm(np.array(best_point) - np.array(centroid)) < 60:
-                ax.plot(*best_point, 'go', label='Valid Circle Center')
-                circle = Circle(best_point, circle_radius, color='green', alpha=1, label='Suction Cup Area')
-                ax.add_patch(circle)
-                print(f"Element name: {first_element_name} - Centroid: {centroid} - Adjusted centroid: {best_point}")
-                element_info = (first_element_name[:-4], best_point)
-                element_list.append(element_info)
-            else:
-                print(f"Element name: {first_element_name} - Centroid: {centroid} - Adjusted centroid: TOO FAR FROM CENTER")
-        else:
-            print(f"Element name: {first_element_name} - Centroid: {centroid} - No valid point found")
+        # Podział na główny kształt i otwory
+        majorShape, holes = find_main_and_holes(currentElementPaths)
+        mainContourPolygon = ShapelyPolygon(majorShape)
+        holesPolygons = [ShapelyPolygon(hole) for hole in holes]
 
-        main_patch = Polygon(main_contour, closed=True, fill=None, edgecolor='red', linewidth=2)
+        # Obliczenie środka ciężkości
+        for hole in holes:
+            mainContourPolygon = mainContourPolygon.difference(ShapelyPolygon(hole))
+        centroidPoint = mainContourPolygon.centroid.coords[0]
+        circle2 = Circle(centroidPoint, suctionRadius, color='blue', alpha=0.5, label='Center of Mass')
+        ax.add_patch(circle2)
+        
+        if is_valid_circle((centroidPoint[0], centroidPoint[1]), suctionRadius, mainContourPolygon, holesPolygons):
+            # Środek ciężkości jest wewnątrz kształtu i nie nakłada się na żaden otwór
+            ax.plot(*centroidPoint, 'ro', label='Valid Circle Center')
+            circle = Circle(centroidPoint, suctionRadius, color='red', alpha=1, label='Suction Cup Area')
+            ax.add_patch(circle)
+            print(f"Element name: {currentElementName} - Centroid: {centroidPoint} (valid on center of mass)")
+            element_info = (currentElementName[:-4], centroidPoint)
+            processedElements.append(element_info)
+        else:
+            # Środek ciężkości jest poza kształtem lub nakłada się na otwór
+            # Wybór najlepszego punktu wewnątrz kształtu do przyłożenia przyssawki
+            if currentElementName not in xRangeCenterAdjCache:
+                xRangeCenterAdjCache[currentElementName] = np.linspace(centroidPoint[0] - maxDistanceToCenter, centroidPoint[0] + maxDistanceToCenter, num=100)
+            if currentElementName not in yRangeCenterAdjCache:
+                yRangeCenterAdjCache[currentElementName] = np.linspace(centroidPoint[1] - maxDistanceToCenter, centroidPoint[1] + maxDistanceToCenter, num=100)
+
+            xRangeCenterAdj = xRangeCenterAdjCache[currentElementName]
+            yRangeCenterAdj = yRangeCenterAdjCache[currentElementName]
+            
+            # Znalezienie punktów wewnątrz kształtu, które nie nachodzą na otwory i znajdują się wewnątrz kształtu
+            validCoordinates = [(x, y) for x in xRangeCenterAdj for y in yRangeCenterAdj if is_valid_circle((x, y), suctionRadius, mainContourPolygon, holesPolygons)]
+            if validCoordinates:
+                distances = [np.linalg.norm(np.array(p) - np.array(centroidPoint)) for p in validCoordinates]
+                best_point = validCoordinates[np.argmin(distances)]
+                if np.linalg.norm(np.array(best_point) - np.array(centroidPoint)) < 60:
+                    ax.plot(*best_point, 'go', label='Valid Circle Center')
+                    circle = Circle(best_point, suctionRadius, color='green', alpha=1, label='Suction Cup Area')
+                    ax.add_patch(circle)
+                    print(f"Element name: {currentElementName} - Centroid: {centroidPoint} - Adjusted centroid: {best_point}")
+                    element_info = (currentElementName[:-4], best_point)
+                    processedElements.append(element_info)
+                else:
+                    print(f"Element name: {currentElementName} - Centroid: {centroidPoint} - Adjusted centroid: TOO FAR FROM CENTER")
+            else:
+                print(f"Element name: {currentElementName} - Centroid: {centroidPoint} - No valid point found")
+
+        main_patch = Polygon(majorShape, closed=True, fill=None, edgecolor='red', linewidth=2)
         ax.add_patch(main_patch)
-        ax.text(*centroid, first_element_name, fontsize=8, ha='center', va='center')
-        for hole in shapely_holes:
+        ax.text(*centroidPoint, currentElementName, fontsize=8, ha='center', va='center')
+        for hole in holesPolygons:
             hole_patch = Polygon(np.array(hole.exterior.coords), closed=True, fill=None, edgecolor='blue', linewidth=2)
             ax.add_patch(hole_patch)
-            
 
+            
     # Pojemniki na te same kształty
     box1 = Point(338, 300)
     box2 = Point(338, 450)
@@ -114,12 +137,12 @@ for file_path in file_paths:
 
     boxes = [box1, box2, box3, box4, box5, box6, box7, box8, box9, box10,
             box11, box12, box13, box14, box15, box16, box17, box18, box19, box20,
-                box21, box22, box23, box24, box25, box26, box27, box28, box29, box30]
+            box21, box22, box23, box24, box25, box26, box27, box28, box29, box30]
 
     element_details = []
     box_counter = 0
 
-    for element in element_list:
+    for element in processedElements:
         element_name, best_point = element
         if not any(element_name == e[1] for e in element_details):
             box_name = f"box{box_counter + 1}" 
@@ -152,7 +175,7 @@ for file_path in file_paths:
     plt.show()
     
     # Czyszczenie listy elementów
-    element_list = []
+    processedElements = []
     element_details = []
     box_counter = 0
     

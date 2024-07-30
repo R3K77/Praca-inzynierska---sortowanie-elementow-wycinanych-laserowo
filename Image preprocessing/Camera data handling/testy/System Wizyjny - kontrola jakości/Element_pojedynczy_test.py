@@ -71,13 +71,13 @@ def single_gcode_elements_cv2(sheet_path):
     return images
 
 #Test czy spakowana funkcja działa
-images = single_gcode_elements_cv2('../../../Gcode to image conversion/NC_files/arkusz-1001.nc')
-for key, value in images.items():
-    # key - nazwa ze slownika, taka sama jak blacha + threshold
-    # value - dane obrazu
-    cv2.imshow(key, value)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+# images = single_gcode_elements_cv2('../../../Gcode to image conversion/NC_files/arkusz-2001.nc')
+# for key, value in images.items():
+#     # key - nazwa ze slownika, taka sama jak blacha + threshold
+#     # value - dane obrazu
+#     cv2.imshow(key, value)
+#     cv2.waitKey(0)
+#     cv2.destroyAllWindows()
 
 
 

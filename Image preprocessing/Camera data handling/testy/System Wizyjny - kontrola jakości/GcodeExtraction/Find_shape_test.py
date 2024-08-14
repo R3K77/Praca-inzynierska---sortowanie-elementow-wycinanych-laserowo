@@ -9,7 +9,7 @@ from skimage import data, filters
 #https://learnopencv.com/moving-object-detection-with-opencv/
 
 # Open Video
-cap = cv2.VideoCapture('../../bgr_video/bgr_video.mp4')
+cap = cv2.VideoCapture('../ZdjeciaElementy/bgr_video.mp4')
 
 # Randomly select 25 frames
 frameIds = cap.get(cv2.CAP_PROP_FRAME_COUNT) * np.random.uniform(size=25)

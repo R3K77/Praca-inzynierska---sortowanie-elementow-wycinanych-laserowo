@@ -23,7 +23,8 @@ from centroid import calculate_centroid
 # cutting_paths, x_min, x_max, y_min, y_max = visualize_cutting_paths("./Przygotowanie obrazu/gcode2image/NC_files/Arkusz-6001.nc")
 # ------------------------------------------------------------------------------------- #
 
-def visualize_cutting_paths(file_path, x_max=500, y_max=1000):
+def visualize_cutting_paths(file_path, x_max=500, y_max=1000, arc_pts_len = 200):
+    sheet_size_line = None
     with open(file_path, 'r') as file:
         file_content = file.read().splitlines()
 
@@ -41,6 +42,8 @@ def visualize_cutting_paths(file_path, x_max=500, y_max=1000):
 
     for line in file_content:
         element_match = pattern_element_name.search(line)
+        if "*SHEET" in line:
+            sheet_size_line = line
         if element_match:
             name = element_match.group(1)
             if name not in element_index:
@@ -92,7 +95,7 @@ def visualize_cutting_paths(file_path, x_max=500, y_max=1000):
                             if end_angle < start_angle:
                                 end_angle += 2 * np.pi
 
-                        angles = np.linspace(start_angle, end_angle, num=50)  # Generowanie punktów łuku (50 punktów)
+                        angles = np.linspace(start_angle, end_angle, num=arc_pts_len)  # Generowanie punktów łuku (50 punktów)
                         arc_points = [(center_x + radius * np.cos(a), center_y + radius * np.sin(a)) for a in
                                       angles]  # Obliczenie punktów łuku
                         current_path.extend(arc_points)  # Dodanie punktów łuku do ścieżki
@@ -107,7 +110,7 @@ def visualize_cutting_paths(file_path, x_max=500, y_max=1000):
     # Rozmiar arkusza
     x_min, y_min = 0, 0
 
-    return elements, x_min, x_max, y_min, y_max
+    return elements, x_min, x_max, y_min, y_max, sheet_size_line
 
 
 # ----------------- Funkcja do znalezienia głównego konturu i otworów ----------------- #

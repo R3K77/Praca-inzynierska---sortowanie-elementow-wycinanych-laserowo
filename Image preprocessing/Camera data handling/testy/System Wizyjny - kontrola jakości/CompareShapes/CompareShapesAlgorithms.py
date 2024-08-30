@@ -78,14 +78,13 @@ def SortByDistance(contour1, contour2, ReturnMetric = True):
         match_index.append(index)
         new_cntr2.append(kontury2[index])
 
-    print('debug sratatata')
     print(f'dlugosc list1: {len(new_cntr1)}')
     print(f'dlugosc list2: {len(new_cntr2)}')
     if ReturnMetric:
         avg_distance = sum(distance_list)/len(distance_list)
         min_error = min(distance_list)
-        normalized_err =(avg_distance - min_error)/(max(distance_list) - min_error)
-        return new_cntr1,new_cntr2,normalized_err
+        normalized_err = (avg_distance - min_error)/(max(distance_list) - min_error)
+        return new_cntr1,new_cntr2,avg_distance
     else:
         return new_cntr1, new_cntr2
 
@@ -108,9 +107,12 @@ def NormalizeImage(image):
     return resized_image
 
 
+
+
+
 ## load figures
 testfig1 = cv2.imread('testfig1.png')
-testfig2 = cv2.imread('testfig4.png')
+testfig2 = cv2.imread('testfig1.png')
 normalized_fig1 = NormalizeImage(testfig1)
 normalized_fig2 = NormalizeImage(testfig2)
 ## image conversion to get contours

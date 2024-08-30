@@ -56,18 +56,20 @@ def single_gcode_elements_cv2(sheet_path, output_res_x = 500, output_res_y = 500
 
 if __name__ == "__main__":
     #Test czy spakowana funkcja działa
-    images,pts,sheet_size = single_gcode_elements_cv2('../../../../Gcode to image conversion/NC_files/arkusz-2001.nc',1500,1500)
+    images,pts,sheet_size = single_gcode_elements_cv2('../../../../Gcode to image conversion/NC_files/arkusz-2001.nc',500,500)
     print(f'sheet size: {sheet_size}')
     for key, value in images.items():
         # key - nazwa ze slownika, taka sama jak blacha + threshold
         # value - dane obrazu
-        buf = value
-        points = pts[f'{key}']
+        buf = cv2.cvtColor(value, cv2.COLOR_GRAY2BGR)
+        points = pts[f'{key}'].reshape((-1,1,2))
         # print(f'points: {points} \n')
-        # # for point in points:
-        # #     print(f'single point: {point}')
-        # #     cv2.circle(buf, (point[0],point[1]),10 ,(0,0,255),1)
-        img = cv2.resize(value, (value.shape[0],value.shape[1]))
+        # for point in points:
+        #     # print(f'single point: {point}')
+        #     cv2.circle(buf, (point[0],point[1]),10 ,(0,0,255),1)
+        #
+        cv2.polylines(buf,[points],True,(0,0,255),thickness = 3)
+        img = cv2.resize(buf, (value.shape[0],value.shape[1]))
         cv2.imshow(key, img)
         cv2.waitKey(0)
         cv2.destroyAllWindows()

@@ -3,8 +3,8 @@ import cv2
 import numpy as np
 import pandas as pd
 import cmath
-
-def FourierDescriptor(contours):
+#TODO do dokonczenia obydwa fouriery
+def fourierDescriptor(contours):
 
     kontury = contours[0]
     #TODO dorzucić ograniczenie ilości konturów (prawdopodobnie niemożliwe XD)
@@ -20,16 +20,16 @@ def FourierDescriptor(contours):
             Z_k += buf[i]*math.exp(-1j*(2*math.pi*k*i)/N)
         descriptors.append(abs(Z_k))
     return descriptors,N
-def FourierContourDifference(contour1,contour2):
-    Fourier1 = FourierDescriptor(contour1)
-    Fourier2 = FourierDescriptor(contour2)
+def fourierContourDifference(contour1,contour2):
+    Fourier1 = fourierDescriptor(contour1)
+    Fourier2 = fourierDescriptor(contour2)
     #TODO dokonczyć funkcję porównawczą dla Fouriera
     pass
 
 #Dla zestawów krawędzi obrazu sortujemy krawędzie, tak aby punkty były jak najbliżej siebie
 #Sortowanie listy krawędzi, tak aby były odpowiadające sobie punkty dla dwóch obrazów.
-
-def SortByDistance(contour1, contour2, ReturnMetric = True):
+# TODO, do wywalenia albo przebudowania
+def sortByDistance(contour1, contour2, ReturnMetric = True):
     ctr1 = contour1[0]
     ctr2 = contour2[0]
     len_ctr1 = len(ctr1)
@@ -89,7 +89,11 @@ def SortByDistance(contour1, contour2, ReturnMetric = True):
         return new_cntr1, new_cntr2
 
 ## Przeskalowanie obrazu
-def NormalizeImage(image):
+#TODO
+# dodanie resize obrazu bezstratnego
+# dodanie parametrów resize'u aby mieć równość wielkości
+#
+def normalizeImage(image):
     gray = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
     contours, _ = cv2.findContours(gray,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
 
@@ -106,26 +110,36 @@ def NormalizeImage(image):
     resized_image = cv2.resize(cropped_image,(500,500))
     return resized_image
 
+##
+def compareElements(gcodeImages, gcodePoints, sheetSize, opencvImage):
 
+    for key, value in gcodeImages.items():
+        pass
+        #Part 1. Porównanie kształtu elementów:
+        #TODO wykorzystać algorytm
 
+        #Part 2.1 - Porównanie długości
 
+        #Part 2.2 - Zmierzenie odległości "błędów wycięcia"
+    pass
 
-## load figures
-testfig1 = cv2.imread('testfig1.png')
-testfig2 = cv2.imread('testfig1.png')
-normalized_fig1 = NormalizeImage(testfig1)
-normalized_fig2 = NormalizeImage(testfig2)
-## image conversion to get contours
-gr1 = cv2.cvtColor(normalized_fig1,cv2.COLOR_BGR2GRAY)
-gr2 = cv2.cvtColor(normalized_fig2,cv2.COLOR_BGR2GRAY)
-contours1, _ = cv2.findContours(gr1,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
-contours2, _ = cv2.findContours(gr2,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
-cnt_list1, cnt_list2, err = SortByDistance(contours1,contours2)
-print(f'\n ---------------------------------------- \n')
-print(f'znormalizowany błąd odległości konturów: {err}')
-cv2.drawContours(normalized_fig1,contours1, -1, (0,0,255),3)
-cv2.drawContours(normalized_fig2,contours2,-1 ,(0,0,255),3)
+if __name__ == "__main__":
+    ## load figures
+    testfig1 = cv2.imread('testfig1.png')
+    testfig2 = cv2.imread('testfig1.png')
+    normalized_fig1 = normalizeImage(testfig1)
+    normalized_fig2 = normalizeImage(testfig2)
+    ## image conversion to get contours
+    gr1 = cv2.cvtColor(normalized_fig1,cv2.COLOR_BGR2GRAY)
+    gr2 = cv2.cvtColor(normalized_fig2,cv2.COLOR_BGR2GRAY)
+    contours1, _ = cv2.findContours(gr1,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+    contours2, _ = cv2.findContours(gr2,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+    cnt_list1, cnt_list2, err = SortByDistance(contours1,contours2)
+    print(f'\n ---------------------------------------- \n')
+    print(f'znormalizowany błąd odległości konturów: {err}')
+    cv2.drawContours(normalized_fig1,contours1, -1, (0,0,255),3)
+    cv2.drawContours(normalized_fig2,contours2,-1 ,(0,0,255),3)
 
-combined = cv2.vconcat([normalized_fig1, normalized_fig2])
-cv2.imshow("combined" , combined)
-cv2.waitKey(0)
+    combined = cv2.vconcat([normalized_fig1, normalized_fig2])
+    cv2.imshow("combined" , combined)
+    cv2.waitKey(0)

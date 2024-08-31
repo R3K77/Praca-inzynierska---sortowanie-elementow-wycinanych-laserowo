@@ -110,7 +110,9 @@ def normalizeImage(image):
     resized_image = cv2.resize(cropped_image,(500,500))
     return resized_image
 
-##
+## Funkcja do porównywania elementów
+# Stack https://stackoverflow.com/staging-ground/78933526
+
 def compareElements(gcodeImages, gcodePoints, sheetSize, opencvImage):
 
     for key, value in gcodeImages.items():
@@ -134,7 +136,7 @@ if __name__ == "__main__":
     gr2 = cv2.cvtColor(normalized_fig2,cv2.COLOR_BGR2GRAY)
     contours1, _ = cv2.findContours(gr1,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
     contours2, _ = cv2.findContours(gr2,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
-    cnt_list1, cnt_list2, err = SortByDistance(contours1,contours2)
+    cnt_list1, cnt_list2, err = sortByDistance(contours1,contours2)
     print(f'\n ---------------------------------------- \n')
     print(f'znormalizowany błąd odległości konturów: {err}')
     cv2.drawContours(normalized_fig1,contours1, -1, (0,0,255),3)

@@ -16,7 +16,10 @@ def single_gcode_elements_cv2(sheet_path, output_res_x = 500, output_res_y = 500
         sheet_size = (split[1],split[2])
         images_dict = {}
         pts_dict = {}
+        pts_hole_dict = {}
         for key, value in cutting_paths.items():
+            pts_hole_dict[f'{key}'] = [] # do zachowania punktów konturu z gcode
+
             main_contour, holes = find_main_and_holes(value)
             # print('\n ------------------------------------------------------------------')
             # print(f'\n{key} : {value}')
@@ -39,8 +42,11 @@ def single_gcode_elements_cv2(sheet_path, output_res_x = 500, output_res_y = 500
             adjusted_holes = [[(int((x - min_x)*dx), int((y - min_y)*dy)) for x, y in hole] for hole in holes]
             for hole in adjusted_holes:
                 pts2 = np.array(hole, np.int32)
-                pts2 = pts2.reshape((-1, 1, 2))
-                cv2.fillPoly(img, [pts2], color=(0,0,0))
+                pts2_resh = pts2.reshape((-1, 1, 2))
+                cv2.fillPoly(img, [pts2_resh], color=(0,0,0))
+                pts_hole_dict[f'{key}'].append(pts2)
+
+
 
             #binaryzacja
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -49,28 +55,61 @@ def single_gcode_elements_cv2(sheet_path, output_res_x = 500, output_res_y = 500
             pts_dict[f"{key}"] = pts
             # cv2.imshow('winname',thresh)
             # cv2.waitKey(0)
-        return images_dict, pts_dict, sheet_size
+        return images_dict, pts_dict, sheet_size, pts_hole_dict
     else:
         return None, None, None
+
+def imageBInfoExtraction(imageB):
+
+    contours, _ = cv2.findContours(imageB, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+    contourImage = cv2.cvtColor(imageB, cv2.COLOR_GRAY2BGR)
+    polyImage = contourImage.copy()
+
+    for contour in contours:
+        arc = 0.01 * cv2.arcLength(contour, True)
+        poly = cv2.approxPolyDP(contour, arc, True)
+
+        cv2.drawContours(contourImage, [contour], -1, (255, 100, 0), 2)
+        for point in contour:
+            cv2.circle(contourImage, (point[0][0], point[0][1]), 3, (0, 0, 255), 2)
+
+        cv2.drawContours(polyImage, [poly], -1, (155, 155, 0), 2)
+        for point in poly:
+            cv2.circle(polyImage, (point[0][0],point[0][1]), 3, (0, 0, 255), 2)
+
+
+    return contourImage, polyImage
+
+
 
 
 if __name__ == "__main__":
     #Test czy spakowana funkcja działa
-    images,pts,sheet_size = single_gcode_elements_cv2('../../../../Gcode to image conversion/NC_files/arkusz-2001.nc',500,500)
-    print(f'sheet size: {sheet_size}')
+    images,pts,sheet_size, pts_hole = single_gcode_elements_cv2(
+    '../../../../Gcode to image conversion/NC_files/arkusz-2001.nc',
+    1000,1000,
+    100)
     for key, value in images.items():
-        # key - nazwa ze slownika, taka sama jak blacha + threshold
-        # value - dane obrazu
+        #Porównanie contours i approx poly w znajdowaniu punktów.
+        contourImage, polyImage = imageBInfoExtraction(value)
         buf = cv2.cvtColor(value, cv2.COLOR_GRAY2BGR)
-        points = pts[f'{key}'].reshape((-1,1,2))
-        # print(f'points: {points} \n')
+        points = pts[f'{key}'] #.reshape((-1,1,2)) <- dodać jak używane jest polylines
+        points_hole = pts_hole[f'{key}']
+
+        ##Wizualizacja punktów głównego konturu
         # for point in points:
-        #     # print(f'single point: {point}')
-        #     cv2.circle(buf, (point[0],point[1]),10 ,(0,0,255),1)
-        #
-        cv2.polylines(buf,[points],True,(0,0,255),thickness = 3)
-        img = cv2.resize(buf, (value.shape[0],value.shape[1]))
-        cv2.imshow(key, img)
+        #     cv2.circle(buf, (point[0],point[1]),3 ,(0,0,255),3)
+        # ##Wizualizacja punktów
+        # for arr in points_hole:
+        #     for point in arr:
+        #         cv2.circle(buf, (point[0],point[1]),2,(255, 0, 255), 2)
+
+        # cv2.polylines(buf,[points],True,(0,0,255),thickness = 3)
+
+        cv2.imshow("Gcode image + punkty Gcode", buf)
+        # cv2.imshow("imageB Contour", contourImage)
+        # cv2.imshow("imageB Poly", polyImage)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 

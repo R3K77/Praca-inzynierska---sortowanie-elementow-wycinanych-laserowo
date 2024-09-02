@@ -22,6 +22,8 @@ import matplotlib.pyplot as plt
 #  - own_size_width - szerokość obrazu wynikowego, domyślnie 0
 #  - own_size_height - wysokość obrazu wynikowego, domyślnie 0
 # ------------------------------------------------------------------------------------------------- #
+
+#TODO przebudować funkcję do wykrywania blachy na background substraction
 def workspace_detection(img, Canny_threshold1, Canny_threshold2, bilateralFilter_d, bilateralFilter_SigmaColor, bilateralFilter_SigmaSpace, own_size=False, own_size_width=0, own_size_height=0):
     # Filtracja obrazu w skali szarości 
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)

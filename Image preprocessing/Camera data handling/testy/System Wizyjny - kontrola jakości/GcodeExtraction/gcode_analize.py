@@ -3,7 +3,7 @@ import re
 from centroid import calculate_centroid
 
 # ----------------- Funkcja do wizualizacji ścieżek cięcia z pliku NC ----------------- #
-# Autor: Bartłomiej Szalwach
+# Autor: Bartłomiej Szalwach,
 # Funkcja plik .nc z kodem G-kodu i zwraca obraz z wizualizacją ścieżek cięcia.
 # Funkcja wykorzystuje bibliotekę matplotlib, numpy i re.
 # Funkcja zwraca ścieżki cięcia, minimalne i maksymalne współrzędne X i Y.
@@ -22,6 +22,9 @@ from centroid import calculate_centroid
 # Przykład użycia:
 # cutting_paths, x_min, x_max, y_min, y_max = visualize_cutting_paths("./Przygotowanie obrazu/gcode2image/NC_files/Arkusz-6001.nc")
 # ------------------------------------------------------------------------------------- #
+# Modyfikacje: Rafał Szygenda
+# - liczba punktów łuków jest argumentem wejściowym funkcji, większa rozdzielczość
+# - Zwracana jest linijka z rozmiarem blachy z gcode
 
 def visualize_cutting_paths(file_path, x_max=500, y_max=1000, arc_pts_len = 200):
     sheet_size_line = None

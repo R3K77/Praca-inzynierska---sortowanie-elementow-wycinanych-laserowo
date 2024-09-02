@@ -59,16 +59,20 @@ def single_gcode_elements_cv2(sheet_path, output_res_x = 500, output_res_y = 500
     else:
         return None, None, None
 
-def imageBInfoExtraction(imageB):
+def imageBInfoExtraction(imageB, pts):
 
     contours, _ = cv2.findContours(imageB, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-
     contourImage = cv2.cvtColor(imageB, cv2.COLOR_GRAY2BGR)
     polyImage = contourImage.copy()
+    hullImage = contourImage.copy()
+    print(f'pts shape[0]: {pts.shape[0]}')
+    sciany = pts.shape[0]
+
 
     for contour in contours:
-        arc = 0.01 * cv2.arcLength(contour, True)
-        poly = cv2.approxPolyDP(contour, arc, True)
+        arc = 0.015 * cv2.arcLength(contour, True)
+        poly = cv2.approxPolyDP(contour, arc, -1, True)
+
 
         cv2.drawContours(contourImage, [contour], -1, (255, 100, 0), 2)
         for point in contour:
@@ -78,8 +82,10 @@ def imageBInfoExtraction(imageB):
         for point in poly:
             cv2.circle(polyImage, (point[0][0],point[0][1]), 3, (0, 0, 255), 2)
 
+        cv2.drawContours(hullImage, cv2.convexHull(contour),-1, (0,0, 255), 10)
 
-    return contourImage, polyImage
+
+    return contourImage, polyImage, hullImage
 
 
 
@@ -88,28 +94,35 @@ if __name__ == "__main__":
     #Test czy spakowana funkcja działa
     images,pts,sheet_size, pts_hole = single_gcode_elements_cv2(
     '../../../../Gcode to image conversion/NC_files/arkusz-2001.nc',
-    1000,1000,
+    500,500,
     100)
     for key, value in images.items():
         #Porównanie contours i approx poly w znajdowaniu punktów.
-        contourImage, polyImage = imageBInfoExtraction(value)
+        contourImage, polyImage, hullImage = imageBInfoExtraction(value, pts[key])
         buf = cv2.cvtColor(value, cv2.COLOR_GRAY2BGR)
         points = pts[f'{key}'] #.reshape((-1,1,2)) <- dodać jak używane jest polylines
         points_hole = pts_hole[f'{key}']
 
-        ##Wizualizacja punktów głównego konturu
-        # for point in points:
-        #     cv2.circle(buf, (point[0],point[1]),3 ,(0,0,255),3)
-        # ##Wizualizacja punktów
-        # for arr in points_hole:
-        #     for point in arr:
-        #         cv2.circle(buf, (point[0],point[1]),2,(255, 0, 255), 2)
+        # Wizualizacja punktów głównego konturu
+        for point in points:
+            cv2.circle(buf, (point[0],point[1]),3 ,(0,0,255),3)
+        # Wizualizacja punktów wycięć
+        for arr in points_hole:
+            for point in arr:
+                cv2.circle(buf, (point[0],point[1]),2,(255, 0, 255), 2)
 
         # cv2.polylines(buf,[points],True,(0,0,255),thickness = 3)
 
+
         cv2.imshow("Gcode image + punkty Gcode", buf)
-        # cv2.imshow("imageB Contour", contourImage)
-        # cv2.imshow("imageB Poly", polyImage)
+        cv2.imshow("imageB Contour", contourImage) # niebieski - obrys, czerwony - punkty konturu
+        cv2.imshow("imageB Poly", polyImage) # morski - linie konturu, czerwony - uproszczone punkty konturu
+        cv2.imshow("imageB Hull", hullImage)
+        # gigazdjecie
+        imgTop = cv2.hconcat([buf, contourImage])
+        imgBottom = cv2.hconcat([polyImage, hullImage])
+        imgMerge = cv2.vconcat([imgTop, imgBottom])
+        cv2.imshow("BIG MERGE", imgMerge)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 

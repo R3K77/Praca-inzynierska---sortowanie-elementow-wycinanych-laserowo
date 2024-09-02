@@ -1,4 +1,4 @@
-from Element_pojedynczy_test import single_gcode_elements_cv2
+from Element_pojedynczy import single_gcode_elements_cv2
 import cv2
 import numpy as np
 

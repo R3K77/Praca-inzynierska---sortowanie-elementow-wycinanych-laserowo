@@ -35,7 +35,8 @@ def visualize_cutting_paths(file_path, x_max=500, y_max=1000, arc_pts_len = 200)
         r'(M10|M11|G01X([0-9.]+)Y([0-9.]+)|G0[23]X([0-9.]+)Y([0-9.]+)I([0-9.-]+)J([0-9.-]+))')
 
     pattern_element_name = re.compile(r';@@\[DetailName\((.*?)\)\]')
-
+    isPathCirc = []
+    isPathCircDict = {}
     laser_on = False
     elements = {}
     current_element_name = 'Unnamed'
@@ -59,7 +60,9 @@ def visualize_cutting_paths(file_path, x_max=500, y_max=1000, arc_pts_len = 200)
             if current_path:
                 if current_element_name not in elements:
                     elements[current_element_name] = []
+                    isPathCircDict[current_element_name] = []
                 elements[current_element_name].append(current_path)
+                isPathCircDict[current_element_name].append(isPathCirc)
                 current_path = []
 
         else:
@@ -72,14 +75,18 @@ def visualize_cutting_paths(file_path, x_max=500, y_max=1000, arc_pts_len = 200)
                     if laser_on and current_path:  # Zapis ścieżki do bieżącego elementu
                         if current_element_name not in elements:
                             elements[current_element_name] = []
+                            isPathCircDict[current_element_name] = []
                         elements[current_element_name].append(current_path)
+                        isPathCircDict[current_element_name].append(isPathCirc)
                         current_path = []
+                        isPathCirc = []
                     laser_on = False
                 elif laser_on:  # Dodaj punkty do ścieżki, jeśli laser jest włączony
                     # Obsługa instrukcji cięcia...
                     if command.startswith('G01'):  # Linia prosta
                         x, y = float(match[1]), float(match[2])
                         current_path.append((x, y))
+                        isPathCirc.append(False)
                         current_position = (x, y)
                     elif command.startswith('G02') or command.startswith('G03'):  # Ruch okrężny
                         x, y, i, j = (float(match[3]), float(match[4]),
@@ -101,6 +108,7 @@ def visualize_cutting_paths(file_path, x_max=500, y_max=1000, arc_pts_len = 200)
                         angles = np.linspace(start_angle, end_angle, num=arc_pts_len)  # Generowanie punktów łuku (50 punktów)
                         arc_points = [(center_x + radius * np.cos(a), center_y + radius * np.sin(a)) for a in
                                       angles]  # Obliczenie punktów łuku
+                        isPathCirc.extend([True] * arc_pts_len)
                         current_path.extend(arc_points)  # Dodanie punktów łuku do ścieżki
                         current_position = (x, y)  # Aktualizacja pozycji
 
@@ -113,7 +121,7 @@ def visualize_cutting_paths(file_path, x_max=500, y_max=1000, arc_pts_len = 200)
     # Rozmiar arkusza
     x_min, y_min = 0, 0
 
-    return elements, x_min, x_max, y_min, y_max, sheet_size_line
+    return elements, x_min, x_max, y_min, y_max, sheet_size_line, isPathCircDict
 
 
 # ----------------- Funkcja do znalezienia głównego konturu i otworów ----------------- #
@@ -128,12 +136,24 @@ def visualize_cutting_paths(file_path, x_max=500, y_max=1000, arc_pts_len = 200)
 # main_contour, holes = find_main_and_holes(contours)
 # ------------------------------------------------------------------------------------- #
 
-def find_main_and_holes(contours):
-    areas = [(calculate_centroid(contour)[1], contour) for contour in contours]
+def find_main_and_holes(contours, bool_values):
+    # Utworzenie listy zawierającej centroidy, kontury i odpowiadające wartości bool
+    if len(contours) != len(bool_values):
+        raise ValueError("The length of contours and bool_values must be the same")
+
+    areas = [(calculate_centroid(contour)[1], contour, bool_val)
+             for contour, bool_val in zip(contours, bool_values)]
+
     areas.sort(reverse=True, key=lambda x: x[0])
+
     main_contour = areas[0][1]
+    main_bool = areas[0][2]
+
     holes = [area[1] for area in areas[1:]]
-    return main_contour, holes
+    holes_bool = [area[2] for area in areas[1:]]
+
+
+    return main_contour, main_bool, holes, holes_bool
 
 
 # ------------- Funkcja do sprawdzenia, czy punkt znajduje się w wielokącie ----------- #

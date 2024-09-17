@@ -66,28 +66,66 @@ def single_gcode_elements_cv2(sheet_path, output_res_x = 500, output_res_y = 500
 
 def imageBInfoExtraction(imageB, pts):
 
+    imageBFloat = np.float32(imageB)
     contours, _ = cv2.findContours(imageB, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     contourImage = cv2.cvtColor(imageB, cv2.COLOR_GRAY2BGR)
     polyImage = contourImage.copy()
     hullImage = contourImage.copy()
-    print(f'pts shape[0]: {pts.shape[0]}')
-    sciany = pts.shape[0]
 
-    #todo dodać punkty harrisa cv2 do rogów
+
+
+
     for contour in contours:
+        # Przybliżenie
         arc = 0.015 * cv2.arcLength(contour, True)
         poly = cv2.approxPolyDP(contour, arc, -1, True)
 
-
+        #oryginalny kontur
         cv2.drawContours(contourImage, [contour], -1, (255, 100, 0), 2)
         for point in contour:
             cv2.circle(contourImage, (point[0][0], point[0][1]), 3, (0, 0, 255), 2)
-
+        #kontur przybliżony (punkty kluczowe)
         cv2.drawContours(polyImage, [poly], -1, (155, 155, 0), 2)
         for point in poly:
             cv2.circle(polyImage, (point[0][0],point[0][1]), 3, (0, 0, 255), 2)
 
+        #Hull punkty bogate
         cv2.drawContours(hullImage, cv2.convexHull(contour),-1, (0,0, 255), 10)
+
+    #todo dodać punkty harrisa cv2 do rogów
+    #Harris Corner detection
+    dst = cv2.cornerHarris(imageBFloat, 2, 3, 0.04)
+    dst = cv2.dilate(dst, None)
+    corners = []
+    rows = dst.shape[0]
+    columns = dst.shape[1]
+    corners_f32 = np.array([])
+    corners_index = np.array([])
+    threshhold = 0.01*dst.max()
+    for i in range(rows):
+        for j in range(columns):
+            point = dst[i][j]
+            if point>threshhold:
+                corners_f32 = np.append(corners_f32,dst[i][j])
+                siema = np.array([i,j])
+                corners_index = np.array([np.append(corners_index,np.array([i,j]))])
+            else:
+                continue
+    corners_index = corners_index.reshape(-1, 2)
+    corners_uint8 = corners_f32.astype(np.uint8)
+
+    corners = np.array([])
+    for i in range(corners_uint8.shape[0]):
+        siema = corners_index[i]
+        buf = np.append(corners_index[i],corners_uint8[i])
+        corners = np.append(corners,buf)
+    corners = corners.reshape(-1,3) # elementy to [[x,y,corner_val],...]
+
+    # corners = dst[dst>0.01*dst.max()]
+    # corners = cv2.normalize(corners, None, 255, 0, cv2.NORM_MINMAX, cv2.CV_8U)
+    # print("corners: ",corners)
+
+
 
         # punkty haris
         # ImageB = buf.copy()

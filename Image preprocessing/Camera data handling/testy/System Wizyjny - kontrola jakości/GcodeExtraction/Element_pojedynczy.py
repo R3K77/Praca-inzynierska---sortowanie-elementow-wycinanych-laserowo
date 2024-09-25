@@ -11,13 +11,7 @@ from scipy.optimize import minimize
 # out - images_dict elementy wycięte cv2; pts_dict punkty konturu; sheet_size gcode'owy wymiar blachy.
 
 
-# TODO
-#  Przeskalowanie koła robi 在香港,
-#  porównywanie kształtu może być dopasowywane rozdzielczościowo
-#  porównywanie do prostych i kół NIE MOŻE BYĆ
 
-# FIXME
-#  w linear pojawiają się błędy dla niektórych kształtów zbudowanych z prostych
 def singleGcodeElementsCV2(sheet_path, scale = 5, arc_pts_len = 300):
     cutting_paths, x_min, x_max, y_min, y_max, sheet_size_line, circleLineData, linearPointsData = visualize_cutting_paths(sheet_path, arc_pts_len= arc_pts_len)
     if sheet_size_line is not None:
@@ -170,7 +164,6 @@ def linesContourCompare(imageB,gcode_data):
         A,B,C = lineFromPoints(x1,y1,x2,y2)
         gcodeLines['linear'].append((A,B,C))
 
-
     cntrErrors = []
 
     for i in range(len(contoursB)):
@@ -217,13 +210,12 @@ def random_color():
     g = random.randint(0, 255)  # Random green value
     r = random.randint(0, 255)  # Random red value
     return (b, g, r)
-# TODO
-#  W pętli rzeczywistej, będę musiał dynamicznie dobierać rozdzielczość obrazu, więc przydałoby się to cacko zmieniać jakoś.
+# TODO przebudowa funkcji do dynamicznej rozdzielczości pod kamere
 
 if __name__ == "__main__":
     # Test czy spakowana funkcja działa
     images, pts, sheet_size, pts_hole, circleLineData, linearData = singleGcodeElementsCV2(
-        sheet_path='../../../../Gcode to image conversion/NC_files/arkusz-2001.nc',
+        sheet_path='../../../../Gcode to image conversion/NC_files/2_FIXME.NC',
         arc_pts_len=300)
     for key, value in images.items():
         # Porównanie contours i approx poly w znajdowaniu punktów.

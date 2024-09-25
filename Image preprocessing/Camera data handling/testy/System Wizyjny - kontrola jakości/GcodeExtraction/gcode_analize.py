@@ -24,7 +24,7 @@ from centroid import calculate_centroid
 # ------------------------------------------------------------------------------------- #
 # Modyfikacje: Rafał Szygenda
 # - liczba punktów łuków jest argumentem wejściowym funkcji, większa rozdzielczość
-# - Zwracana jest linijka z rozmiarem blachy z gcode
+# - zwrotka rozmiaru blachy, dane koła i punktow liniowych (do systemu wizyjnego)
 
 def visualize_cutting_paths(file_path, x_max=500, y_max=1000, arc_pts_len = 200):
     sheet_size_line = None

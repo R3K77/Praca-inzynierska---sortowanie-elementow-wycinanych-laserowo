@@ -1,6 +1,7 @@
 import numpy as np
 from gcode_analize import visualize_cutting_paths, find_main_and_holes
 import cv2
+import random
 import scipy.interpolate as sc
 from scipy.optimize import least_squares
 from scipy.optimize import minimize
@@ -17,7 +18,7 @@ from scipy.optimize import minimize
 
 # FIXME
 #  w linear pojawiają się błędy dla niektórych kształtów zbudowanych z prostych
-def singleGcodeElementsCV2(sheet_path, output_res_x = 500, output_res_y = 500, arc_pts_len = 300):
+def singleGcodeElementsCV2(sheet_path, scale = 5, arc_pts_len = 300):
     cutting_paths, x_min, x_max, y_min, y_max, sheet_size_line, circleLineData, linearPointsData = visualize_cutting_paths(sheet_path, arc_pts_len= arc_pts_len)
     if sheet_size_line is not None:
         #Rozkodowanie linii na wymiary
@@ -33,7 +34,6 @@ def singleGcodeElementsCV2(sheet_path, output_res_x = 500, output_res_y = 500, a
             adjustedCircleLineData[f'{key}'] = []
             adjustedLinearData[f'{key}'] = []
             main_contour, holes, = find_main_and_holes(value)
-
             #min maxy do przeskalowania obrazu
             max_x = max(main_contour, key=lambda item: item[0])[0]
             max_y = max(main_contour, key=lambda item: item[1])[1]
@@ -41,12 +41,14 @@ def singleGcodeElementsCV2(sheet_path, output_res_x = 500, output_res_y = 500, a
             min_y = min(main_contour, key=lambda item: item[1])[1]
 
             # Przeskalowanie punktów konturu do zfitowania obrazu
-            dx = output_res_x/(max_x-min_x)
-            dy = output_res_y/(max_y-min_y)
-            img = np.zeros((output_res_x, output_res_y, 3), dtype=np.uint8)
+            dx = scale
+            dy = scale
+            output_res_x = int((max_x-min_x+1)*scale)
+            output_res_y = int((max_y-min_y+1)*scale)
+
+            img = np.zeros((output_res_y, output_res_x, 3), dtype=np.uint8)
             adjusted_main = [(int((x-min_x)*dx), int((y-min_y)*dy)) for x, y in main_contour]
             pts = np.array(adjusted_main, np.int32)
-            pts_reshape = pts.reshape((-1, 1, 2))
             cv2.fillPoly(img, [pts], color=(255,255,255))
 
             # do narysowania dziur
@@ -56,7 +58,7 @@ def singleGcodeElementsCV2(sheet_path, output_res_x = 500, output_res_y = 500, a
                 pts2_resh = pts2.reshape((-1, 1, 2))
                 cv2.fillPoly(img, [pts2_resh], color=(0,0,0))
                 pts_hole_dict[f'{key}'].append(pts2)
-
+            # TODO wywalić adjust do rzeczywistego obrazu
             # adjust circle line'ow
             # try bo może byc kontur bez kół
             try:
@@ -129,7 +131,6 @@ def imageBInfoExtraction(imageB):
 
     return corners, contours, contourImage, polyImage, hullImage
 
-
 def lineFromPoints(x1, y1, x2, y2):
     if x1 == x2:  # prosta pionowa
         A = 1
@@ -156,18 +157,22 @@ def linesContourCompare(imageB,gcode_data):
         "linear": [],
     }
     lean = gcode_data['linearData']
+    imgCopy = imageB.copy()
+    imgCopy = cv2.cvtColor(imgCopy,cv2.COLOR_GRAY2BGR)
     #tworzenie lini z "punktow liniowych"
+    #FIXME litera A ma brakującą linie?
     for i in range(len(gcode_data['linearData'])): # tuple i lista tupli
         if i == 1:
             continue
         x1,y1 = gcode_data['linearData'][i]
         x2,y2 = gcode_data['linearData'][i-1]
+        cv2.line(imgCopy,(int(x1),int(y1)),(int(x2),int(y2)),random_color(),3)
         A,B,C = lineFromPoints(x1,y1,x2,y2)
         gcodeLines['linear'].append((A,B,C))
 
-    imgCopy = imageB.copy()
-    imgCopy = cv2.cvtColor(imgCopy,cv2.COLOR_GRAY2BGR)
+
     cntrErrors = []
+
     for i in range(len(contoursB)):
         for j in range(len(contoursB[i])):
             xCntr,yCntr = contoursB[i][j][0] #we love numpy with this one
@@ -178,6 +183,7 @@ def linesContourCompare(imageB,gcode_data):
                 d = np.abs(A*xCntr + B*yCntr + C)/(np.sqrt(A**2 + B**2))
                 if d < d_minimal:
                     d_minimal = d
+
             #porównanie do kół
             for k in range(len(gcodeLines["circle"])):
                 a, b, r = gcodeLines["circle"][k]
@@ -185,24 +191,40 @@ def linesContourCompare(imageB,gcode_data):
                 d_circ = np.abs(np.sqrt((xCntr - a)**2 + (yCntr - b)**2) - r)
                 if d_circ < d_minimal:
                     d_minimal = d_circ
-            cntrErrors.append(d_minimal)
 
+            cntrErrors.append(d_minimal)
+    cntrErrorMAX = max(cntrErrors)
     RMSE = sum(e*e for e in cntrErrors)/len(cntrErrors)
 
     imageBGR = cv2.cvtColor(imageB,cv2.COLOR_GRAY2BGR)
     bigPhoto = cv2.hconcat([imageBGR,imgCopy])
-    cv2.imshow("CircleNation",bigPhoto)
-    print("----------\n RMSE:",RMSE)
+    bigPhoto2 = cv2.hconcat([contourBImage,imgCopy])
+    cv2.imshow("CircleNation",bigPhoto2)
+    print("----------\n")
+    contourSum = 0
+    for contour in contoursB:
+        contourSum += len(contour)
+    print("ilosc punktow: ",contourSum)
+    print("RMSE:",RMSE)
 
+def random_color():
+    """Generates a random color in BGR format.
+
+    Returns:
+        tuple: A tuple representing the color (B, G, R).
+    """
+    b = random.randint(0, 255)  # Random blue value
+    g = random.randint(0, 255)  # Random green value
+    r = random.randint(0, 255)  # Random red value
+    return (b, g, r)
 # TODO
 #  W pętli rzeczywistej, będę musiał dynamicznie dobierać rozdzielczość obrazu, więc przydałoby się to cacko zmieniać jakoś.
 
 if __name__ == "__main__":
     # Test czy spakowana funkcja działa
     images, pts, sheet_size, pts_hole, circleLineData, linearData = singleGcodeElementsCV2(
-        '../../../../Gcode to image conversion/NC_files/arkusz-2001.nc',
-        600, 600,
-        300)
+        sheet_path='../../../../Gcode to image conversion/NC_files/arkusz-2001.nc',
+        arc_pts_len=300)
     for key, value in images.items():
         # Porównanie contours i approx poly w znajdowaniu punktów.
         corners, contours, contourImage, polyImage, hullImage = imageBInfoExtraction(value)

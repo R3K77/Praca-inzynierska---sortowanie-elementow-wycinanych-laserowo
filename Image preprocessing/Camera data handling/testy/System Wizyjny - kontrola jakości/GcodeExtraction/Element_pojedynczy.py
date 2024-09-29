@@ -11,8 +11,31 @@ from scipy.optimize import minimize
 # out - images_dict elementy wycięte cv2; pts_dict punkty konturu; sheet_size gcode'owy wymiar blachy.
 
 
-
+# TODO przebudowa funkcji do dynamicznej rozdzielczości pod kamere
 def singleGcodeElementsCV2(sheet_path, scale = 5, arc_pts_len = 300):
+    """
+    Creates cv2 image of sheet element from gcode.
+    Output image size is the same as bounding box of element times scale
+
+    Args:
+        sheet_path (string): absolute path to gcode .nc file
+        scale (int): output images resize scale
+        arc_pts_len (int): amount of points generated for each circular move from gcode
+
+    Returns:
+        images_dict (dictionary): object of "blacha_xx_xx" keys with cv2 generated image from element contours
+
+        pts_dict (dictionary): =||= with element contour points
+
+        pts_hole_dict (dictionary): =||= with element holes contour points
+
+        adjustedCircleLineData (): =||= with circular moves made for each element
+
+        adjustedLinearData (): =||= with linear moves made for each element
+
+        sheet_size (int tuple): tuple of x,y sheet size
+
+    """
     cutting_paths, x_min, x_max, y_min, y_max, sheet_size_line, circleLineData, linearPointsData = visualize_cutting_paths(sheet_path, arc_pts_len= arc_pts_len)
     if sheet_size_line is not None:
         #Rozkodowanie linii na wymiary
@@ -52,7 +75,6 @@ def singleGcodeElementsCV2(sheet_path, scale = 5, arc_pts_len = 300):
                 pts2_resh = pts2.reshape((-1, 1, 2))
                 cv2.fillPoly(img, [pts2_resh], color=(0,0,0))
                 pts_hole_dict[f'{key}'].append(pts2)
-            # TODO wywalić adjust do rzeczywistego obrazu
             # adjust circle line'ow
             # try bo może byc kontur bez kół
             try:
@@ -78,6 +100,24 @@ def singleGcodeElementsCV2(sheet_path, scale = 5, arc_pts_len = 300):
         return None, None, None, None,None
 
 def imageBInfoExtraction(imageB):
+    """
+    Extracts data for quality control from camera image
+    Args:
+        imageB (nd.array): gray and threshholded camera image
+    Returns:
+        corners (np.array): array of tuples containing corner info (x,y,corner_val).
+
+        corner_val (int) is evaluation of how "sure of a pick" the corner is (range 0-255)
+
+        contours (nd.array): array of contour points
+
+        contourImage (nd.array): cv2 image with drawn detected contour points
+
+        polyImage (nd.array): cv2 image with drawn detected corner points TO BE UPDATED
+
+        hullImage (nd.array): cv2 image with drawn corners from cv2.convexHull()
+
+    """
     imageBFloat = np.float32(imageB)
     contours, _ = cv2.findContours(imageB, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     contourImage = cv2.cvtColor(imageB, cv2.COLOR_GRAY2BGR)
@@ -122,10 +162,23 @@ def imageBInfoExtraction(imageB):
         buf = np.append(corners_index[i],corners_uint8[i])
         corners = np.append(corners,buf)
     corners = corners.reshape(-1,3) # elementy to [[x,y,corner_val],...]
-
     return corners, contours, contourImage, polyImage, hullImage
 
 def lineFromPoints(x1, y1, x2, y2):
+    """
+    calculates linear function parameters for 2 points
+    Args:
+        x1 (int): point 1 x val
+
+        y1 (int): point 1 y val
+
+        x2 (int): point 2 x val
+
+        y2 (int): point 2 y val
+
+    Returns:
+        A,B,C (float): linear function parameters denoted as Ax+By+C = 0
+    """
     if x1 == x2:  # prosta pionowa
         A = 1
         B = 0
@@ -144,6 +197,14 @@ def lineFromPoints(x1, y1, x2, y2):
     return A, B, C
 
 def linesContourCompare(imageB,gcode_data):
+    """
+        Compares image from camera to gcode image.
+        Prints RMSE error
+    Args:
+        imageB (nd.array): gray and threshholded camera image
+
+        gcode_data (dictionary): Object with linear and circular movements from gcode element
+    """
     #imageB - przetworzony obraz, po thresholdzie, biała figura czarne tło
     cornersB, contoursB, contourBImage, _, _ = imageBInfoExtraction(imageB)
     gcodeLines = {
@@ -154,7 +215,7 @@ def linesContourCompare(imageB,gcode_data):
     imgCopy = imageB.copy()
     imgCopy = cv2.cvtColor(imgCopy,cv2.COLOR_GRAY2BGR)
     #tworzenie lini z "punktow liniowych"
-    #FIXME litera A ma brakującą linie?
+    #FIXME litera A ma brakującą linie? -- gcode bledy juz oznaczony
     for i in range(len(gcode_data['linearData'])): # tuple i lista tupli
         if i == 1:
             continue
@@ -187,8 +248,7 @@ def linesContourCompare(imageB,gcode_data):
 
             cntrErrors.append(d_minimal)
     cntrErrorMAX = max(cntrErrors)
-    RMSE = sum(e*e for e in cntrErrors)/len(cntrErrors)
-
+    RMSE = sum(np.sqrt(e*e) for e in cntrErrors)/len(cntrErrors)
     imageBGR = cv2.cvtColor(imageB,cv2.COLOR_GRAY2BGR)
     bigPhoto = cv2.hconcat([imageBGR,imgCopy])
     bigPhoto2 = cv2.hconcat([contourBImage,imgCopy])
@@ -201,8 +261,8 @@ def linesContourCompare(imageB,gcode_data):
     print("RMSE:",RMSE)
 
 def random_color():
-    """Generates a random color in BGR format.
-
+    """
+        Generates a random color in BGR format.
     Returns:
         tuple: A tuple representing the color (B, G, R).
     """
@@ -210,7 +270,7 @@ def random_color():
     g = random.randint(0, 255)  # Random green value
     r = random.randint(0, 255)  # Random red value
     return (b, g, r)
-# TODO przebudowa funkcji do dynamicznej rozdzielczości pod kamere
+
 
 if __name__ == "__main__":
     # Test czy spakowana funkcja działa

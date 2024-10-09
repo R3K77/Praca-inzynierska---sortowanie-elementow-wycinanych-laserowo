@@ -25,6 +25,8 @@ MAX_ADJUSTED_DISTANCE = 60              # Maksymalna odległość od środka ci�
 MAX_DETAIL_MASS = 250                   # Maksymalna masa elementu [g]
 MATERIAL_DENSITY = 0.00785              # Gęstość materiału 
 MATERIAL_THICKNESS = 1.5                # Grubość materiału [mm]
+NUM_SEARCH_ANGLES = 50                  # Liczba kątów do przeszukania
+NUM_SEARCH_RADII = 50                   # Liczba promieni do przeszukania
 
 # ----------------- Funkcja do tworzenia listy pudełek ----------------- #
 # Funkcja tworzy listę pudełek (punktów), do których będą przypisane elementy.
@@ -138,32 +140,51 @@ def process_element(element_name, element_paths, ax, x_range_center_adj_cache, y
 # Jeśli środek ciężkości nie jest odpowiedni, szuka najbliższego punktu spełniającego kryteria.
 # --------------------------------------------------------------- #
 def find_best_suction_point(element_name, centroid_point, main_contour_polygon, holes_polygons, x_range_center_adj_cache, y_range_center_adj_cache):
+    # Sprawdzenie, czy przyssawka może być umieszczona w środku ciężkości
     if is_valid_circle(centroid_point, SUCTION_RADIUS, main_contour_polygon, holes_polygons):
         return centroid_point
     else:
+        # Generowanie punktów w obrębie okręgu przeszukiwania
+        angles = np.linspace(0, 2 * np.pi, num=NUM_SEARCH_ANGLES)
+        radii = np.linspace(0, MAX_SUCTION_SEARCH_RADIUS, num=NUM_SEARCH_RADII)
+
+        valid_points = []
+        for r in radii:
+            for angle in angles:
+                x = centroid_point[0] + r * np.cos(angle)
+                y = centroid_point[1] + r * np.sin(angle)
+                if is_valid_circle((x, y), SUCTION_RADIUS, main_contour_polygon, holes_polygons):
+                    valid_points.append((x, y))
+
+        # Sprawdzenie, czy już wygenerowano zakresy współrzędnych X i Y
         if element_name not in x_range_center_adj_cache:
             x_range_center_adj_cache[element_name] = np.linspace(
                 centroid_point[0] - MAX_SUCTION_SEARCH_RADIUS,
                 centroid_point[0] + MAX_SUCTION_SEARCH_RADIUS,
-                num=100
+                num=50
             )
         if element_name not in y_range_center_adj_cache:
             y_range_center_adj_cache[element_name] = np.linspace(
                 centroid_point[1] - MAX_SUCTION_SEARCH_RADIUS,
                 centroid_point[1] + MAX_SUCTION_SEARCH_RADIUS,
-                num=100
+                num=50
             )
 
         x_range_center_adj = x_range_center_adj_cache[element_name]
         y_range_center_adj = y_range_center_adj_cache[element_name]
 
+        # Przefiltrowanie wygenerowanych punktów na podstawie kształtu detalu
         valid_points = [
             (x, y) for x in x_range_center_adj for y in y_range_center_adj
             if is_valid_circle((x, y), SUCTION_RADIUS, main_contour_polygon, holes_polygons)
         ]
+
+        # Jeśli znaleziono jakieś punkty, wybierz ten najbliższy środka ciężkości
         if valid_points:
             distances = [np.linalg.norm(np.array(p) - np.array(centroid_point)) for p in valid_points]
             best_point = valid_points[np.argmin(distances)]
+
+            # Sprawdzenie, czy najlepszy punkt jest w dopuszczalnej odległości od środka ciężkości
             if np.linalg.norm(np.array(best_point) - np.array(centroid_point)) < MAX_ADJUSTED_DISTANCE:
                 return best_point
             else:
@@ -172,6 +193,7 @@ def find_best_suction_point(element_name, centroid_point, main_contour_polygon, 
                 return None
         else:
             return None
+
 
 # ----------------- Funkcja do tworzenia legendy ----------------- #
 # Funkcja tworzy własną legendę, wyjaśniając znaczenie kolorów na wykresie.

@@ -1,9 +1,11 @@
+# ----------- Plik zawierający funkcje do obliczania środka ciężkości wielokąta ------------ #
+# Autor: Bartłomiej Szalwach
+# ------------------------------------------------------------------------------------------ #
+
 import numpy as np
 from shapely.geometry import Point, Polygon as ShapelyPolygon, LineString
 
-
 # ------------- Funkcja do obliczania środka ciężkości i powierzchni wielokąta ------------- #
-# Autor: Bartłomiej Szalwach
 # Funkcja przyjmuje listę punktów definiujących wierzchołki wielokąta (jako zestawy punktów (x, y)) 
 # i zwraca centroid oraz powierzchnię tego wielokąta.
 # Do obliczeń wykorzystywana jest biblioteka numpy, która umożliwia operacje na tablicach.
@@ -48,7 +50,6 @@ def calculate_centroid(poly):
 
 
 # --------- Funkcja do dostosowania środka ciężkości, jeśli znajduje się w otworze --------- #
-# Autor: Bartłomiej Szalwach
 # Funkcja przyjmuje centroid, główny kontur, otwory i dystans dodatkowego przesunięcia.
 # Jeśli centroid znajduje się wewnątrz otworu, funkcja zwraca nowy centroid przesunięty o określony dystans.
 # Nowy centroid jest obliczany na podstawie najbliższego punktu na krawędzi otworu.
@@ -93,7 +94,6 @@ def adjust_centroid_if_in_hole(centroid, main_poly, holes, offset_distance=2):
 
 
 # -------- Funkcja do dostosowania środka ciężkości, jeśli znajduje się na zewnątrz -------- #
-# Autor: Bartłomiej Szalwach
 # Funkcja przyjmuje centroid, główny kontur i dystans dodatkowego przesunięcia.
 # Jeśli centroid znajduje się na zewnątrz głównego konturu, funkcja zwraca nowy przesunięty centroid.
 # Nowy centroid jest obliczany na podstawie najbliższego punktu na krawędzi głównego konturu.
@@ -132,7 +132,6 @@ def adjust_centroid_if_outside(centroid, main_poly, offset_distance=2):
 
 
 # ------------ Funkcja do sprawdzenia, czy punkt znajduje się wewnątrz wielokąta ------------ #
-# Autor: Bartłomiej Szalwach
 # Funkcja przyjmuje punkt i wielokąt i zwraca True, jeśli punkt znajduje się wewnątrz wielokąta.
 # ------------------------------------------------------------------------------------------ #
 # Założenia funkcji:

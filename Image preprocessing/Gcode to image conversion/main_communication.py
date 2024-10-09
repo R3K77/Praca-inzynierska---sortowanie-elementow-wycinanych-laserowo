@@ -1,3 +1,7 @@
+# ----------- Plik wykorzystywany do komunikacji z robotem KUKA ------------ #
+# Autorzy: Bartłomiej Szalwach, Maciej Mróz, Rafał Szygenda
+# -------------------------------------------------------------------------- #
+
 import socket
 import time
 import csv

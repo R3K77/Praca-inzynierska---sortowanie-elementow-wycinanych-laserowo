@@ -1,9 +1,13 @@
+# ----------------- Plik zawierający funkcje do analizy kodu G-kodu ----------------- #
+# Autor: Bartłomiej Szalwach
+# ------------------------------------------------------------------------------------- #
+
 import numpy as np
 import re 
-from centroid import calculate_centroid
+from _functions_centroid import calculate_centroid
+from shapely.geometry import Point
 
 # ----------------- Funkcja do wizualizacji ścieżek cięcia z pliku NC ----------------- #
-# Autor: Bartłomiej Szalwach
 # Funkcja plik .nc z kodem G-kodu i zwraca obraz z wizualizacją ścieżek cięcia.
 # Funkcja wykorzystuje bibliotekę matplotlib, numpy i re. 
 # Funkcja zwraca ścieżki cięcia, minimalne i maksymalne współrzędne X i Y.
@@ -111,7 +115,6 @@ def visualize_cutting_paths(file_path, x_max=500, y_max=1000):
 
 
 # ----------------- Funkcja do znalezienia głównego konturu i otworów ----------------- #
-# Autor: Bartłomiej Szalwach
 # Funkcja przyjmuje listę konturów i zwraca główny kontur i otwory.
 # ------------------------------------------------------------------------------------- #
 # Założenia funkcji:
@@ -167,3 +170,32 @@ def point_in_polygon(point, polygon):
  
     # Zwróć True, jeśli punkt znajduje się wewnątrz wielokąta, w przeciwnym razie False
     return inside
+
+
+
+# ----------------- Funkcja do sprawdzenia, czy okrąg mieści się w figurze ------------ #
+# Funkcja przyjmuje środek okręgu, promień, kształt i otwory.
+# Funkcja zwraca True, jeśli okrąg mieści się w figurze bez nakładania na otwory.
+# ------------------------------------------------------------------------------------- #
+# Przykład użycia:
+# is_valid_circle(center, radius, shape, holes)
+# ------------------------------------------------------------------------------------- #
+def is_valid_circle(center, radius, shape, holes):
+    """Sprawdza, czy okrąg mieści się w figury bez nakładania na otwory."""
+    circle = Point(center).buffer(radius)
+    return shape.contains(circle) and all(not hole.intersects(circle) for hole in holes)
+
+
+# ----------------- Funkcja do sprawdzenia jaką mase ma detal ------------ #
+# Funkcja przyjmuje kształt, otwory, gęstość materiału i grubość materiału.
+# Funkcja zwraca masę detalu na podstawie kształtu i otworów.
+# ------------------------------------------------------------------------------------- #
+# Przykład użycia:
+# detail_mass(shape, holes, material_density=0.0027, material_thickness=1.5)
+# ------------------------------------------------------------------------------------- #
+def detail_mass(shape, holes, material_density=0.0027, material_thickness=1.5):
+    """Oblicza masę detalu na podstawie kształtu i otworów."""
+    total_area = shape.area - sum(hole.area for hole in holes)
+    total_volume = total_area * material_thickness
+    total_mass = total_volume * material_density
+    return total_mass

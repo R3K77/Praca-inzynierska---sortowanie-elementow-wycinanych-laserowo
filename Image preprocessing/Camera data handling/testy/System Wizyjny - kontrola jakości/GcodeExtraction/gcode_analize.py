@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 import numpy as np
 import re
 from centroid import calculate_centroid
@@ -41,8 +43,8 @@ def visualize_cutting_paths(file_path, x_max=500, y_max=1000, arc_pts_len = 200)
     element_index = {}  # Słownik do przechowywania indeksów dla każdej nazwy elementu
     current_path = []
     current_position = (0, 0)
-    curveCircleData = {}
-    linearPointsData = {}
+    curveCircleData = defaultdict(list)
+    linearPointsData = defaultdict(list)
 
     for line in file_content:
         element_match = pattern_element_name.search(line)
@@ -63,6 +65,7 @@ def visualize_cutting_paths(file_path, x_max=500, y_max=1000, arc_pts_len = 200)
 
                 elements[current_element_name].append(current_path)
                 current_path = []
+                linearPointsData[current_element_name].append(current_position)
 
         else:
             matches_cnc = pattern_cnc_commands_extended.findall(line)
@@ -75,6 +78,8 @@ def visualize_cutting_paths(file_path, x_max=500, y_max=1000, arc_pts_len = 200)
                         if current_element_name not in elements:
                             elements[current_element_name] = []
 
+                        linearPointsData[current_element_name].append(current_position)
+
                         elements[current_element_name].append(current_path)
                         current_path = []
                     laser_on = False
@@ -85,10 +90,7 @@ def visualize_cutting_paths(file_path, x_max=500, y_max=1000, arc_pts_len = 200)
                         current_path.append((x, y))
                         current_position = (x, y)
 
-                        try:
-                            linearPointsData[current_element_name].append(current_position)
-                        except Exception as e:
-                            linearPointsData[current_element_name] = [current_position]
+                        linearPointsData[current_element_name].append(current_position)
 
                     elif command.startswith('G02') or command.startswith('G03'):  # Ruch okrężny
                         x, y, i, j = (float(match[3]), float(match[4]),
@@ -110,11 +112,8 @@ def visualize_cutting_paths(file_path, x_max=500, y_max=1000, arc_pts_len = 200)
                         angles = np.linspace(start_angle, end_angle, num=arc_pts_len)  # Generowanie punktów łuku (50 punktów)
                         arc_points = [(center_x + radius * np.cos(a), center_y + radius * np.sin(a)) for a in
                                       angles]  # Obliczenie punktów łuku
-                        try:
-                            curveCircleData[current_element_name].append((center_x,center_y,radius))
-                        except:
-                            curveCircleData[current_element_name] = [(center_x,center_y,radius)]
-
+                        curveCircleData[current_element_name].append((center_x,center_y,radius))
+                        linearPointsData[current_element_name].append(arc_points[-1])
                         current_path.extend(arc_points)  # Dodanie punktów łuku do ścieżki
                         current_position = (x, y)  # Aktualizacja pozycji
 

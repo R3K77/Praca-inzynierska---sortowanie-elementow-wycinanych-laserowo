@@ -1,18 +1,21 @@
+from collections import defaultdict
 import numpy as np
 from gcode_analize import visualize_cutting_paths, find_main_and_holes
 import cv2
 import random
-import scipy.interpolate as sc
-from scipy.optimize import least_squares
-from scipy.optimize import minimize
 
-# Funkcja generuje obraz cv2 wyciętych elementów:
-# in - sheet_path scieżka do .nc; output_res_xy - rozdzielczość wyjściowa obrazu; arc_pts_len - liczba punktów z której generowane są łuki/okręgi.
-# out - images_dict elementy wycięte cv2; pts_dict punkty konturu; sheet_size gcode'owy wymiar blachy.
 
+# TODO Inzynierka:
+# - quality control shape comparison DONE
+# - porównywanie linii obrazu prostego FIXED poprzez korzystanie tylko z tego wyżej XD
+# - perspektive transform dla prostego kształtu, badanie bledu w zaleznosci od obrotu elementu względem płaszczyzny obrazu
+# - zrobić zly obraz do porównania żeby było zle rmse FIXED po czesci, zle gcode obrazy maja błąd (ale moge zrobic jeszcze)
+# - SIFT, rotacja elementow przy odkładaniu 
+# - Rotacja translacja blachy TODO
+# - mocowanie do stolu TODO
 
 # TODO przebudowa funkcji do dynamicznej rozdzielczości pod kamere
-def singleGcodeElementsCV2(sheet_path, scale = 5, arc_pts_len = 300):
+def singleGcodeElementsCV2(sheet_path, scale = 3, arc_pts_len = 300):
     """
     Creates cv2 image of sheet element from gcode.
     Output image size is the same as bounding box of element times scale
@@ -119,7 +122,7 @@ def imageBInfoExtraction(imageB):
 
     """
     imageBFloat = np.float32(imageB)
-    contours, _ = cv2.findContours(imageB, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(imageB, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
     contourImage = cv2.cvtColor(imageB, cv2.COLOR_GRAY2BGR)
     polyImage = contourImage.copy()
     hullImage = contourImage.copy()
@@ -205,25 +208,36 @@ def linesContourCompare(imageB,gcode_data):
 
         gcode_data (dictionary): Object with linear and circular movements from gcode element
     """
-    #imageB - przetworzony obraz, po thresholdzie, biała figura czarne tło
+    img : np.array = gcode_data['image']
+    contours, _ = cv2.findContours(img,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
     cornersB, contoursB, contourBImage, _, _ = imageBInfoExtraction(imageB)
+    ret = cv2.matchShapes(contours[0],contoursB[0],1,0.0)
+    if ret > 0.02:
+        print(f'Odkształcenie, ret: {ret} \n')
+        return False
     gcodeLines = {
         "circle": gcode_data['circleData'],
         "linear": [],
     }
-    lean = gcode_data['linearData']
     imgCopy = imageB.copy()
     imgCopy = cv2.cvtColor(imgCopy,cv2.COLOR_GRAY2BGR)
-    #tworzenie lini z "punktow liniowych"
-    #FIXME litera A ma brakującą linie? -- gcode bledy juz oznaczony
-    for i in range(len(gcode_data['linearData'])): # tuple i lista tupli
-        if i == 1:
+    for i in range(len(gcode_data['linearData'])+1): # tuple i lista tupli
+        if i == 0:
             continue
+        if i == len(gcode_data['linearData']): # obsluga ostatni + pierwszy punkty linia łącząca
+            x1, y1 = gcode_data['linearData'][i-1]
+            x2, y2 = gcode_data['linearData'][0]
+            cv2.line(imgCopy, (int(x1), int(y1)), (int(x2), int(y2)), randomColor(), 3)
+            A, B, C = lineFromPoints(x1, y1, x2, y2)
+            gcodeLines['linear'].append((A, B, C))
+            break
+
         x1,y1 = gcode_data['linearData'][i]
         x2,y2 = gcode_data['linearData'][i-1]
-        cv2.line(imgCopy,(int(x1),int(y1)),(int(x2),int(y2)),random_color(),3)
+        cv2.line(imgCopy,(int(x1),int(y1)),(int(x2),int(y2)),randomColor(),3)
         A,B,C = lineFromPoints(x1,y1,x2,y2)
         gcodeLines['linear'].append((A,B,C))
+
 
     cntrErrors = []
 
@@ -248,19 +262,27 @@ def linesContourCompare(imageB,gcode_data):
 
             cntrErrors.append(d_minimal)
     cntrErrorMAX = max(cntrErrors)
-    RMSE = sum(np.sqrt(e*e) for e in cntrErrors)/len(cntrErrors)
+    RMSE = np.sqrt(sum(e*e for e in cntrErrors)/len(cntrErrors))
     imageBGR = cv2.cvtColor(imageB,cv2.COLOR_GRAY2BGR)
     bigPhoto = cv2.hconcat([imageBGR,imgCopy])
     bigPhoto2 = cv2.hconcat([contourBImage,imgCopy])
     cv2.imshow("CircleNation",bigPhoto2)
-    print("----------\n")
+    print("----------")
     contourSum = 0
     for contour in contoursB:
         contourSum += len(contour)
     print("ilosc punktow: ",contourSum)
     print("RMSE:",RMSE)
+    if RMSE > 1.5:
+        print("Detal nierówno wycięty")
+        print(f'ret: {ret} \n')
+        return False
+    else:
+        print("Detal poprawny")
+        print(f'ret: {ret} \n')
+        return True
 
-def random_color():
+def randomColor():
     """
         Generates a random color in BGR format.
     Returns:
@@ -271,13 +293,58 @@ def random_color():
     r = random.randint(0, 255)  # Random red value
     return (b, g, r)
 
+def elementStackingRotation(images):
+    """
+        Calculates rotation between objects of the same class.
+    Args:
+        images: Dict of generated cv2 images from gcode
+    Returns:
+        output_rotation: Dict of rotations when putting the element away
+    """
+    hash = defaultdict(list)
+    output_rotation = {}
+    for key, value in images.items():
+        cut_key = key[0:-4]
+        if cut_key not in hash:
+            hash[cut_key].append(value)
+            output_rotation[key] = 0
+        else:
+            sift = cv2.SIFT_create()
+            kp_first,des_first = sift.detectAndCompute(hash[cut_key][0], None)
+            kp_other,des_other = sift.detectAndCompute(value, None)
+            if len(kp_first) == 0 or len(kp_other) == 0: # brak matchy sift, głównie złe klasy
+                output_rotation[key] = 0
+                continue
+            bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck = True)
+            matches = bf.match(des_first,des_other)
+            matches = sorted(matches, key=lambda x: x.distance)
+            src_pts = np.float32([kp_first[m.queryIdx].pt for m in matches]).reshape(-1,1,2)
+            dst_pts = np.float32([kp_other[m.trainIdx].pt for m in matches]).reshape(-1,1,2)
+            if len(src_pts) < 4 or len(dst_pts) < 4: # brak matchy sift
+                #powody braku matcha
+                # złe klasowanie
+                # błąd metody?
+                output_rotation[key] = 0
+                continue
+            M,mask = cv2.findHomography(src_pts,dst_pts,cv2.RANSAC,5.0)
+            if M is not None:
+                angle = np.degrees(np.arctan2(M[1,0],M[0,0]))
+                print(f"Kąt obrotu między obrazami: {angle} stopni")
+                hash[cut_key].append(value)
+                output_rotation[key] = (angle)
+            else:
+                print("Homografia nie została znaleziona.")
+                output_rotation[key] = 0
+    return output_rotation
 
 if __name__ == "__main__":
     # Test czy spakowana funkcja działa
     images, pts, sheet_size, pts_hole, circleLineData, linearData = singleGcodeElementsCV2(
         sheet_path='../../../../Gcode to image conversion/NC_files/2_FIXME.NC',
         arc_pts_len=300)
+    rotations = elementStackingRotation(images)
     for key, value in images.items():
+
         # Porównanie contours i approx poly w znajdowaniu punktów.
         corners, contours, contourImage, polyImage, hullImage = imageBInfoExtraction(value)
         # wyciąganie ze słownika
@@ -297,6 +364,7 @@ if __name__ == "__main__":
         gcode_data_packed = {
             "linearData": linData,
             "circleData": circData,
+            "image": value,
         }
         linesContourCompare(value, gcode_data_packed)
 

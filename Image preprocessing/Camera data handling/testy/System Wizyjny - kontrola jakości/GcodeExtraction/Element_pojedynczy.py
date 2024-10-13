@@ -10,7 +10,7 @@ import random
 # - porównywanie linii obrazu prostego FIXED poprzez korzystanie tylko z tego wyżej XD
 # - perspektive transform dla prostego kształtu, badanie bledu w zaleznosci od obrotu elementu względem płaszczyzny obrazu
 # - zrobić zly obraz do porównania żeby było zle rmse FIXED po czesci, zle gcode obrazy maja błąd (ale moge zrobic jeszcze)
-# - SIFT, rotacja elementow przy odkładaniu 
+# - SIFT, rotacja elementow przy odkładaniu DONE
 # - Rotacja translacja blachy TODO
 # - mocowanie do stolu TODO
 
@@ -208,79 +208,79 @@ def linesContourCompare(imageB,gcode_data):
 
         gcode_data (dictionary): Object with linear and circular movements from gcode element
     """
-    img : np.array = gcode_data['image']
-    contours, _ = cv2.findContours(img,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
-    cornersB, contoursB, contourBImage, _, _ = imageBInfoExtraction(imageB)
-    ret = cv2.matchShapes(contours[0],contoursB[0],1,0.0)
-    if ret > 0.02:
-        print(f'Odkształcenie, ret: {ret} \n')
+    try:
+        img = gcode_data['image']
+        contours, _ = cv2.findContours(img,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
+        cornersB, contoursB, contourBImage, _, _ = imageBInfoExtraction(imageB)
+        ret = cv2.matchShapes(contours[0],contoursB[0],1,0.0)
+        for contour in contours:
+            for contourB in contoursB:
+                ret = cv2.matchShapes(contour, contourB, 1, 0.0)
+                if ret > 0.02:
+                    print(f'Odkształcenie, ret: {ret} \n')
+                    return False
+        gcodeLines = {
+            "circle": gcode_data['circleData'],
+            "linear": [],
+        }
+        imgCopy = imageB.copy()
+        imgCopy = cv2.cvtColor(imgCopy,cv2.COLOR_GRAY2BGR)
+        for i in range(len(gcode_data['linearData'])+1): # tuple i lista tupli
+            if i == 0:
+                continue
+            if i == len(gcode_data['linearData']): # obsluga ostatni + pierwszy punkty linia łącząca
+                x1, y1 = gcode_data['linearData'][i-1]
+                x2, y2 = gcode_data['linearData'][0]
+                cv2.line(imgCopy, (int(x1), int(y1)), (int(x2), int(y2)), randomColor(), 3)
+                A, B, C = lineFromPoints(x1, y1, x2, y2)
+                gcodeLines['linear'].append((A, B, C))
+                break
+
+            x1,y1 = gcode_data['linearData'][i]
+            x2,y2 = gcode_data['linearData'][i-1]
+            cv2.line(imgCopy,(int(x1),int(y1)),(int(x2),int(y2)),randomColor(),3)
+            A,B,C = lineFromPoints(x1,y1,x2,y2)
+            gcodeLines['linear'].append((A,B,C))
+        cntrErrors = []
+        for i in range(len(contoursB)):
+            for j in range(len(contoursB[i])):
+                xCntr,yCntr = contoursB[i][j][0] #we love numpy with this one
+                #porównanie do lini prostej
+                d_minimal = 1000
+                for l in range(len(gcodeLines["linear"])):
+                    A,B,C = gcodeLines["linear"][l] # (a,b) y=ax+b
+                    d = np.abs(A*xCntr + B*yCntr + C)/(np.sqrt(A**2 + B**2))
+                    if d < d_minimal:
+                        d_minimal = d
+
+                #porównanie do kół
+                for k in range(len(gcodeLines["circle"])):
+                    a, b, r = gcodeLines["circle"][k]
+                    cv2.circle(imgCopy, (int(a),int(b)),int(np.abs(r)),(0,0,255), 3)
+                    d_circ = np.abs(np.sqrt((xCntr - a)**2 + (yCntr - b)**2) - r)
+                    if d_circ < d_minimal:
+                        d_minimal = d_circ
+
+                cntrErrors.append(d_minimal)
+        RMSE = np.sqrt(sum(e*e for e in cntrErrors)/len(cntrErrors))
+        print("----------")
+        contourSum = 0
+        for contour in contoursB:
+            contourSum += len(contour)
+        print("ilosc punktow: ",contourSum)
+        print("RMSE:",RMSE)
+        if RMSE > 1.1:
+            print("Detal posiada błąd wycięcia")
+            print(f'ret: {ret} \n')
+            return False
+        else:
+            print("Detal poprawny")
+            print(f'ret: {ret} \n')
+            return True
+    except Exception as e:
+        print("Podczas przetwarzania obrazu wystąpił błąd")
+        print(e)
         return False
-    gcodeLines = {
-        "circle": gcode_data['circleData'],
-        "linear": [],
-    }
-    imgCopy = imageB.copy()
-    imgCopy = cv2.cvtColor(imgCopy,cv2.COLOR_GRAY2BGR)
-    for i in range(len(gcode_data['linearData'])+1): # tuple i lista tupli
-        if i == 0:
-            continue
-        if i == len(gcode_data['linearData']): # obsluga ostatni + pierwszy punkty linia łącząca
-            x1, y1 = gcode_data['linearData'][i-1]
-            x2, y2 = gcode_data['linearData'][0]
-            cv2.line(imgCopy, (int(x1), int(y1)), (int(x2), int(y2)), randomColor(), 3)
-            A, B, C = lineFromPoints(x1, y1, x2, y2)
-            gcodeLines['linear'].append((A, B, C))
-            break
-
-        x1,y1 = gcode_data['linearData'][i]
-        x2,y2 = gcode_data['linearData'][i-1]
-        cv2.line(imgCopy,(int(x1),int(y1)),(int(x2),int(y2)),randomColor(),3)
-        A,B,C = lineFromPoints(x1,y1,x2,y2)
-        gcodeLines['linear'].append((A,B,C))
-
-
-    cntrErrors = []
-
-    for i in range(len(contoursB)):
-        for j in range(len(contoursB[i])):
-            xCntr,yCntr = contoursB[i][j][0] #we love numpy with this one
-            #porównanie do lini prostej
-            d_minimal = 1000
-            for l in range(len(gcodeLines["linear"])):
-                A,B,C = gcodeLines["linear"][l] # (a,b) y=ax+b
-                d = np.abs(A*xCntr + B*yCntr + C)/(np.sqrt(A**2 + B**2))
-                if d < d_minimal:
-                    d_minimal = d
-
-            #porównanie do kół
-            for k in range(len(gcodeLines["circle"])):
-                a, b, r = gcodeLines["circle"][k]
-                cv2.circle(imgCopy, (int(a),int(b)),int(np.abs(r)),(0,0,255), 3)
-                d_circ = np.abs(np.sqrt((xCntr - a)**2 + (yCntr - b)**2) - r)
-                if d_circ < d_minimal:
-                    d_minimal = d_circ
-
-            cntrErrors.append(d_minimal)
-    cntrErrorMAX = max(cntrErrors)
-    RMSE = np.sqrt(sum(e*e for e in cntrErrors)/len(cntrErrors))
-    imageBGR = cv2.cvtColor(imageB,cv2.COLOR_GRAY2BGR)
-    bigPhoto = cv2.hconcat([imageBGR,imgCopy])
-    bigPhoto2 = cv2.hconcat([contourBImage,imgCopy])
-    cv2.imshow("CircleNation",bigPhoto2)
-    print("----------")
-    contourSum = 0
-    for contour in contoursB:
-        contourSum += len(contour)
-    print("ilosc punktow: ",contourSum)
-    print("RMSE:",RMSE)
-    if RMSE > 1.5:
-        print("Detal nierówno wycięty")
-        print(f'ret: {ret} \n')
-        return False
-    else:
-        print("Detal poprawny")
-        print(f'ret: {ret} \n')
-        return True
 
 def randomColor():
     """
@@ -337,6 +337,122 @@ def elementStackingRotation(images):
                 output_rotation[key] = 0
     return output_rotation
 
+def testAlgorithmFunction(key, value, pts, pts_hole, linearData, circleLineData):
+    """
+    Funkcja testowa do sprawdzania działania funkcji obróbki obrazu
+
+    Args:
+        key: Nazwa klucza obrazu.
+        value: Obraz do przetwarzania.
+        pts: Słownik punktów konturu.
+        pts_hole: Słownik punktów otworu.
+        linearData: Dane dotyczące punktów prostych.
+        circleLineData: Dane dotyczące punktów kolistych.
+    """
+    # Porównanie contours i approx poly w znajdowaniu punktów.
+    corners, contours, contourImage, polyImage, hullImage = imageBInfoExtraction(value)
+    # wyciąganie ze słownika
+    points = pts[f'{key}']
+    points_hole = pts_hole[f'{key}']
+    try:
+        linData = linearData[f'{key}']
+    except KeyError:
+        linData = []
+
+    try:
+        circData = circleLineData[f'{key}']
+    except KeyError:
+        circData = []
+
+    gcode_data_packed = {
+        "linearData": linData,
+        "circleData": circData,
+        "image": value,
+    }
+    linesContourCompare(value, gcode_data_packed)
+
+    buf = cv2.cvtColor(value, cv2.COLOR_GRAY2BGR)
+
+    # ========== COLOR SCHEME PUNKTOW =============
+    # czerwony - punkty proste głównego obrysu
+    # żółty - punkty koliste głównego obrysu
+    # różowy - punkty proste otworu
+    # zielony - punkty koliste otworu
+
+    # Wizualizacja punktów głównego konturu + punktow kolistych
+    for i in range(len(points)):
+        cv2.circle(buf, (points[i][0], points[i][1]), 3, (0, 0, 255), 3)
+
+    # # Wizualizacja punktów wycięć + punktow kolistych
+    for j in range(len(points_hole)):
+        for i in range(len(points_hole[j])):
+            cv2.circle(buf, (points_hole[j][i][0], points_hole[j][i][1]), 2, (0, 255, 0), 2)
+
+    # Wyświetlanie obrazów, zakomentowane linie można odkomentować w razie potrzeby
+    # cv2.polylines(buf, [points], True, (0, 0, 255), thickness=3)
+    # cv2.imshow("imageB Contour", contourImage)
+    # cv2.imshow("imageB Poly", polyImage)
+    # cv2.imshow("imageB Hull", hullImage)
+    # # Gigazdjęcie
+    # imgTop = cv2.hconcat([buf, contourImage])
+    # imgBottom = cv2.hconcat([polyImage, hullImage])
+    # imgMerge = cv2.vconcat([imgTop, imgBottom])
+    # cv2.imshow("BIG MERGE", imgMerge)
+    cv2.imshow("Gcode image + punkty Gcode", buf)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+def testTilt(imageB,gcode_data):
+    """
+    Quality control vision system test, simulates tilted element
+    Args:
+        imageB:
+        gcode_data:
+    Returns:
+
+    """
+    height_new, width_new = imageB.shape[:2]
+    src_points_new = np.float32([[0, 0], [width_new, 0], [width_new, height_new], [0, height_new]])
+    dst_points_new = np.float32([[50, 0], [width_new - 50, 0], [width_new, height_new], [0, height_new]])
+    matrix_new = cv2.getPerspectiveTransform(src_points_new, dst_points_new)
+    transformed_image_new = cv2.warpPerspective(imageB, matrix_new, (width_new, height_new))
+    return transformed_image_new, linesContourCompare(transformed_image_new,gcode_data)
+
+def testAdditionalHole(imageB,gcode_data):
+    """
+    Draws a random black shape (circle or rectangle) on the given image.
+
+    Args:
+        imageB: Input image on which the shape will be drawn.
+
+    Returns:
+        Image with a random black shape drawn on it.
+    """
+    # Kopia obrazu, aby nie modyfikować oryginału
+    image_copy = imageB.copy()
+
+    # Wybór losowego kształtu: 0 dla koła, 1 dla prostokąta
+    shape_type = random.choice([0, 1])
+
+    # Wymiary obrazu
+    height, width = image_copy.shape[:2]
+
+    # Losowanie współrzędnych dla kształtu
+    x = random.randint(0, width - 1)
+    y = random.randint(0, height - 1)
+
+    # Losowanie rozmiaru kształtu
+    size = random.randint(10, 50)  # Losowy rozmiar kształtu
+
+    if shape_type == 0:  # Okrąg
+        cv2.circle(image_copy, (x, y), size, (0, 0, 0), -1)  # Czarny kolor
+    else:  # Prostokąt
+        top_left = (x, y)
+        bottom_right = (min(x + size, width - 1), min(y + size, height - 1))
+        cv2.rectangle(image_copy, top_left, bottom_right, (0, 0, 0), -1)  # Czarny kolor
+
+    return image_copy, linesContourCompare(image_copy,gcode_data)
+
 if __name__ == "__main__":
     # Test czy spakowana funkcja działa
     images, pts, sheet_size, pts_hole, circleLineData, linearData = singleGcodeElementsCV2(
@@ -344,60 +460,33 @@ if __name__ == "__main__":
         arc_pts_len=300)
     rotations = elementStackingRotation(images)
     for key, value in images.items():
-
-        # Porównanie contours i approx poly w znajdowaniu punktów.
-        corners, contours, contourImage, polyImage, hullImage = imageBInfoExtraction(value)
-        # wyciąganie ze słownika
-        points = pts[f'{key}']
-        points_hole = pts_hole[f'{key}']
-
         try:
             linData = linearData[f'{key}']
-        except:
+        except KeyError:
             linData = []
-
         try:
             circData = circleLineData[f'{key}']
-        except:
+        except KeyError:
             circData = []
-
         gcode_data_packed = {
             "linearData": linData,
             "circleData": circData,
             "image": value,
         }
-        linesContourCompare(value, gcode_data_packed)
-
-        buf = cv2.cvtColor(value, cv2.COLOR_GRAY2BGR)
-        #========== COLOR SCHEME PUNKTOW =============
-        #czerwony - punkty proste głównego obrysu
-        #żółty - punkty koliste głównego obrysu
-        #różowy - punkty proste otworu
-        #zielony - punkty koliste otworu
-
-        # Wizualizacja punktów głównego konturu + punktow kolistych
-        for i in range(len(points)):
-            cv2.circle(buf, (points[i][0],points[i][1]),3 ,(0,0,255),3)
-
-        # # Wizualizacja punktów wycięć + punktow kolistych
-        for j in range(len(points_hole)):
-            for i in range(len(points_hole[j])):
-                cv2.circle(buf, (points_hole[j][i][0],points_hole[j][i][1]),2,(0, 255, 0), 2)
+        # img_transformed,is_image_good = testAdditionalHole(value,gcode_data_packed) # podmienic funkcje w zaleznosci od testu
+        # img = cv2.hconcat([value,img_transformed])
+        # cv2.imshow("obraz",img)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+        testAlgorithmFunction(key,value,pts,pts_hole,linearData,circleLineData)
 
 
-        # cv2.polylines(buf,[points],True,(0,0,255),thickness = 3)
-        # cv2.imshow("imageB Contour", contourImage) # niebieski - obrys, czerwony - punkty konturu
-        # cv2.imshow("imageB Poly", polyImage) # morski - linie konturu, czerwony - uproszczone punkty konturu
-        # cv2.imshow("imageB Hull", hullImage)
-        # gigazdjecie
-        # imgTop = cv2.hconcat([buf, contourImage])
-        # imgBottom = cv2.hconcat([polyImage, hullImage])
-        # imgMerge = cv2.vconcat([imgTop, imgBottom])
-        # cv2.imshow("BIG MERGE", imgMerge)
 
-        cv2.imshow("Gcode image + punkty Gcode", buf)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+
+
+
+
+
 
 
 

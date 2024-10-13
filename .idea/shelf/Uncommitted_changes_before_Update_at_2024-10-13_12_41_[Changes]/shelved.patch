@@ -1,0 +1,20 @@
+Index: .idea/Projekt-Przejsciowy---sortowanie-elementow-wycinanych-laserowo.iml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+><?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n<module type=\"PYTHON_MODULE\" version=\"4\">\r\n  <component name=\"NewModuleRootManager\">\r\n    <content url=\"file://$MODULE_DIR$\" />\r\n    <orderEntry type=\"jdk\" jdkName=\"Python 3.11\" jdkType=\"Python SDK\" />\r\n    <orderEntry type=\"sourceFolder\" forTests=\"false\" />\r\n  </component>\r\n</module>
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/Projekt-Przejsciowy---sortowanie-elementow-wycinanych-laserowo.iml b/.idea/Projekt-Przejsciowy---sortowanie-elementow-wycinanych-laserowo.iml
+--- a/.idea/Projekt-Przejsciowy---sortowanie-elementow-wycinanych-laserowo.iml	(revision 3a9fcdec7d3620370b159d45ec856778fef59c0c)
++++ b/.idea/Projekt-Przejsciowy---sortowanie-elementow-wycinanych-laserowo.iml	(date 1728650767736)
+@@ -5,4 +5,8 @@
+     <orderEntry type="jdk" jdkName="Python 3.11" jdkType="Python SDK" />
+     <orderEntry type="sourceFolder" forTests="false" />
+   </component>
++  <component name="PyDocumentationSettings">
++    <option name="format" value="GOOGLE" />
++    <option name="myDocStringFormat" value="Google" />
++  </component>
+ </module>
+\ No newline at end of file

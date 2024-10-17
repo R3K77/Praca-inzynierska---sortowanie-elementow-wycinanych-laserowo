@@ -22,13 +22,13 @@ from centroid import calculate_centroid
 # - Wszystkie współrzędne są mniejsze niż podane maksymalne współrzędne X i Y.
 # ------------------------------------------------------------------------------------- #
 # Przykład użycia:
-# cutting_paths, x_min, x_max, y_min, y_max = visualize_cutting_paths("./Przygotowanie obrazu/gcode2image/NC_files/Arkusz-6001.nc")
+# cutting_paths, x_min, x_max, y_min, y_max = visualize_cutting_paths_extended("./Przygotowanie obrazu/gcode2image/NC_files/Arkusz-6001.nc")
 # ------------------------------------------------------------------------------------- #
 # Modyfikacje: Rafał Szygenda
 # - liczba punktów łuków jest argumentem wejściowym funkcji, większa rozdzielczość
 # - zwrotka rozmiaru blachy, dane koła i punktow liniowych (do systemu wizyjnego)
 
-def visualize_cutting_paths(file_path, x_max=500, y_max=1000, arc_pts_len = 200):
+def visualize_cutting_paths_extended(file_path, x_max=500, y_max=1000, arc_pts_len = 200):
     sheet_size_line = None
     with open(file_path, 'r') as file:
         file_content = file.read().splitlines()

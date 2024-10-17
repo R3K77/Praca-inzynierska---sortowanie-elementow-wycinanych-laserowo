@@ -1,6 +1,6 @@
 from collections import defaultdict
 import numpy as np
-from gcode_analize import visualize_cutting_paths, find_main_and_holes
+from gcode_analize import visualize_cutting_paths_extended, find_main_and_holes
 import cv2
 import random
 
@@ -14,10 +14,10 @@ import random
 # - mocowanie do stolu TODO
 
 # TODO przebudowa funkcji do dynamicznej rozdzielczości pod kamere
-def singleGcodeElementsCV2(sheet_path, scale = 3, arc_pts_len = 300):
+def allGcodeElementsCV2(sheet_path, scale = 3, arc_pts_len = 300):
     """
-    Creates cv2 image of sheet element from gcode.
-    Output image size is the same as bounding box of element times scale
+    Creates cv2 images of sheet elements from gcode.
+    Output images size is the same as bounding box of element times scale
 
     Args:
         sheet_path (string): absolute path to gcode .nc file
@@ -38,7 +38,7 @@ def singleGcodeElementsCV2(sheet_path, scale = 3, arc_pts_len = 300):
         sheet_size (int tuple): tuple of x,y sheet size
 
     """
-    cutting_paths, x_min, x_max, y_min, y_max, sheet_size_line, circleLineData, linearPointsData = visualize_cutting_paths(sheet_path, arc_pts_len= arc_pts_len)
+    cutting_paths, x_min, x_max, y_min, y_max, sheet_size_line, circleLineData, linearPointsData = visualize_cutting_paths_extended(sheet_path, arc_pts_len= arc_pts_len)
     if sheet_size_line is not None:
         #Rozkodowanie linii na wymiary
         split = sheet_size_line.split()
@@ -100,6 +100,16 @@ def singleGcodeElementsCV2(sheet_path, scale = 3, arc_pts_len = 300):
         return images_dict, pts_dict, sheet_size, pts_hole_dict, adjustedCircleLineData, adjustedLinearData
     else:
         return None, None, None, None,None
+
+def singleGcodeElementCV2(cutting_path,circle_line_data,linear_points_data):
+    new_image = "placeholder"
+    adjusted_circle_data = "placeholder2"
+    adjusted_linear_data = "placeholder3"
+    return new_image,adjusted_circle_data,adjusted_linear_data
+
+def cameraImage():
+    image = "placeholder"
+    return image
 
 def imageBInfoExtraction(imageB):
     """
@@ -454,7 +464,7 @@ def testAdditionalHole(imageB,gcode_data):
 
 if __name__ == "__main__":
     # Test czy spakowana funkcja działa
-    images, pts, sheet_size, pts_hole, circleLineData, linearData = singleGcodeElementsCV2(
+    images, pts, sheet_size, pts_hole, circleLineData, linearData = allGcodeElementsCV2(
         sheet_path='../../../../Gcode to image conversion/NC_files/8.NC',
         arc_pts_len=300)
     rotations = elementStackingRotation(images)

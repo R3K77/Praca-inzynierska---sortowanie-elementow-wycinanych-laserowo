@@ -5,12 +5,25 @@
 import socket
 import time
 import csv
-
+import os
+import sys
+# do importu funkcji
+sys.path.append(os.path.join(os.path.dirname(__file__), '..','Camera data handling', 'testy', 'System Wizyjny - kontrola jakości', 'GcodeExtraction'))
+from Element_pojedynczy import *
+from gcode_analize import visualize_cutting_paths_extended
 # Konfiguracja serwera
 HOST = '0.0.0.0'  # Nasłuchiwanie na wszystkich interfejsach sieciowych
 PORT = 59152      # Port zgodny z konfiguracją w robocie KUKA
 
+
+
+
 def main():
+    # Bufor pod system wizyjny
+    print("Przygotowanie systemu wizyjnego")
+    cutting_paths, x_min, x_max, y_min, y_max, sheet_size_line, circleLineData, linearPointsData = visualize_cutting_paths_extended(
+        "NC_files/8.nc")
+    print("Przygotowanie gotowe")
     # Tworzenie gniazda serwera
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -23,24 +36,23 @@ def main():
         # Akceptowanie połączenia od klienta (robota KUKA)
         client_socket, client_address = server_socket.accept()
         print(f"Połączono z {client_address}")
-
         try:
-            
             # Odczyt danych z pliku CSV
             with open('element_details.csv', 'r') as file:
                 reader = csv.reader(file)
                 next(reader)  # Pominięcie nagłówka
 
                 for row in reader:
-                    
+
+
                     # ------------- POBRANIE DETALU -------------
-                    detail_x = float(row[0])
-                    detail_y = float(row[1])
-                    detail_z = float(row[2])
+                    detail_x = float(row[1])
+                    detail_y = float(row[2])
+                    detail_z = float(row[3])
                     print(f"Odczytano dane z csv: {detail_x}, {detail_y}, {detail_z}")
-                    box_x = float(row[3])
-                    box_y = float(row[4])
-                    box_z = float(row[5])
+                    box_x = float(row[4])
+                    box_y = float(row[5])
+                    box_z = float(row[6])
 
                     # Wartości do wysłania
                     send_valueY = detail_x
@@ -53,13 +65,22 @@ def main():
                     client_socket.send(response.encode('ascii'))
                     print(f"Wysłano dane: {response}")
 
+
+
                     # Oczekiwanie na informację zwrotną od robota
                     data = client_socket.recv(1024).decode('utf-8', errors='ignore')
                     print(f"Otrzymane dane: {data}")
                     
-                    
+                    # System wizyjny
+                    element_name = row[0]
+                    camera_image = cameraImage()
+                    single
+
+
                     # ------------- ODŁOŻENIE DETALU -------------
                     print(f"Odczytano dane z csv: {box_x}, {box_y}, {box_z}")
+
+
 
                     # Wartości do wysłania
                     send_valueY = box_x

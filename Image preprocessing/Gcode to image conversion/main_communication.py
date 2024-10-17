@@ -36,16 +36,19 @@ def main():
                     # ------------- POBRANIE DETALU -------------
                     detail_x = float(row[0])
                     detail_y = float(row[1])
-                    print(f"Odczytano dane z csv: {detail_x}, {detail_y}")
-                    box_x = float(row[2])
-                    box_y = float(row[3])
+                    detail_z = float(row[2])
+                    print(f"Odczytano dane z csv: {detail_x}, {detail_y}, {detail_z}")
+                    box_x = float(row[3])
+                    box_y = float(row[4])
+                    box_z = float(row[5])
 
                     # Wartości do wysłania
                     send_valueY = detail_x
                     send_valueX = detail_y
+                    send_valueZ = detail_z
 
                     # Formatowanie danych do wysłania
-                    response = f"{send_valueX:09.4f}{send_valueY:09.4f}a"
+                    response = f"{send_valueX:09.4f}{send_valueY:09.4f}{send_valueZ:09.4f}a"
                     print(f"Przygotowano dane: {response}")
                     client_socket.send(response.encode('ascii'))
                     print(f"Wysłano dane: {response}")
@@ -56,14 +59,15 @@ def main():
                     
                     
                     # ------------- ODŁOŻENIE DETALU -------------
-                    print(f"Odczytano dane z csv: {box_x}, {box_y}")
+                    print(f"Odczytano dane z csv: {box_x}, {box_y}, {box_z}")
 
                     # Wartości do wysłania
                     send_valueY = box_x
                     send_valueX = box_y
+                    send_valueZ = box_z
 
                     # Formatowanie danych do wysłania
-                    response = f"{send_valueX:09.4f}{send_valueY:09.4f}b"
+                    response = f"{send_valueX:09.4f}{send_valueY:09.4f}{send_valueZ:09.4f}b"
                     print(f"Przygotowano dane: {response}")
                     client_socket.send(response.encode('ascii'))
                     print(f"Wysłano dane: {response}")

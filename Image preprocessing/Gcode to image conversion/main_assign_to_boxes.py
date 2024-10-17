@@ -1,9 +1,3 @@
-# ----------------- Plik obliczeniowy do przypisywania elementów do pudełek ----------------- #
-# Autor: Bartłomiej Szalwach
-# Plik zawiera funkcje do przypisywania elementów do pudełek, obliczania masy elementów oraz
-# znajdowania najlepszego punktu przyłożenia przyssawki.
-# --------------------------------------------------------------- #
-
 import matplotlib.pyplot as plt
 import numpy as np
 from shapely.geometry import Point, Polygon as ShapelyPolygon
@@ -20,13 +14,18 @@ import matplotlib.patches as mpatches
 # -------------------------------------------------- #
 SUCTION_DIAMETER = 19                   # Średnica przyssawki
 SUCTION_RADIUS = SUCTION_DIAMETER / 2   # Promień przyssawki
-MAX_SUCTION_SEARCH_RADIUS = 50             # Maksymalna odległość od środka ciężkości
+MAX_SUCTION_SEARCH_RADIUS = 50          # Maksymalna odległość od środka ciężkości
 MAX_ADJUSTED_DISTANCE = 60              # Maksymalna odległość od środka ciężkości po korekcie
 MAX_DETAIL_MASS = 250                   # Maksymalna masa elementu [g]
 MATERIAL_DENSITY = 0.00785              # Gęstość materiału 
 MATERIAL_THICKNESS = 1.5                # Grubość materiału [mm]
 NUM_SEARCH_ANGLES = 50                  # Liczba kątów do przeszukania
 NUM_SEARCH_RADII = 50                   # Liczba promieni do przeszukania
+
+# Dodatkowe stałe
+Z_INCREMENT = 2                         # Przyrost wysokości w pudełku na każdy element
+INITIAL_HEIGHT = 10                      # Początkowa wysokość dla pierwszego elementu
+DETAIL_Z = 150                            # Wysokość pobrania detalu
 
 # ----------------- Funkcja do tworzenia listy pudełek ----------------- #
 # Funkcja tworzy listę pudełek (punktów), do których będą przypisane elementy.
@@ -86,7 +85,6 @@ def process_element(element_name, element_paths, ax, x_range_center_adj_cache, y
             y_range_center_adj_cache)   
         if best_point:
             # Rysowanie obszaru przyssawki
-            #ax.plot(*best_point, 'go')
             ax.add_patch(Circle(best_point, SUCTION_RADIUS, color='green', alpha=1, zorder=3))
             print(f"\tElement name: {element_name}")
             print(f"\tBest suction point found: ({round(best_point[0], 3)}, {round(best_point[1], 3)})")
@@ -245,44 +243,70 @@ def main():
         element_details = []
         box_counter = 0
 
+        # Słownik do śledzenia wysokości w każdym pudełku
+        box_heights = {}  # Klucz: nazwa pudełka, wartość: aktualna wysokość
+        # Zmienna do określenia wysokości początkowej dla pierwszego elementu
+        initial_height = INITIAL_HEIGHT
+
         for element in processed_elements:
             element_name, best_point = element
+
+            # Sprawdź, czy element tego typu został już przypisany do pudełka
             if not any(element_name == e[1] for e in element_details):
+                # Przypisz do nowego pudełka
                 box_name = f"box{box_counter + 1}"
                 box_point = boxes[box_counter].coords[0]
                 box_counter = (box_counter + 1) % len(boxes)
+                # Inicjalizuj wysokość dla tego pudełka
+                box_heights[box_name] = initial_height  # Początkowa wysokość
             else:
+                # Znajdź istniejące pudełko dla tego typu elementu
                 for detail in element_details:
                     if detail[1] == element_name:
-                        box_name, _, _, box_point = detail
+                        box_name = detail[0]
+                        box_point = boxes[int(box_name.replace("box", "")) - 1].coords[0]
                         break
-            element_details.append((box_name, element_name, best_point, box_point))
+
+            # Zaktualizuj wysokość w pudełku
+            current_height = box_heights[box_name]
+            box_heights[box_name] += Z_INCREMENT  # Zwiększ wysokość o przyrost
+
+            # Punkt docelowy w pudełku z uwzględnieniem aktualnej wysokości Z
+            target_box_point = (box_point[0], box_point[1], current_height)
+
+            # Dodaj do szczegółów elementów
+            element_details.append((box_name, element_name, best_point, target_box_point))
 
         # Zapis szczegółów elementów do pliku CSV
         csv_file_path = "./element_details.csv"
         with open(csv_file_path, mode='w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(["Detail - X", "Detail - Y", "Box - X", "Box - Y"])
+            writer.writerow(["Detail - X", "Detail - Y", "Detail - Z", "Box - X", "Box - Y", "Box - Z"])
             for detail in element_details:
+                best_point = detail[2]
+                target_box_point = detail[3]
                 writer.writerow([
-                    f"{detail[2][0]:09.4f}",
-                    f"{detail[2][1]:09.4f}",
-                    f"{detail[3][0]:09.4f}",
-                    f"{detail[3][1]:09.4f}"
+                    f"{best_point[0]:09.4f}",            # Detail - X
+                    f"{best_point[1]:09.4f}",            # Detail - Y
+                    f"{DETAIL_Z:09.4f}",                           # Detail - Z (przyjmujemy 0)
+                    f"{target_box_point[0]:09.4f}",      # Box - X
+                    f"{target_box_point[1]:09.4f}",      # Box - Y
+                    f"{target_box_point[2]:09.4f}"       # Box - Z (wysokość)
                 ])
-
+                print(f"Zapisano szczegóły elementu: {detail} (Z={target_box_point[2]}) do pliku CSV")
         # Rysowanie strzałek od elementów do pudełek
         for detail in element_details:
             best_point = detail[2]
-            box_point = detail[3]
+            target_box_point = detail[3]
             ax.annotate(
                 '',
-                xy=box_point,
+                xy=(target_box_point[0], target_box_point[1]),
                 xytext=best_point,
                 arrowprops=dict(facecolor='grey', arrowstyle='->', linewidth=0.2)
             )
+
         ax.set_xlim(0, 500)
-        ax.set_ylim(0, 900)
+        ax.set_ylim(0, 1300)
 
         # Dodanie własnej legendy do wykresu
         add_custom_legend(ax)

@@ -32,6 +32,13 @@ def main():
 
     print(f"Serwer nasłuchuje na {HOST}:{PORT}")
 
+    #TODO przed startem robota powinien być ruch do docelowego punktu
+    # w ktorym dzieje sie quality control zeby zebrac median_frame
+    #snippet:
+    client_socket, client_address = server_socket.accept()
+    data = client_socket.recv(1024).decode('utf-8',errors='ignore')
+    if data:
+        median_background_frame = capture_median_frame()
     while True:
         # Akceptowanie połączenia od klienta (robota KUKA)
         client_socket, client_address = server_socket.accept()
@@ -72,7 +79,7 @@ def main():
                     
                     # System wizyjny
                     element_name = row[0]
-                    camera_image,bound_box_size = cameraImage()
+                    camera_image,bound_box_size = cameraImage(median_background_frame)
                     gcode_data = singleGcodeElementCV2(cutting_paths[element_name],circleLineData[element_name],linearPointsData[element_name],bound_box_size)
                     is_element_correct = linesContourCompare(camera_image,gcode_data)
 

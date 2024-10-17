@@ -102,22 +102,69 @@ def allGcodeElementsCV2(sheet_path, scale = 3, arc_pts_len = 300):
         return None, None, None, None,None
 
 def singleGcodeElementCV2(cutting_path,circle_line_data,linear_points_data,bounding_box_size):
-    new_image = "placeholder"
-    adjusted_circle_data = "placeholder2"
-    adjusted_linear_data = "placeholder3"
+    #przeskalowanie
+    main_contour, holes, = find_main_and_holes(cutting_path)
+    max_x = max(main_contour, key=lambda item: item[0])[0]
+    max_y = max(main_contour, key=lambda item: item[1])[1]
+    min_x = min(main_contour, key=lambda item: item[0])[0]
+    min_y = min(main_contour, key=lambda item: item[1])[1]
+    width,height = bounding_box_size
+    try:
+        scale = width/(max_y - min_y)
+    except Exception as e:
+        print(e)
+        scale = width/(max_x - min_x)
+    dx = scale
+    dy = scale
+    output_res_x = width
+    output_res_y = height
+    img = np.zeros((output_res_y, output_res_x, 3), dtype=np.uint8)
+
+    #przeskalowanie danych do ucietego obrazu
+    adjusted_main = [(int((x - min_x) * dx), int((y - min_y) * dy)) for x, y in main_contour]
+    pts = np.array(adjusted_main, np.int32)
+    cv2.fillPoly(img, [pts], color=(255, 255, 255))
+
+    adjusted_holes = [[(int((x - min_x) * dx), int((y - min_y) * dy)) for x, y in hole] for hole in holes]
+    for hole in adjusted_holes:
+        pts2 = np.array(hole, np.int32)
+        pts2_resh = pts2.reshape((-1, 1, 2))
+        cv2.fillPoly(img, [pts2_resh], color=(0, 0, 0))
+
+    adjusted_circle_data = []
+    for c in circle_line_data:
+        adjusted_circle_data.append(((c[0] - min_x) * dx, (c[1] - min_y) * dy, c[2] * np.sqrt(dx * dy)))  # a, b, r
+
+    adjusted_linear_data = []
+    for l in linear_points_data:
+        adjusted_linear_data.append(((l[0] - min_x) * dx, (l[1] - min_y) * dy))
+
+    # Binary thresholding to convert the image to black and white
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    _, thresh = cv2.threshold(gray, 30, 255, 0)
+    # Pack the results
     gcode_data_packed = {
-        "linearData": linData,
+        "image": thresh,
+        "linearData": adjusted_linear_data,
         "circleData": adjusted_circle_data,
-        "image": adjusted_linear_data,
     }
+    cv2.imshow("single",thresh)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
     return gcode_data_packed
+
+def singleGcodeTest():
+    (cutting_paths, _, _, _, _, sheet_size_line, circleLineData,
+     linearPointsData) = visualize_cutting_paths_extended('../../../../Gcode to image conversion/NC_files/8.NC')
+    for key, value in cutting_paths.items():
+        gcode_data = singleGcodeElementCV2(cutting_paths[key],circleLineData[key],linearPointsData[key],(500,500))
 
 def capture_median_frame():
     while True:
         cap = cv2.VideoCapture(0)
         if not cap.isOpened():
             print("Nie udało się otworzyć kamerki")
-            return None
+            continue
         else:
             break
 
@@ -133,11 +180,18 @@ def capture_median_frame():
 
     return median_frame
 
-def cameraImage():
-
-    image = "placeholder"
-    bounding_box_size = ("placeholder2","placeholder3")
-    return image
+def cameraImage(median_background_frame):
+    median_frame = capture_median_frame()
+    gray_frame = cv2.cvtColor(median_frame, cv2.COLOR_BGR2GRAY)
+    gray_background  = cv2.cvtColor(median_background_frame,cv2.COLOR_BGR2GRAY)
+    diff = cv2.absdiff(gray_background,gray_frame)
+    background_subtractor = cv2.createBackgroundSubtractorMOG2()
+    foreground_mask = background_subtractor.apply(gray_frame)
+    _, thresholded = cv2.threshold(foreground_mask, 200, 255, cv2.THRESH_BINARY)
+    #odszumienie
+    kernel = np.ones((5, 5), np.uint8)
+    cleaned_thresholded = cv2.morphologyEx(thresholded, cv2.MORPH_OPEN, kernel)
+    return cleaned_thresholded
 
 def imageBInfoExtraction(imageB):
     """
@@ -491,31 +545,32 @@ def testAdditionalHole(imageB,gcode_data):
     return image_copy, linesContourCompare(image_copy,gcode_data)
 
 if __name__ == "__main__":
+    singleGcodeTest()
     # Test czy spakowana funkcja działa
-    images, pts, sheet_size, pts_hole, circleLineData, linearData = allGcodeElementsCV2(
-        sheet_path='../../../../Gcode to image conversion/NC_files/8.NC',
-        arc_pts_len=300)
-    rotations = elementStackingRotation(images)
-    for key, value in images.items():
-        try:
-            linData = linearData[f'{key}']
-        except KeyError:
-            linData = []
-        try:
-            circData = circleLineData[f'{key}']
-        except KeyError:
-            circData = []
-        gcode_data_packed = {
-            "linearData": linData,
-            "circleData": circData,
-            "image": value,
-        }
-        # img_transformed,is_image_good = testAdditionalHole(value,gcode_data_packed) # podmienic funkcje w zaleznosci od testu
-        # img = cv2.hconcat([value,img_transformed])
-        # cv2.imshow("obraz",img)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
-        testAlgorithmFunction(key,value,pts,pts_hole,linearData,circleLineData)
+    # images, pts, sheet_size, pts_hole, circleLineData, linearData = allGcodeElementsCV2(
+    #     sheet_path='../../../../Gcode to image conversion/NC_files/8.NC',
+    #     arc_pts_len=300)
+    # rotations = elementStackingRotation(images)
+    # for key, value in images.items():
+    #     try:
+    #         linData = linearData[f'{key}']
+    #     except KeyError:
+    #         linData = []
+    #     try:
+    #         circData = circleLineData[f'{key}']
+    #     except KeyError:
+    #         circData = []
+    #     gcode_data_packed = {
+    #         "linearData": linData,
+    #         "circleData": circData,
+    #         "image": value,
+    #     }
+    #     # img_transformed,is_image_good = testAdditionalHole(value,gcode_data_packed) # podmienic funkcje w zaleznosci od testu
+    #     # img = cv2.hconcat([value,img_transformed])
+    #     # cv2.imshow("obraz",img)
+    #     # cv2.waitKey(0)
+    #     # cv2.destroyAllWindows()
+    #     testAlgorithmFunction(key,value,pts,pts_hole,linearData,circleLineData)
 
 
 

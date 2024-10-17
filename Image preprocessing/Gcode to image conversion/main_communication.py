@@ -21,7 +21,7 @@ PORT = 59152      # Port zgodny z konfiguracją w robocie KUKA
 def main():
     # Bufor pod system wizyjny
     print("Przygotowanie systemu wizyjnego")
-    cutting_paths, x_min, x_max, y_min, y_max, sheet_size_line, circleLineData, linearPointsData = visualize_cutting_paths_extended(
+    cutting_paths, _, _, _, _, sheet_size_line, circleLineData, linearPointsData = visualize_cutting_paths_extended(
         "NC_files/8.nc")
     print("Przygotowanie gotowe")
     # Tworzenie gniazda serwera
@@ -43,7 +43,6 @@ def main():
                 next(reader)  # Pominięcie nagłówka
 
                 for row in reader:
-
 
                     # ------------- POBRANIE DETALU -------------
                     detail_x = float(row[1])
@@ -73,19 +72,24 @@ def main():
                     
                     # System wizyjny
                     element_name = row[0]
-                    camera_image = cameraImage()
-                    single
-
+                    camera_image,bound_box_size = cameraImage()
+                    gcode_data = singleGcodeElementCV2(cutting_paths[element_name],circleLineData[element_name],linearPointsData[element_name],bound_box_size)
+                    is_element_correct = linesContourCompare(camera_image,gcode_data)
 
                     # ------------- ODŁOŻENIE DETALU -------------
-                    print(f"Odczytano dane z csv: {box_x}, {box_y}, {box_z}")
+                    if is_element_correct:
+                        print(f"Odczytano dane z csv: {box_x}, {box_y}, {box_z}")
+                        # Wartości do wysłania
+                        send_valueY = box_x
+                        send_valueX = box_y
+                        send_valueZ = box_z
+                    else:
 
+                        #TODO zastąpić boxem dla niepoprawnych elementów
+                        send_valueY = box_x
+                        send_valueX = box_y
+                        send_valueZ = box_z
 
-
-                    # Wartości do wysłania
-                    send_valueY = box_x
-                    send_valueX = box_y
-                    send_valueZ = box_z
 
                     # Formatowanie danych do wysłania
                     response = f"{send_valueX:09.4f}{send_valueY:09.4f}{send_valueZ:09.4f}b"

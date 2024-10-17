@@ -101,14 +101,42 @@ def allGcodeElementsCV2(sheet_path, scale = 3, arc_pts_len = 300):
     else:
         return None, None, None, None,None
 
-def singleGcodeElementCV2(cutting_path,circle_line_data,linear_points_data):
+def singleGcodeElementCV2(cutting_path,circle_line_data,linear_points_data,bounding_box_size):
     new_image = "placeholder"
     adjusted_circle_data = "placeholder2"
     adjusted_linear_data = "placeholder3"
-    return new_image,adjusted_circle_data,adjusted_linear_data
+    gcode_data_packed = {
+        "linearData": linData,
+        "circleData": adjusted_circle_data,
+        "image": adjusted_linear_data,
+    }
+    return gcode_data_packed
+
+def capture_median_frame():
+    while True:
+        cap = cv2.VideoCapture(0)
+        if not cap.isOpened():
+            print("Nie udało się otworzyć kamerki")
+            return None
+        else:
+            break
+
+    frames = []
+    while len(frames) < 10:
+        ret, frame = cap.read()
+        if not ret:
+            continue
+        frames.append(frame)
+
+    cap.release()
+    median_frame = np.median(np.array(frames), axis=0).astype(np.uint8)
+
+    return median_frame
 
 def cameraImage():
+
     image = "placeholder"
+    bounding_box_size = ("placeholder2","placeholder3")
     return image
 
 def imageBInfoExtraction(imageB):

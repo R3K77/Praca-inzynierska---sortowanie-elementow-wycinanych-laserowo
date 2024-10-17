@@ -4,7 +4,6 @@ from gcode_analize import visualize_cutting_paths, find_main_and_holes
 import cv2
 import random
 
-
 # TODO Inzynierka:
 # - quality control shape comparison DONE
 # - porównywanie linii obrazu prostego FIXED poprzez korzystanie tylko z tego wyżej XD
@@ -456,7 +455,7 @@ def testAdditionalHole(imageB,gcode_data):
 if __name__ == "__main__":
     # Test czy spakowana funkcja działa
     images, pts, sheet_size, pts_hole, circleLineData, linearData = singleGcodeElementsCV2(
-        sheet_path='../../../../Gcode to image conversion/NC_files/2_FIXME.NC',
+        sheet_path='../../../../Gcode to image conversion/NC_files/8.NC',
         arc_pts_len=300)
     rotations = elementStackingRotation(images)
     for key, value in images.items():

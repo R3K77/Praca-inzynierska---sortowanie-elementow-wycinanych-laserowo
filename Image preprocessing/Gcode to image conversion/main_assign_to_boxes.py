@@ -129,7 +129,7 @@ def process_element(element_name, element_paths, ax, x_range_center_adj_cache, y
 
 
     if best_point:
-        return (element_name[:-4], best_point)
+        return (element_name[:-4], best_point, element_name)
     else:
         return None
 
@@ -215,7 +215,7 @@ def add_custom_legend(ax):
 # ----------------------------------------------------------- #
 def main():
     nc_file_paths = [
-        "./Image preprocessing/Gcode to image conversion/NC_files/8.nc"
+        "NC_files/8.nc" #"./Image preprocessing/Gcode to image conversion/NC_files/8.nc"
     ]
 
     # Pętla główna przetwarzająca pliki NC
@@ -249,7 +249,7 @@ def main():
         initial_height = INITIAL_HEIGHT
 
         for element in processed_elements:
-            element_name, best_point = element
+            element_name, best_point, full_element_name = element
 
             # Sprawdź, czy element tego typu został już przypisany do pudełka
             if not any(element_name == e[1] for e in element_details):
@@ -275,17 +275,19 @@ def main():
             target_box_point = (box_point[0], box_point[1], current_height)
 
             # Dodaj do szczegółów elementów
-            element_details.append((box_name, element_name, best_point, target_box_point))
+            element_details.append((box_name, element_name, best_point, target_box_point, full_element_name))
 
         # Zapis szczegółów elementów do pliku CSV
         csv_file_path = "./element_details.csv"
         with open(csv_file_path, mode='w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(["Detail - X", "Detail - Y", "Detail - Z", "Box - X", "Box - Y", "Box - Z"])
+            writer.writerow(["Nazwa","Detail - X", "Detail - Y", "Detail - Z", "Box - X", "Box - Y", "Box - Z"])
             for detail in element_details:
+                name = detail[-1]
                 best_point = detail[2]
                 target_box_point = detail[3]
                 writer.writerow([
+                    f"{name}",
                     f"{best_point[0]:09.4f}",            # Detail - X
                     f"{best_point[1]:09.4f}",            # Detail - Y
                     f"{DETAIL_Z:09.4f}",                           # Detail - Z (przyjmujemy 0)

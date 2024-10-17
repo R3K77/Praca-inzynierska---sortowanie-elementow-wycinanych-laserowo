@@ -12,27 +12,27 @@ import matplotlib.patches as mpatches
 # ----------------- Stałe globalne ----------------- #
 # Stałe używane w programie.
 # -------------------------------------------------- #
-SUCTION_DIAMETER = 19                   # Średnica przyssawki
+SUCTION_DIAMETER = 40                   # Średnica przyssawki
 SUCTION_RADIUS = SUCTION_DIAMETER / 2   # Promień przyssawki
 MAX_SUCTION_SEARCH_RADIUS = 50          # Maksymalna odległość od środka ciężkości
 MAX_ADJUSTED_DISTANCE = 60              # Maksymalna odległość od środka ciężkości po korekcie
-MAX_DETAIL_MASS = 250                   # Maksymalna masa elementu [g]
+MAX_DETAIL_MASS = 1200                   # Maksymalna masa elementu [g]
 MATERIAL_DENSITY = 0.00785              # Gęstość materiału 
-MATERIAL_THICKNESS = 1.5                # Grubość materiału [mm]
+MATERIAL_THICKNESS = 2                # Grubość materiału [mm]
 NUM_SEARCH_ANGLES = 50                  # Liczba kątów do przeszukania
 NUM_SEARCH_RADII = 50                   # Liczba promieni do przeszukania
 
 # Dodatkowe stałe
 Z_INCREMENT = 2                         # Przyrost wysokości w pudełku na każdy element
-INITIAL_HEIGHT = 10                      # Początkowa wysokość dla pierwszego elementu
-DETAIL_Z = 150                            # Wysokość pobrania detalu
+INITIAL_HEIGHT = 0                      # Początkowa wysokość dla pierwszego elementu
+DETAIL_Z = 0                            # Wysokość pobrania detalu
 
 # ----------------- Funkcja do tworzenia listy pudełek ----------------- #
 # Funkcja tworzy listę pudełek (punktów), do których będą przypisane elementy.
 # --------------------------------------------------------------- #
 def create_boxes():
     box_positions = [
-        (421, 50), (421, 100), (421, 150), (421, 200), (421, 250),
+        (330, 50), (330, 190), (330, 750), (330, 380), (421, 250),
         (421, 300), (421, 350), (421, 400), (421, 450), (421, 500),
         (421, 550), (421, 600), (421, 650), (421, 700), (421, 750),
         (421, 800), (421, 850), (421, 900), (421, 950), (421, 1000),
@@ -215,7 +215,7 @@ def add_custom_legend(ax):
 # ----------------------------------------------------------- #
 def main():
     nc_file_paths = [
-        "./Image preprocessing/Gcode to image conversion/NC_files/2_FIXME.nc"
+        "./Image preprocessing/Gcode to image conversion/NC_files/8.nc"
     ]
 
     # Pętla główna przetwarzająca pliki NC

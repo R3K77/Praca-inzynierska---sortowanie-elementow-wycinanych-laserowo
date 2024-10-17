@@ -90,9 +90,9 @@ def main():
             print("Koniec pliku CSV")
             send_valueX = 2000.0
             send_valueY = 2000.0
-
+            send_valueZ = 2000.0
             # Formatowanie danych do wysłania
-            response = f"{send_valueX:09.4f}{send_valueY:09.4f}c"
+            response = f"{send_valueX:09.4f}{send_valueY:09.4f}{send_valueZ:09.4f}c"
             print(f"Przygotowano dane: {response}")
             client_socket.send(response.encode('ascii'))
             print(f"Wysłano dane: {response}")

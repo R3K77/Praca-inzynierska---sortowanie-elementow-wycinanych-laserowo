@@ -1,5 +1,6 @@
 .venv
 .vscode
+.idea
 Image preprocessing/Gcode to image conversion/__pycache__
 Videos/tempo_x2.mp4
 Videos/trybA.mp4

@@ -22,10 +22,10 @@ from pathlib import Path
 
 # Wczytanie parametrów kamery z pliku
 def load_camera_calibration():
-    loaded_mtx = np.loadtxt('../settings/mtx_matrix.txt', delimiter=',')
-    loaded_dist = np.loadtxt('../settings/distortion_matrix.txt', delimiter=',')
-    loaded_newcameramtx = np.loadtxt('../settings/new_camera_matrix.txt', delimiter=',')
-    loaded_roi = np.loadtxt('../settings/roi_matrix.txt', delimiter=',')
+    loaded_mtx = np.loadtxt('../../settings/mtx_matrix.txt', delimiter=',')
+    loaded_dist = np.loadtxt('../../settings/distortion_matrix.txt', delimiter=',')
+    loaded_newcameramtx = np.loadtxt('../../settings/new_camera_matrix.txt', delimiter=',')
+    loaded_roi = np.loadtxt('../../settings/roi_matrix.txt', delimiter=',')
 
     return loaded_mtx, loaded_dist, loaded_newcameramtx, loaded_roi
 
@@ -101,10 +101,10 @@ def main():
     newcameramtx, roi = cv2.getOptimalNewCameraMatrix(mtx, dist, (w, h), 1, (w, h))
     
     # Zapis parametrów kamery do pliku
-    np.savetxt('../settings/mtx_matrix.txt', mtx, delimiter=',')
-    np.savetxt('../settings/distortion_matrix.txt', dist, delimiter=',')
-    np.savetxt('../settings/new_camera_matrix.txt', newcameramtx, delimiter=',')
-    np.savetxt('../settings/roi_matrix.txt', roi, delimiter=',')
+    np.savetxt('../../settings/mtx_matrix.txt', mtx, delimiter=',')
+    np.savetxt('../../settings/distortion_matrix.txt', dist, delimiter=',')
+    np.savetxt('../../settings/new_camera_matrix.txt', newcameramtx, delimiter=',')
+    np.savetxt('../../settings/roi_matrix.txt', roi, delimiter=',')
 
     # Przykład wczytania parametrów kamery z pliku 
     load_mtx, load_dist, load_newcameramtx, load_roi = load_camera_calibration()

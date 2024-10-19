@@ -15,7 +15,7 @@ import random
 # - mocowanie do stolu TODO
 
 # przebudowa funkcji do dynamicznej rozdzielczości pod kamere DONE
-def allGcodeElementsCV2(sheet_path, scale = 3, arc_pts_len = 300):
+def allGcodeElementsCV2(sheet_path, scale = 5, arc_pts_len = 300):
     """
     Creates cv2 images of sheet elements from gcode.
     Output images size is the same as bounding box of element times scale
@@ -176,7 +176,7 @@ def singleGcodeTest():
     for key, value in cutting_paths.items():
         camera_image, bounding_box, img_pack = cameraImage(median_background_frame)
         gcode_data = singleGcodeElementCV2(cutting_paths[key],circleLineData[key],linearPointsData[key],bounding_box)
-        is_ok = linesContourCompare(camera_image,gcode_data)
+        is_ok,_ = linesContourCompare(camera_image,gcode_data)
         cv2.imshow(key + "camera", camera_image)
         cv2.imshow(key, gcode_data['image'])
         for i in range(len(img_pack)):
@@ -358,27 +358,28 @@ def linesContourCompare(imageB,gcode_data):
         ret = cv2.matchShapes(contours[0],contoursB[0],1,0.0)
         if ret > 0.05:
             print(f'Odkształcenie, ret: {ret} \n')
-            return False
+            return False, img,img
         gcodeLines = {
             "circle": gcode_data['circleData'],
             "linear": [],
         }
         imgCopy = imageB.copy()
-        imgCopy = cv2.cvtColor(imgCopy,cv2.COLOR_GRAY2BGR)
+        imgCopy_lines = cv2.cvtColor(imgCopy,cv2.COLOR_GRAY2BGR)
+        imgCopy_circ = imgCopy_lines.copy()
         for i in range(len(gcode_data['linearData'])+1): # tuple i lista tupli
             if i == 0:
                 continue
             if i == len(gcode_data['linearData']): # obsluga ostatni + pierwszy punkty linia łącząca
                 x1, y1 = gcode_data['linearData'][i-1]
                 x2, y2 = gcode_data['linearData'][0]
-                cv2.line(imgCopy, (int(x1), int(y1)), (int(x2), int(y2)), randomColor(), 3)
+                cv2.line(imgCopy_lines, (int(x1), int(y1)), (int(x2), int(y2)), randomColor(), 3)
                 A, B, C = lineFromPoints(x1, y1, x2, y2)
                 gcodeLines['linear'].append((A, B, C))
                 break
 
             x1,y1 = gcode_data['linearData'][i]
             x2,y2 = gcode_data['linearData'][i-1]
-            cv2.line(imgCopy,(int(x1),int(y1)),(int(x2),int(y2)),randomColor(),3)
+            cv2.line(imgCopy_lines,(int(x1),int(y1)),(int(x2),int(y2)),randomColor(),3)
             A,B,C = lineFromPoints(x1,y1,x2,y2)
             gcodeLines['linear'].append((A,B,C))
         cntrErrors = []
@@ -396,7 +397,7 @@ def linesContourCompare(imageB,gcode_data):
                 #porównanie do kół
                 for k in range(len(gcodeLines["circle"])):
                     a, b, r = gcodeLines["circle"][k]
-                    cv2.circle(imgCopy, (int(a),int(b)),int(np.abs(r)),(0,0,255), 3)
+                    cv2.circle(imgCopy_circ, (int(a),int(b)),int(np.abs(r)),(0,0,255), 3)
                     d_circ = np.abs(np.sqrt((xCntr - a)**2 + (yCntr - b)**2) - r)
                     if d_circ < d_minimal:
                         d_minimal = d_circ
@@ -412,15 +413,15 @@ def linesContourCompare(imageB,gcode_data):
         if RMSE > 1.1:
             print("Detal posiada błąd wycięcia")
             print(f'ret: {ret} \n')
-            return False
+            return False, imgCopy_lines,imgCopy_circ
         else:
             print("Detal poprawny")
             print(f'ret: {ret} \n')
-            return True
+            return True, imgCopy_lines,imgCopy_circ
     except Exception as e:
         print("Podczas przetwarzania obrazu wystąpił błąd")
         print(e)
-        return False
+        return False, imageB, imageB
 
 def randomColor():
     """
@@ -509,7 +510,7 @@ def testAlgorithmFunction(key, value, pts, pts_hole, linearData, circleLineData)
         "circleData": circData,
         "image": value,
     }
-    linesContourCompare(value, gcode_data_packed)
+    _,img_lines,img_circles = linesContourCompare(value, gcode_data_packed)
     buf = cv2.cvtColor(value, cv2.COLOR_GRAY2BGR)
 
     # ========== COLOR SCHEME PUNKTOW =============
@@ -519,13 +520,13 @@ def testAlgorithmFunction(key, value, pts, pts_hole, linearData, circleLineData)
     # zielony - punkty koliste otworu
 
     # Wizualizacja punktów głównego konturu + punktow kolistych
-    for i in range(len(points)):
-        cv2.circle(buf, (points[i][0], points[i][1]), 3, (0, 0, 255), 3)
-
-    # # Wizualizacja punktów wycięć + punktow kolistych
-    for j in range(len(points_hole)):
-        for i in range(len(points_hole[j])):
-            cv2.circle(buf, (points_hole[j][i][0], points_hole[j][i][1]), 2, (0, 255, 0), 2)
+    # for i in range(len(points)):
+    #     cv2.circle(buf, (points[i][0], points[i][1]), 3, (0, 0, 255), 3)
+    #
+    # # # Wizualizacja punktów wycięć + punktow kolistych
+    # for j in range(len(points_hole)):
+    #     for i in range(len(points_hole[j])):
+    #         cv2.circle(buf, (points_hole[j][i][0], points_hole[j][i][1]), 2, (0, 255, 0), 2)
 
     # Wyświetlanie obrazów, zakomentowane linie można odkomentować w razie potrzeby
     # cv2.polylines(buf, [points], True, (0, 0, 255), thickness=3)
@@ -538,26 +539,39 @@ def testAlgorithmFunction(key, value, pts, pts_hole, linearData, circleLineData)
     # imgMerge = cv2.vconcat([imgTop, imgBottom])
     # cv2.imshow("BIG MERGE", imgMerge)
     value = cv2.cvtColor(value, cv2.COLOR_GRAY2BGR)
-    img = cv2.hconcat([buf , value])
-    cv2.imshow("Gcode image + punkty Gcode", img)
-    cv2.imwrite(f"{key}.jpg",img)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    value_with_border = cv2.copyMakeBorder(value, 5, 5, 5, 5, cv2.BORDER_CONSTANT, value=[0, 0, 0])
+    img_lines_with_border = cv2.copyMakeBorder(img_lines, 5, 5, 5, 5, cv2.BORDER_CONSTANT, value=[0, 0, 0])
+    img_circles_with_border = cv2.copyMakeBorder(img_circles, 5, 5, 5, 5, cv2.BORDER_CONSTANT, value=[0, 0, 0])
+    img = cv2.hconcat([value_with_border, img_lines_with_border])
+    img2 = cv2.hconcat([img, img_circles_with_border])
+    cv2.imwrite(f"{key}.jpg", value_with_border)
+    cv2.imwrite(f"{key}_lines.jpg",img_lines_with_border)
+    cv2.imwrite(f"{key}_circles.jpg",img_circles_with_border)
+    # cv2.imshow("Gcode image + punkty Gcode", img2)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
 
-def testTilt(imageB,gcode_data):
+def testTilt(imageB,gcode_data,key):
     """
     Quality control vision system test, simulates tilted element
     Args:
         imageB:
         gcode_data:
     Returns:
-
     """
+    imageCopy = imageB.copy()
     height_new, width_new = imageB.shape[:2]
+    tranform_value = int(width_new*0.05)
     src_points_new = np.float32([[0, 0], [width_new, 0], [width_new, height_new], [0, height_new]])
-    dst_points_new = np.float32([[50, 0], [width_new - 50, 0], [width_new, height_new], [0, height_new]])
+    dst_points_new = np.float32([[tranform_value, 0], [width_new - tranform_value, 0], [width_new, height_new], [0, height_new]])
     matrix_new = cv2.getPerspectiveTransform(src_points_new, dst_points_new)
     transformed_image_new = cv2.warpPerspective(imageB, matrix_new, (width_new, height_new))
+
+    copy_borders = cv2.copyMakeBorder(imageCopy, 5, 5, 5, 5, cv2.BORDER_CONSTANT, value=[0, 0, 0])
+    transformed_borders = cv2.copyMakeBorder(transformed_image_new, 5, 5, 5, 5, cv2.BORDER_CONSTANT, value=[0, 0, 0])
+    # img = cv2.hconcat([copy_borders,transformed_borders])
+    cv2.imwrite(f"{key}.jpg",copy_borders)
+    cv2.imwrite(f"{key}_tilt.jpg",transformed_borders)
     return transformed_image_new, linesContourCompare(transformed_image_new,gcode_data)
 
 def testAdditionalHole(imageB,gcode_data):
@@ -599,33 +613,45 @@ if __name__ == "__main__":
 
     # singleGcodeTest()
     # Test czy spakowana funkcja działa
-    images, pts, sheet_size, pts_hole, circleLineData, linearData = allGcodeElementsCV2(
-        sheet_path='../../../../Gcode to image conversion/NC_files/2_FIXME.NC',
-        arc_pts_len=300)
-    os.chdir(
-        r'C:\Users\Rafał\Documents\GitHub\Projekt-Przejsciowy---sortowanie-elementow-wycinanych-laserowo\Image preprocessing\Camera data handling\testy\System Wizyjny - kontrola jakości\GcodeExtraction\ZdjeciaElementy')
-    rotations = elementStackingRotation(images)
-    for key, value in images.items():
-        try:
-            linData = linearData[f'{key}']
-        except KeyError:
-            linData = []
-        try:
-            circData = circleLineData[f'{key}']
-        except KeyError:
-            circData = []
-        gcode_data_packed = {
-            "linearData": linData,
-            "circleData": circData,
-            "image": value,
-        }
+    paths = [
+        "../../../../Gcode to image conversion/NC_files/1.NC",
+        "../../../../Gcode to image conversion/NC_files/2_FIXME.NC",
+        "../../../../Gcode to image conversion/NC_files/3_fixed.NC",
+        "../../../../Gcode to image conversion/NC_files/4.NC",
+        "../../../../Gcode to image conversion/NC_files/5.NC",
+        "../../../../Gcode to image conversion/NC_files/6.NC",
+        "../../../../Gcode to image conversion/NC_files/7.NC",
+        "../../../../Gcode to image conversion/NC_files/8.NC",
+    ]
+    for path in paths:
+        os.chdir(r'C:\Users\Rafał\Documents\GitHub\Projekt-Przejsciowy---sortowanie-elementow-wycinanych-laserowo\Image preprocessing\Camera data handling\testy\System Wizyjny - kontrola jakości\GcodeExtraction')
+        images, pts, sheet_size, pts_hole, circleLineData, linearData = allGcodeElementsCV2(
+            sheet_path=path,
+            arc_pts_len=300)
+        os.chdir(
+            r'C:\Users\Rafał\Documents\GitHub\Projekt-Przejsciowy---sortowanie-elementow-wycinanych-laserowo\Image preprocessing\Camera data handling\testy\System Wizyjny - kontrola jakości\GcodeExtraction\ZdjeciaElementy')
+        # rotations = elementStackingRotation(images)
+        for key, value in images.items():
+            try:
+                linData = linearData[f'{key}']
+            except KeyError:
+                linData = []
+            try:
+                circData = circleLineData[f'{key}']
+            except KeyError:
+                circData = []
+            gcode_data_packed = {
+                "linearData": linData,
+                "circleData": circData,
+                "image": value,
+            }
+            testAlgorithmFunction(key,value,pts,pts_hole,linearData,circleLineData)
+            # testTilt(value,gcode_data_packed,key) # podmienic funkcje w zaleznosci od testu
+            # img = cv2.hconcat([value,img_transformed])
+            # cv2.imshow("obraz",img)
+            # cv2.waitKey(0)
+            # cv2.destroyAllWindows()
 
-        # img_transformed,is_image_good = testAdditionalHole(value,gcode_data_packed) # podmienic funkcje w zaleznosci od testu
-        # img = cv2.hconcat([value,img_transformed])
-        # cv2.imshow("obraz",img)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
-        testAlgorithmFunction(key,value,pts,pts_hole,linearData,circleLineData)
 
 
 

@@ -15,7 +15,11 @@ import sys
 HOST = '0.0.0.0'  # Nasłuchiwanie na wszystkich interfejsach sieciowych
 PORT = 59152      # Port zgodny z konfiguracją w robocie KUKA
 
-
+# TODO implement computer vision object
+class ComputerVision:
+    def __init__(self):
+        self.cutting_paths,_,_,_,_,self.sheet_size_line,self.circle_line_data,self.linear_poits_data = visualize_cutting_paths_extended(
+         "NC_files/8.nc")
 
 
 def main():

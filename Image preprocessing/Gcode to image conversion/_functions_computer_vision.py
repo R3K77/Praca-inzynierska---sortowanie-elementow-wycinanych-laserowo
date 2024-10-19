@@ -1,22 +1,197 @@
 import math
-import os
 from collections import defaultdict
 import numpy as np
 import cv2
 import random
-from gcode_analize import visualize_cutting_paths_extended, find_main_and_holes
+import re
 
+def calculate_centroid(poly):
+    """
+    # ------------- Funkcja do obliczania środka ciężkości i powierzchni wielokąta ------------- #
+    # Autor: Bartłomiej Szalwach
+    # Funkcja przyjmuje listę punktów definiujących wierzchołki wielokąta (jako zestawy punktów (x, y))
+    # i zwraca centroid oraz powierzchnię tego wielokąta.
+    # Do obliczeń wykorzystywana jest biblioteka numpy, która umożliwia operacje na tablicach.
+    # Centroid zwracany jest jako zestaw punktów (centroid_x, centroid_y), a powierzchnia jako pojedyncza wartość.
+    # ------------------------------------------------------------------------------------------ #
+    # Założenia funkcji:
+    # - Powierzchnia wielokąta obliczana jest przy użyciu wzoru polegającego na wykorzystaniu iloczynu skalarnego
+    #   oraz funkcji przesunięcia indeksu elementów tablicy (np.roll).
+    # - Centroid obliczany jest jako średnia ważona współrzędnych punktów, z wagą proporcjonalną do struktury wielokąta.
+    # - Wartości centroidu są zwracane jako wartości bezwzględne, co jest specyficznym zachowaniem tej funkcji.
+    # - Powierzchnia zawsze jest zwracana jako wartość dodatnia.
+    # ------------------------------------------------------------------------------------------ #
+    # Przykład użycia funkcji:
+    # centroid, area = calculate_centroid(main_contour)
+    # ------------------------------------------------------------------------------------------ #
+    """
+    if len(poly) < 3:
+        return (None, None), 0
+    x, y = zip(*poly)
+    x = np.array(x)
+    y = np.array(y)
 
-# TODO Inzynierka:
-# - quality control shape comparison DONE
-# - porównywanie linii obrazu prostego FIXED poprzez korzystanie tylko z tego wyżej XD
-# - perspektive transform dla prostego kształtu, badanie bledu w zaleznosci od obrotu elementu względem płaszczyzny obrazu DONE
-# - zrobić zly obraz do porównania żeby było zle rmse DONE
-# - SIFT, rotacja elementow przy odkładaniu DONE
-# - Rotacja translacja blachy DONE
-# - mocowanie do stolu TODO
+    # Obliczanie powierzchni wielokąta (A) przy użyciu formuły Shoelace:
+    # A = 0.5 * abs(sum(x_i * y_(i+1) - y_i * x_(i+1)))
+    area = 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
 
-# przebudowa funkcji do dynamicznej rozdzielczości pod kamere DONE
+    if area == 0:
+        return (None, None), 0
+
+    # Obliczanie współrzędnej x centroidu (C_x) wielokąta:
+    # C_x = (1 / (6 * A)) * sum((x_i + x_(i+1)) * (x_i * y_(i+1) - x_(i+1) * y_i))
+    centroid_x = (np.sum((x + np.roll(x, 1)) * (x * np.roll(y, 1) - np.roll(x, 1) * y)) / (6.0 * area))
+
+    # Obliczanie współrzędnej y centroidu (C_y) wielokąta:
+    # C_y = (1 / (6 * A)) * sum((y_i + y_(i+1)) * (x_i * y_(i+1) - x_(i+1) * y_i))
+    centroid_y = (np.sum((y + np.roll(y, 1)) * (x * np.roll(y, 1) - np.roll(x, 1) * y)) / (6.0 * area))
+    return (abs(centroid_x), abs(centroid_y)), area
+
+def visualize_cutting_paths_extended(file_path, x_max=500, y_max=1000, arc_pts_len = 200):
+    """
+    # ----------------- Funkcja do wizualizacji ścieżek cięcia z pliku NC ----------------- #
+    # Autor: Bartłomiej Szalwach,
+    # Funkcja plik .nc z kodem G-kodu i zwraca obraz z wizualizacją ścieżek cięcia.
+    # Funkcja wykorzystuje bibliotekę matplotlib, numpy i re.
+    # Funkcja zwraca ścieżki cięcia, minimalne i maksymalne współrzędne X i Y.
+    # Funkcja przyjmuje ścieżkę do pliku .nc z kodem G-kodu oraz maksymalne współrzędne X i Y.
+    # Domyślnie maksymalne współrzędne X i Y wynoszą odpowiednio 500 i 1000.
+    # ------------------------------------------------------------------------------------- #
+    # Założenia funkcji:
+    # - Włączenie lasera oznaczone jest jako M10, a wyłączenie jako M11.
+    # - Ścieżki cięcia są zapisane jako G01X...Y... lub G02X...Y...I...J... lub G03X...Y...I...J...
+    # - Współrzędne X i Y są zapisane jako liczby zmiennoprzecinkowe.
+    # - Ruch okrężny w prawo jest zapisany jako G02, a ruch okrężny w lewo jako G03.
+    # - Współrzędne I i J określają środek okręgu, a współrzędne X i Y określają punkt końcowy.
+    # - Współrzędne I i J są zapisane jako liczby zmiennoprzecinkowe.
+    # - Wszystkie współrzędne są mniejsze niż podane maksymalne współrzędne X i Y.
+    # ------------------------------------------------------------------------------------- #
+    # Przykład użycia:
+    # cutting_paths, x_min, x_max, y_min, y_max = visualize_cutting_paths_extended("./Przygotowanie obrazu/gcode2image/NC_files/Arkusz-6001.nc")
+    # ------------------------------------------------------------------------------------- #
+    # Modyfikacje: Rafał Szygenda
+    # - liczba punktów łuków jest argumentem wejściowym funkcji, większa rozdzielczość
+    # - zwrotka rozmiaru blachy, dane koła i punktow liniowych (do systemu wizyjnego)
+    """
+    sheet_size_line = None
+    with open(file_path, 'r') as file:
+        file_content = file.read().splitlines()
+
+    pattern_cnc_commands_extended = re.compile(
+        r'(M10|M11|G01X([0-9.]+)Y([0-9.]+)|G0[23]X([0-9.]+)Y([0-9.]+)I([0-9.-]+)J([0-9.-]+))')
+
+    pattern_element_name = re.compile(r';@@\[DetailName\((.*?)\)\]')
+    laser_on = False
+    elements = {}
+    current_element_name = 'Unnamed'
+    element_index = {}  # Słownik do przechowywania indeksów dla każdej nazwy elementu
+    current_path = []
+    current_position = (0, 0)
+    curveCircleData = defaultdict(list)
+    linearPointsData = defaultdict(list)
+
+    for line in file_content:
+        element_match = pattern_element_name.search(line)
+        if "*SHEET" in line:
+            sheet_size_line = line
+        if element_match:
+            name = element_match.group(1)
+            if name not in element_index:
+                element_index[name] = 1  # Rozpocznij liczenie od 1
+            else:
+                element_index[name] += 1
+
+            # Formatowanie nazwy z zerami wiodącymi
+            current_element_name = f"{name}_{element_index[name]:03d}"  # Dodaje zera wiodące do indeksu
+            if current_path:
+                if current_element_name not in elements:
+                    elements[current_element_name] = []
+
+                elements[current_element_name].append(current_path)
+                current_path = []
+                linearPointsData[current_element_name].append(current_position)
+
+        else:
+            matches_cnc = pattern_cnc_commands_extended.findall(line)
+            for match in matches_cnc:
+                command = match[0]
+                if command == 'M10':  # Laser ON
+                    laser_on = True
+                elif command == 'M11':  # Laser OFF
+                    if laser_on and current_path:  # Zapis ścieżki do bieżącego elementu
+                        if current_element_name not in elements:
+                            elements[current_element_name] = []
+
+                        linearPointsData[current_element_name].append(current_position)
+
+                        elements[current_element_name].append(current_path)
+                        current_path = []
+                    laser_on = False
+                elif laser_on:  # Dodaj punkty do ścieżki, jeśli laser jest włączony
+                    # Obsługa instrukcji cięcia...
+                    if command.startswith('G01'):  # Linia prosta
+                        x, y = float(match[1]), float(match[2])
+                        current_path.append((x, y))
+                        current_position = (x, y)
+
+                        linearPointsData[current_element_name].append(current_position)
+
+                    elif command.startswith('G02') or command.startswith('G03'):  # Ruch okrężny
+                        x, y, i, j = (float(match[3]), float(match[4]),
+                                      float(match[5]), float(match[6]))
+                        center_x = current_position[0] + i  # Środek łuku na osi X
+                        center_y = current_position[1] + j  # Środek łuku na osi Y
+                        radius = np.sqrt(i ** 2 + j ** 2)  # Promień łuku
+                        start_angle = np.arctan2(current_position[1] - center_y,
+                                                 current_position[0] - center_x)  # Kąt początkowy łuku (w radianach)
+                        end_angle = np.arctan2(y - center_y, x - center_x)  # Kąt końcowy łuku (w radianach)
+
+                        if command.startswith('G02'):  # Zgodnie z ruchem wskazówek zegara
+                            if end_angle > start_angle:
+                                end_angle -= 2 * np.pi
+                        else:  # Przeciwnie do ruchu wskazówek zegara
+                            if end_angle < start_angle:
+                                end_angle += 2 * np.pi
+
+                        angles = np.linspace(start_angle, end_angle, num=arc_pts_len)  # Generowanie punktów łuku (50 punktów)
+                        arc_points = [(center_x + radius * np.cos(a), center_y + radius * np.sin(a)) for a in
+                                      angles]  # Obliczenie punktów łuku
+                        curveCircleData[current_element_name].append((center_x,center_y,radius))
+                        linearPointsData[current_element_name].append(arc_points[-1])
+                        current_path.extend(arc_points)  # Dodanie punktów łuku do ścieżki
+                        current_position = (x, y)  # Aktualizacja pozycji
+
+    # Jeśli laser został wyłączony po ostatnim cięciu, dodajemy ścieżkę do listy
+    if current_path:
+        if current_element_name not in elements:
+            elements[current_element_name] = []
+        elements[current_element_name].append(current_path)
+
+    # Rozmiar arkusza
+    x_min, y_min = 0, 0
+
+    return elements, x_min, x_max, y_min, y_max, sheet_size_line, curveCircleData, linearPointsData
+
+def find_main_and_holes(contours):
+    """
+    # ----------------- Funkcja do znalezienia głównego konturu i otworów ----------------- #
+    # Autor: Bartłomiej Szalwach
+    # Funkcja przyjmuje listę konturów i zwraca główny kontur i otwory.
+    # ------------------------------------------------------------------------------------- #
+    # Założenia funkcji:
+    # - Główny kontur jest konturem z największym polem powierzchni.
+    # - Otwory są konturami z mniejszym polem powierzchni.
+    # ------------------------------------------------------------------------------------- #
+    # Przykład użycia:
+    # main_contour, holes = find_main_and_holes(contours)
+    # ------------------------------------------------------------------------------------- #
+    """
+    areas = [(calculate_centroid(contour)[1], contour) for contour in contours]
+    areas.sort(reverse=True, key=lambda x: x[0])
+    main_contour = areas[0][1]
+    holes = [area[1] for area in areas[1:]]
+    return main_contour, holes
+
 def allGcodeElementsCV2(sheet_path, scale = 5, arc_pts_len = 300):
     """
     Creates cv2 images of sheet elements from gcode.
@@ -318,8 +493,8 @@ def lineFromPoints(x1, y1, x2, y2):
         B = 1
         C = -y1
     else:
-        m = (y2 - y1) / (x2 - x1)  
-        b = y1 - m * x1 
+        m = (y2 - y1) / (x2 - x1)
+        b = y1 - m * x1
         # Równanie prostej w postaci ogólnej: Ax + By + C = 0
         A = m
         B = -1
@@ -558,137 +733,3 @@ def testAlgorithmFunction(key, value, pts, pts_hole, linearData, circleLineData)
     # cv2.imshow("Gcode image + punkty Gcode", img2)
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
-
-def testTilt(imageB,gcode_data,key):
-    """
-    Quality control vision system test, simulates tilted element
-    Args:
-        imageB:
-        gcode_data:
-    Returns:
-    """
-    imageCopy = imageB.copy()
-    height_new, width_new = imageB.shape[:2]
-    tranform_value = int(width_new*0.05)
-    src_points_new = np.float32([[0, 0], [width_new, 0], [width_new, height_new], [0, height_new]])
-    dst_points_new = np.float32([[tranform_value, 0], [width_new - tranform_value, 0], [width_new, height_new], [0, height_new]])
-    matrix_new = cv2.getPerspectiveTransform(src_points_new, dst_points_new)
-    transformed_image_new = cv2.warpPerspective(imageB, matrix_new, (width_new, height_new))
-
-    copy_borders = cv2.copyMakeBorder(imageCopy, 5, 5, 5, 5, cv2.BORDER_CONSTANT, value=[0, 0, 0])
-    transformed_borders = cv2.copyMakeBorder(transformed_image_new, 5, 5, 5, 5, cv2.BORDER_CONSTANT, value=[0, 0, 0])
-    # img = cv2.hconcat([copy_borders,transformed_borders])
-    cv2.imwrite(f"{key}.jpg",copy_borders)
-    cv2.imwrite(f"{key}_tilt.jpg",transformed_borders)
-    return transformed_image_new, linesContourCompare(transformed_image_new,gcode_data)
-
-def testAdditionalHole(imageB,gcode_data):
-    """
-    Draws a random black shape (circle or rectangle) on the given image.
-
-    Args:
-        imageB: Input image on which the shape will be drawn.
-
-    Returns:
-        Image with a random black shape drawn on it.
-    """
-    # Kopia obrazu, aby nie modyfikować oryginału
-    image_copy = imageB.copy()
-
-    # Wybór losowego kształtu: 0 dla koła, 1 dla prostokąta
-    shape_type = random.choice([0, 1])
-
-    # Wymiary obrazu
-    height, width = image_copy.shape[:2]
-
-    # Losowanie współrzędnych dla kształtu
-    x = random.randint(0, width - 1)
-    y = random.randint(0, height - 1)
-
-    # Losowanie rozmiaru kształtu
-    size = random.randint(10, 50)  # Losowy rozmiar kształtu
-
-    if shape_type == 0:  # Okrąg
-        cv2.circle(image_copy, (x, y), size, (0, 0, 0), -1)  # Czarny kolor
-    else:  # Prostokąt
-        top_left = (x, y)
-        bottom_right = (min(x + size, width - 1), min(y + size, height - 1))
-        cv2.rectangle(image_copy, top_left, bottom_right, (0, 0, 0), -1)  # Czarny kolor
-
-    return image_copy, linesContourCompare(image_copy,gcode_data)
-
-def singleGcodeTest():
-    (cutting_paths, _, _, _, _, sheet_size_line, circleLineData,
-     linearPointsData) = visualize_cutting_paths_extended('../../../../Gcode to image conversion/NC_files/8.NC')
-    median_background_frame = capture_median_frame()
-    cv2.imshow("bgr",median_background_frame)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-    for key, value in cutting_paths.items():
-        camera_image, bounding_box, img_pack = cameraImage(median_background_frame)
-        gcode_data = singleGcodeElementCV2(cutting_paths[key],circleLineData[key],linearPointsData[key],bounding_box)
-        is_ok,_ = linesContourCompare(camera_image,gcode_data)
-        cv2.imshow(key + "camera", camera_image)
-        cv2.imshow(key, gcode_data['image'])
-        for i in range(len(img_pack)):
-            cv2.imshow(f'{i}',img_pack[i])
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
-
-if __name__ == "__main__":
-
-    # singleGcodeTest()
-    # Test czy spakowana funkcja działa
-    paths = [
-        "../../../../Gcode to image conversion/NC_files/1.NC",
-        "../../../../Gcode to image conversion/NC_files/2_FIXME.NC",
-        "../../../../Gcode to image conversion/NC_files/3_fixed.NC",
-        "../../../../Gcode to image conversion/NC_files/4.NC",
-        "../../../../Gcode to image conversion/NC_files/5.NC",
-        "../../../../Gcode to image conversion/NC_files/6.NC",
-        "../../../../Gcode to image conversion/NC_files/7.NC",
-        "../../../../Gcode to image conversion/NC_files/8.NC",
-    ]
-    for path in paths:
-        os.chdir(r'C:\Users\Rafał\Documents\GitHub\Projekt-Przejsciowy---sortowanie-elementow-wycinanych-laserowo\Image preprocessing\Camera data handling\testy\System Wizyjny - kontrola jakości\GcodeExtraction')
-        images, pts, sheet_size, pts_hole, circleLineData, linearData = allGcodeElementsCV2(
-            sheet_path=path,
-            arc_pts_len=300)
-        os.chdir(
-            r'C:\Users\Rafał\Documents\GitHub\Projekt-Przejsciowy---sortowanie-elementow-wycinanych-laserowo\Image preprocessing\Camera data handling\testy\System Wizyjny - kontrola jakości\GcodeExtraction\ZdjeciaElementy')
-        # rotations = elementStackingRotation(images)
-        for key, value in images.items():
-            try:
-                linData = linearData[f'{key}']
-            except KeyError:
-                linData = []
-            try:
-                circData = circleLineData[f'{key}']
-            except KeyError:
-                circData = []
-            gcode_data_packed = {
-                "linearData": linData,
-                "circleData": circData,
-                "image": value,
-            }
-            testAlgorithmFunction(key,value,pts,pts_hole,linearData,circleLineData)
-            # testTilt(value,gcode_data_packed,key) # podmienic funkcje w zaleznosci od testu
-            # img = cv2.hconcat([value,img_transformed])
-            # cv2.imshow("obraz",img)
-            # cv2.waitKey(0)
-            # cv2.destroyAllWindows()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

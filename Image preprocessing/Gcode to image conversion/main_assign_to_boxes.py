@@ -215,7 +215,7 @@ def add_custom_legend(ax):
 # ----------------------------------------------------------- #
 def main():
     nc_file_paths = [
-        "NC_files/8.nc" #"./Image preprocessing/Gcode to image conversion/NC_files/8.nc"
+        "./Image preprocessing/Gcode to image conversion/NC_files/6.nc" #"NC_files/8.nc" #"./Image preprocessing/Gcode to image conversion/NC_files/8.nc"
     ]
 
     # Pętla główna przetwarzająca pliki NC
@@ -309,6 +309,12 @@ def main():
 
         ax.set_xlim(0, 500)
         ax.set_ylim(0, 1300)
+        #plt.rc('font', family='times new roman')
+        #ax.tick_params(axis='both', which='major', labelsize=10)
+        #plt.xticks(fontname='times new roman')
+        #plt.yticks(fontname='times new roman')
+        #ax.set_xlabel('X [mm]', fontname='times new roman')
+        #ax.set_ylabel('Y [mm]', fontname='times new roman')
 
         # Dodanie własnej legendy do wykresu
         add_custom_legend(ax)

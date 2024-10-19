@@ -5,48 +5,6 @@
 import numpy as np
 from shapely.geometry import Point, Polygon as ShapelyPolygon, LineString
 
-# ------------- Funkcja do obliczania środka ciężkości i powierzchni wielokąta ------------- #
-# Funkcja przyjmuje listę punktów definiujących wierzchołki wielokąta (jako zestawy punktów (x, y)) 
-# i zwraca centroid oraz powierzchnię tego wielokąta.
-# Do obliczeń wykorzystywana jest biblioteka numpy, która umożliwia operacje na tablicach.
-# Centroid zwracany jest jako zestaw punktów (centroid_x, centroid_y), a powierzchnia jako pojedyncza wartość.
-# ------------------------------------------------------------------------------------------ #
-# Założenia funkcji:
-# - Powierzchnia wielokąta obliczana jest przy użyciu wzoru polegającego na wykorzystaniu iloczynu skalarnego
-#   oraz funkcji przesunięcia indeksu elementów tablicy (np.roll).
-# - Centroid obliczany jest jako średnia ważona współrzędnych punktów, z wagą proporcjonalną do struktury wielokąta.
-# - Wartości centroidu są zwracane jako wartości bezwzględne, co jest specyficznym zachowaniem tej funkcji.
-# - Powierzchnia zawsze jest zwracana jako wartość dodatnia.
-# ------------------------------------------------------------------------------------------ #
-# Przykład użycia funkcji:
-# centroid, area = calculate_centroid(main_contour)
-# ------------------------------------------------------------------------------------------ #
-
-def calculate_centroid(poly):
-    if len(poly) < 3:
-        return (None, None), 0 
-    x, y = zip(*poly)
-    x = np.array(x)
-    y = np.array(y)
-    
-    # Obliczanie powierzchni wielokąta (A) przy użyciu formuły Shoelace:
-    # A = 0.5 * abs(sum(x_i * y_(i+1) - y_i * x_(i+1)))
-    area = 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
-    
-    if area == 0:
-        return (None, None), 0
-    
-    # Obliczanie współrzędnej x centroidu (C_x) wielokąta:
-    # C_x = (1 / (6 * A)) * sum((x_i + x_(i+1)) * (x_i * y_(i+1) - x_(i+1) * y_i))
-    centroid_x = (np.sum((x + np.roll(x, 1)) * (x * np.roll(y, 1) - np.roll(x, 1) * y)) / (6.0 * area))
-    
-    # Obliczanie współrzędnej y centroidu (C_y) wielokąta:
-    # C_y = (1 / (6 * A)) * sum((y_i + y_(i+1)) * (x_i * y_(i+1) - x_(i+1) * y_i))
-    centroid_y = (np.sum((y + np.roll(y, 1)) * (x * np.roll(y, 1) - np.roll(x, 1) * y)) / (6.0 * area))
-    return (abs(centroid_x), abs(centroid_y)), area
-
-
-
 
 
 # --------- Funkcja do dostosowania środka ciężkości, jeśli znajduje się w otworze --------- #

@@ -150,19 +150,3 @@ if __name__ == "__main__":
     # 2 - OFF
     # 5 - ON
     
-    
-    
-    #  # Wartości do wysłania
-    #         send_valueX = 101.0
-    #         send_valueY = 187.005
-
-    #         # Formatowanie danych do wysłania
-    #         response = f"{send_valueX:09.4f}{send_valueY:09.4f}"
-    #         print(f"Przygotowano dane: {response}")
-    #         client_socket.send(response.encode('ascii'))
-    #         # print(f"Wysłano dane: {response}")
-
-    #         # Odbieranie danych od robota
-    #         data = client_socket.recv(1024).decode('utf-8', errors='ignore')
-    #         if not data:
-    #             break

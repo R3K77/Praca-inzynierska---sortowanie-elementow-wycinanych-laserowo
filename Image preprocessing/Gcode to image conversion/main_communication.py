@@ -7,10 +7,10 @@ import time
 import csv
 import os
 import sys
-# do importu funkcji
-sys.path.append(os.path.join(os.path.dirname(__file__), '..','Camera data handling', 'testy', 'System Wizyjny - kontrola jakości', 'GcodeExtraction'))
-from Element_pojedynczy import *
-from gcode_analize import visualize_cutting_paths_extended
+# # do importu funkcji
+# sys.path.append(os.path.join(os.path.dirname(__file__), '..','Camera data handling', 'testy', 'System Wizyjny - kontrola jakości', 'GcodeExtraction'))
+# from Element_pojedynczy import *
+# from gcode_analize import visualize_cutting_paths_extended
 # Konfiguracja serwera
 HOST = '0.0.0.0'  # Nasłuchiwanie na wszystkich interfejsach sieciowych
 PORT = 59152      # Port zgodny z konfiguracją w robocie KUKA
@@ -20,11 +20,11 @@ PORT = 59152      # Port zgodny z konfiguracją w robocie KUKA
 
 def main():
     # Bufor pod system wizyjny
-    print("Przygotowanie systemu wizyjnego")
-    cutting_paths, _, _, _, _, sheet_size_line, circleLineData, linearPointsData = visualize_cutting_paths_extended(
-        "NC_files/8.nc")
-    print("Przygotowanie gotowe")
-    # Tworzenie gniazda serwera
+    # print("Przygotowanie systemu wizyjnego")
+    # cutting_paths, _, _, _, _, sheet_size_line, circleLineData, linearPointsData = visualize_cutting_paths_extended(
+    #     "NC_files/8.nc")
+    # print("Przygotowanie gotowe")
+    # # Tworzenie gniazda serwera
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server_socket.bind((HOST, PORT))
@@ -34,11 +34,11 @@ def main():
 
     #TODO przed startem robota powinien być ruch do docelowego punktu
     # w ktorym dzieje sie quality control zeby zebrac median_frame
-    #snippet:
-    client_socket, client_address = server_socket.accept()
-    data = client_socket.recv(1024).decode('utf-8',errors='ignore')
-    if data:
-        median_background_frame = capture_median_frame()
+    # snippet:
+    #client_socket, client_address = server_socket.accept()
+    #data = client_socket.recv(1024).decode('utf-8',errors='ignore')
+    #if data:
+    #    median_background_frame = capture_median_frame()
     while True:
         # Akceptowanie połączenia od klienta (robota KUKA)
         client_socket, client_address = server_socket.accept()
@@ -77,25 +77,25 @@ def main():
                     data = client_socket.recv(1024).decode('utf-8', errors='ignore')
                     print(f"Otrzymane dane: {data}")
                     
-                    # System wizyjny
-                    element_name = row[0]
-                    camera_image,bound_box_size = cameraImage(median_background_frame)
-                    gcode_data = singleGcodeElementCV2(cutting_paths[element_name],circleLineData[element_name],linearPointsData[element_name],bound_box_size)
-                    is_element_correct = linesContourCompare(camera_image,gcode_data)
+                    # # System wizyjny
+                    # element_name = row[0]
+                    # camera_image,bound_box_size = cameraImage(median_background_frame)
+                    # gcode_data = singleGcodeElementCV2(cutting_paths[element_name],circleLineData[element_name],linearPointsData[element_name],bound_box_size)
+                    # is_element_correct = linesContourCompare(camera_image,gcode_data)
 
                     # ------------- ODŁOŻENIE DETALU -------------
-                    if is_element_correct:
-                        print(f"Odczytano dane z csv: {box_x}, {box_y}, {box_z}")
-                        # Wartości do wysłania
-                        send_valueY = box_x
-                        send_valueX = box_y
-                        send_valueZ = box_z
-                    else:
-
-                        #TODO zastąpić boxem dla niepoprawnych elementów
-                        send_valueY = box_x
-                        send_valueX = box_y
-                        send_valueZ = box_z
+                    # if is_element_correct:
+                    print(f"Odczytano dane z csv: {box_x}, {box_y}, {box_z}")
+                    # Wartości do wysłania
+                    send_valueY = box_x
+                    send_valueX = box_y
+                    send_valueZ = box_z
+                    # else:
+                    #
+                    #     #TODO zastąpić boxem dla niepoprawnych elementów
+                    #     send_valueY = box_x
+                    #     send_valueX = box_y
+                    #     send_valueZ = box_z
 
 
                     # Formatowanie danych do wysłania

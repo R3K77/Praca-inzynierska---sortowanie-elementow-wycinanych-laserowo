@@ -1,3 +1,4 @@
+import os
 from collections import defaultdict
 import numpy as np
 from gcode_analize import visualize_cutting_paths_extended, find_main_and_holes
@@ -509,7 +510,6 @@ def testAlgorithmFunction(key, value, pts, pts_hole, linearData, circleLineData)
         "image": value,
     }
     linesContourCompare(value, gcode_data_packed)
-
     buf = cv2.cvtColor(value, cv2.COLOR_GRAY2BGR)
 
     # ========== COLOR SCHEME PUNKTOW =============
@@ -537,7 +537,10 @@ def testAlgorithmFunction(key, value, pts, pts_hole, linearData, circleLineData)
     # imgBottom = cv2.hconcat([polyImage, hullImage])
     # imgMerge = cv2.vconcat([imgTop, imgBottom])
     # cv2.imshow("BIG MERGE", imgMerge)
-    cv2.imshow("Gcode image + punkty Gcode", buf)
+    value = cv2.cvtColor(value, cv2.COLOR_GRAY2BGR)
+    img = cv2.hconcat([buf , value])
+    cv2.imshow("Gcode image + punkty Gcode", img)
+    cv2.imwrite(f"{key}.jpg",img)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
@@ -592,35 +595,37 @@ def testAdditionalHole(imageB,gcode_data):
 
     return image_copy, linesContourCompare(image_copy,gcode_data)
 
-
 if __name__ == "__main__":
 
-    singleGcodeTest()
+    # singleGcodeTest()
     # Test czy spakowana funkcja działa
-    # images, pts, sheet_size, pts_hole, circleLineData, linearData = allGcodeElementsCV2(
-    #     sheet_path='../../../../Gcode to image conversion/NC_files/8.NC',
-    #     arc_pts_len=300)
-    # rotations = elementStackingRotation(images)
-    # for key, value in images.items():
-    #     try:
-    #         linData = linearData[f'{key}']
-    #     except KeyError:
-    #         linData = []
-    #     try:
-    #         circData = circleLineData[f'{key}']
-    #     except KeyError:
-    #         circData = []
-    #     gcode_data_packed = {
-    #         "linearData": linData,
-    #         "circleData": circData,
-    #         "image": value,
-    #     }
-    #     # img_transformed,is_image_good = testAdditionalHole(value,gcode_data_packed) # podmienic funkcje w zaleznosci od testu
-    #     # img = cv2.hconcat([value,img_transformed])
-    #     # cv2.imshow("obraz",img)
-    #     # cv2.waitKey(0)
-    #     # cv2.destroyAllWindows()
-    #     testAlgorithmFunction(key,value,pts,pts_hole,linearData,circleLineData)
+    images, pts, sheet_size, pts_hole, circleLineData, linearData = allGcodeElementsCV2(
+        sheet_path='../../../../Gcode to image conversion/NC_files/2_FIXME.NC',
+        arc_pts_len=300)
+    os.chdir(
+        r'C:\Users\Rafał\Documents\GitHub\Projekt-Przejsciowy---sortowanie-elementow-wycinanych-laserowo\Image preprocessing\Camera data handling\testy\System Wizyjny - kontrola jakości\GcodeExtraction\ZdjeciaElementy')
+    rotations = elementStackingRotation(images)
+    for key, value in images.items():
+        try:
+            linData = linearData[f'{key}']
+        except KeyError:
+            linData = []
+        try:
+            circData = circleLineData[f'{key}']
+        except KeyError:
+            circData = []
+        gcode_data_packed = {
+            "linearData": linData,
+            "circleData": circData,
+            "image": value,
+        }
+
+        # img_transformed,is_image_good = testAdditionalHole(value,gcode_data_packed) # podmienic funkcje w zaleznosci od testu
+        # img = cv2.hconcat([value,img_transformed])
+        # cv2.imshow("obraz",img)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+        testAlgorithmFunction(key,value,pts,pts_hole,linearData,circleLineData)
 
 
 

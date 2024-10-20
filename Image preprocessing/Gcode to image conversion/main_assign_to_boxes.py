@@ -14,18 +14,25 @@ import matplotlib.patches as mpatches
 # -------------------------------------------------- #
 SUCTION_DIAMETER = 40                   # Średnica przyssawki
 SUCTION_RADIUS = SUCTION_DIAMETER / 2   # Promień przyssawki
-MAX_SUCTION_SEARCH_RADIUS = 50          # Maksymalna odległość od środka ciężkości
-MAX_ADJUSTED_DISTANCE = 60              # Maksymalna odległość od środka ciężkości po korekcie
-MAX_DETAIL_MASS = 1200                   # Maksymalna masa elementu [g]
+MAX_SUCTION_SEARCH_RADIUS = 80          # Maksymalna odległość od środka ciężkości
+MAX_ADJUSTED_DISTANCE = 80              # Maksymalna odległość od środka ciężkości po korekcie
+MAX_DETAIL_MASS = 1200                  # Maksymalna masa elementu [g]
 MATERIAL_DENSITY = 0.00785              # Gęstość materiału 
-MATERIAL_THICKNESS = 2                # Grubość materiału [mm]
-NUM_SEARCH_ANGLES = 50                  # Liczba kątów do przeszukania
-NUM_SEARCH_RADII = 50                   # Liczba promieni do przeszukania
+MATERIAL_THICKNESS = 2                  # Grubość materiału [mm]
+NUM_SEARCH_ANGLES = 80                  # Liczba kątów do przeszukania
+NUM_SEARCH_RADII = 80                   # Liczba promieni do przeszukania
+
+# Nowe zmienne logiczne
+DRAW_SUCTION_CANDIDATES = True          # Czy rysować kandydatów na punkty przyłożenia przyssawki
+DRAW_PLACEMENT_ARROWS = True            # Czy rysować strzałki do odłożenia elementów
 
 # Dodatkowe stałe
 Z_INCREMENT = 2                         # Przyrost wysokości w pudełku na każdy element
 INITIAL_HEIGHT = 0                      # Początkowa wysokość dla pierwszego elementu
 DETAIL_Z = 0                            # Wysokość pobrania detalu
+
+# Nazwa pliku NC
+NC_FILE_PATH = "./Image preprocessing/Gcode to image conversion/NC_files/2_FIXME.nc"
 
 # ----------------- Funkcja do tworzenia listy pudełek ----------------- #
 # Funkcja tworzy listę pudełek (punktów), do których będą przypisane elementy.
@@ -44,7 +51,7 @@ def create_boxes():
 # Funkcja przetwarza pojedynczy element, wyodrębniając jego kształt, otwory, masę
 # oraz uwzględniając kryteria dotyczące przyłożenia przyssawki.
 # --------------------------------------------------------------- #
-def process_element(element_name, element_paths, ax, x_range_center_adj_cache, y_range_center_adj_cache):
+def process_element(element_name, element_paths, ax, polar_cache):
     print(f"Processing element: {element_name}")
 
     if len(element_name) == 4:
@@ -76,13 +83,12 @@ def process_element(element_name, element_paths, ax, x_range_center_adj_cache, y
     # Sprawdzenie masy elementu
     if total_detail_mass < MAX_DETAIL_MASS:
         # Znalezienie najlepszego punktu przyłożenia przyssawki
-        best_point = find_best_suction_point(
+        best_point, valid_points = find_best_suction_point(
             element_name,
             centroid_point,
             main_contour_polygon,
             holes_polygons,
-            x_range_center_adj_cache,
-            y_range_center_adj_cache)   
+            polar_cache)   
         if best_point:
             # Rysowanie obszaru przyssawki
             ax.add_patch(Circle(best_point, SUCTION_RADIUS, color='green', alpha=1, zorder=3))
@@ -101,11 +107,11 @@ def process_element(element_name, element_paths, ax, x_range_center_adj_cache, y
             edgecolor_2 = 'lightgray'
             circle_color = 'lightgray'
             text_color = 'lightgray'
-            best_point = None  # Brak punktu przyssawki
     else:
         print(f"\tElement name: {element_name}")
         print(f"\tMass is too big ({round(total_detail_mass, 3)} g)")
         best_point = None  # Brak punktu przyssawki z powodu masy
+        valid_points = []  # Brak kandydatów na punkt przyssawki
 
     # Rysowanie elementu
     #   Rysowanie środka ciężkości (jeśli dotyczy)
@@ -127,6 +133,10 @@ def process_element(element_name, element_paths, ax, x_range_center_adj_cache, y
         )
         ax.add_patch(hole_polygon)
 
+    # Rysowanie kandydatów na punkt przyssawki (kontrolowane przez DRAW_SUCTION_CANDIDATES)
+    if DRAW_SUCTION_CANDIDATES and valid_points:
+        xs, ys = zip(*valid_points)
+        ax.scatter(xs, ys, color='blue', s=5, zorder=1)  # Dostosuj rozmiar i kolor według potrzeb
 
     if best_point:
         return (element_name[:-4], best_point, element_name)
@@ -134,64 +144,40 @@ def process_element(element_name, element_paths, ax, x_range_center_adj_cache, y
         return None
 
 # ----------------- Funkcja do znalezienia najlepszego punktu przyłożenia przyssawki ----------------- #
-# Funkcja szuka najlepszego punktu do przyłożenia przyssawki, zaczynając od środka ciężkości.
-# Jeśli środek ciężkości nie jest odpowiedni, szuka najbliższego punktu spełniającego kryteria.
+# Funkcja szuka najlepszego punktu do przyłożenia przyssawki w układzie biegunowym.
 # --------------------------------------------------------------- #
-def find_best_suction_point(element_name, centroid_point, main_contour_polygon, holes_polygons, x_range_center_adj_cache, y_range_center_adj_cache):
+def find_best_suction_point(element_name, centroid_point, main_contour_polygon, holes_polygons, polar_cache):
     # Sprawdzenie, czy przyssawka może być umieszczona w środku ciężkości
     if is_valid_circle(centroid_point, SUCTION_RADIUS, main_contour_polygon, holes_polygons):
-        return centroid_point
+        return centroid_point, [centroid_point]
+
+    # Sprawdzenie, czy punkty przeszukiwania są już obliczone
+    if element_name not in polar_cache:
+        radii = np.linspace(0, MAX_SUCTION_SEARCH_RADIUS, NUM_SEARCH_RADII)
+        angles = np.linspace(0, 2 * np.pi, NUM_SEARCH_ANGLES)
+        R, Theta = np.meshgrid(radii, angles)
+        X = centroid_point[0] + R * np.cos(Theta)
+        Y = centroid_point[1] + R * np.sin(Theta)
+        candidate_points = np.column_stack((X.ravel(), Y.ravel()))
+        polar_cache[element_name] = candidate_points
     else:
-        # Generowanie punktów w obrębie okręgu przeszukiwania
-        angles = np.linspace(0, 2 * np.pi, num=NUM_SEARCH_ANGLES)
-        radii = np.linspace(0, MAX_SUCTION_SEARCH_RADIUS, num=NUM_SEARCH_RADII)
+        candidate_points = polar_cache[element_name]
 
-        valid_points = []
-        for r in radii:
-            for angle in angles:
-                x = centroid_point[0] + r * np.cos(angle)
-                y = centroid_point[1] + r * np.sin(angle)
-                if is_valid_circle((x, y), SUCTION_RADIUS, main_contour_polygon, holes_polygons):
-                    valid_points.append((x, y))
+    # Filtrowanie punktów przeszukiwania
+    valid_points = [
+        (x, y) for x, y in candidate_points
+        if is_valid_circle((x, y), SUCTION_RADIUS, main_contour_polygon, holes_polygons)
+    ]
 
-        # Sprawdzenie, czy już wygenerowano zakresy współrzędnych X i Y
-        if element_name not in x_range_center_adj_cache:
-            x_range_center_adj_cache[element_name] = np.linspace(
-                centroid_point[0] - MAX_SUCTION_SEARCH_RADIUS,
-                centroid_point[0] + MAX_SUCTION_SEARCH_RADIUS,
-                num=50
-            )
-        if element_name not in y_range_center_adj_cache:
-            y_range_center_adj_cache[element_name] = np.linspace(
-                centroid_point[1] - MAX_SUCTION_SEARCH_RADIUS,
-                centroid_point[1] + MAX_SUCTION_SEARCH_RADIUS,
-                num=50
-            )
-
-        x_range_center_adj = x_range_center_adj_cache[element_name]
-        y_range_center_adj = y_range_center_adj_cache[element_name]
-
-        # Przefiltrowanie wygenerowanych punktów na podstawie kształtu detalu
-        valid_points = [
-            (x, y) for x in x_range_center_adj for y in y_range_center_adj
-            if is_valid_circle((x, y), SUCTION_RADIUS, main_contour_polygon, holes_polygons)
-        ]
-
-        # Jeśli znaleziono jakieś punkty, wybierz ten najbliższy środka ciężkości
-        if valid_points:
-            distances = [np.linalg.norm(np.array(p) - np.array(centroid_point)) for p in valid_points]
-            best_point = valid_points[np.argmin(distances)]
-
-            # Sprawdzenie, czy najlepszy punkt jest w dopuszczalnej odległości od środka ciężkości
-            if np.linalg.norm(np.array(best_point) - np.array(centroid_point)) < MAX_ADJUSTED_DISTANCE:
-                return best_point
-            else:
-                print(f"Element name: {element_name}")
-                print("\tAdjusted centroid: TOO FAR FROM CENTER")
-                return None
-        else:
-            return None
-
+    # Jeśli znaleziono jakieś punkty, wybierz ten najbliższy środka ciężkości
+    if valid_points:
+        best_point = min(valid_points, key=lambda p: np.linalg.norm(np.array(p) - np.array(centroid_point)))
+        # Sprawdzenie, czy najlepszy punkt jest w dopuszczalnej odległości od środka ciężkości
+        if np.linalg.norm(np.array(best_point) - np.array(centroid_point)) < MAX_ADJUSTED_DISTANCE:
+            return best_point, valid_points
+        print(f"Element name: {element_name}")
+        print("\tAdjusted centroid: TOO FAR FROM CENTER")
+    return None, valid_points  # Zwróć również kandydatów na punkt przyssawki
 
 # ----------------- Funkcja do tworzenia legendy ----------------- #
 # Funkcja tworzy własną legendę, wyjaśniając znaczenie kolorów na wykresie.
@@ -208,6 +194,12 @@ def add_custom_legend(ax):
         mpatches.Circle((0, 0), radius=5, color='green', label='Punkt przyłożenia przyssawki'),
     ]
 
+    # Dodajemy legendę dla kandydatów na punkt przyssawki, jeśli są rysowani
+    if DRAW_SUCTION_CANDIDATES:
+        legend_elements.append(
+            mpatches.Circle((0, 0), radius=5, color='blue', label='Kandydaci na punkt przyssawki')
+        )
+
     ax.legend(handles=legend_elements, loc='upper right')
 
 # ----------------- Główna funkcja programu ----------------- #
@@ -215,7 +207,7 @@ def add_custom_legend(ax):
 # ----------------------------------------------------------- #
 def main():
     nc_file_paths = [
-        "./Image preprocessing/Gcode to image conversion/NC_files/6.nc" #"NC_files/8.nc" #"./Image preprocessing/Gcode to image conversion/NC_files/8.nc"
+        NC_FILE_PATH
     ]
 
     # Pętla główna przetwarzająca pliki NC
@@ -223,8 +215,7 @@ def main():
         cutting_paths, x_min, x_max, y_min, y_max = visualize_cutting_paths(nc_file_path)
         fig, ax = plt.subplots()
         processed_elements = []
-        x_range_center_adj_cache = {}
-        y_range_center_adj_cache = {}
+        polar_cache = {}
 
         # Przetwarzanie każdego elementu
         for element_name, element_paths in cutting_paths.items():
@@ -232,8 +223,7 @@ def main():
                 element_name,
                 element_paths,
                 ax,
-                x_range_center_adj_cache,
-                y_range_center_adj_cache
+                polar_cache
             )
             if element_info:
                 processed_elements.append(element_info)
@@ -296,25 +286,21 @@ def main():
                     f"{target_box_point[2]:09.4f}"       # Box - Z (wysokość)
                 ])
                 print(f"Zapisano szczegóły elementu: {detail} (Z={target_box_point[2]}) do pliku CSV")
-        # Rysowanie strzałek od elementów do pudełek
-        for detail in element_details:
-            best_point = detail[2]
-            target_box_point = detail[3]
-            ax.annotate(
-                '',
-                xy=(target_box_point[0], target_box_point[1]),
-                xytext=best_point,
-                arrowprops=dict(facecolor='grey', arrowstyle='->', linewidth=0.2)
-            )
+
+        # Rysowanie strzałek od elementów do pudełek (kontrolowane przez DRAW_PLACEMENT_ARROWS)
+        if DRAW_PLACEMENT_ARROWS:
+            for detail in element_details:
+                best_point = detail[2]
+                target_box_point = detail[3]
+                ax.annotate(
+                    '',
+                    xy=(target_box_point[0], target_box_point[1]),
+                    xytext=best_point,
+                    arrowprops=dict(facecolor='grey', arrowstyle='->', linewidth=0.2)
+                )
 
         ax.set_xlim(0, 500)
         ax.set_ylim(0, 1300)
-        #plt.rc('font', family='times new roman')
-        #ax.tick_params(axis='both', which='major', labelsize=10)
-        #plt.xticks(fontname='times new roman')
-        #plt.yticks(fontname='times new roman')
-        #ax.set_xlabel('X [mm]', fontname='times new roman')
-        #ax.set_ylabel('Y [mm]', fontname='times new roman')
 
         # Dodanie własnej legendy do wykresu
         add_custom_legend(ax)

@@ -679,10 +679,10 @@ def draw_circle_on_click():
     while True:
         # Odczyt obrazu z kamery
         ret, frame = cap.read()
-
+        frame = camera_calibration(frame)
         # Rysowanie kółek w miejscach kliknięcia
         for coord in click_coordinates:
-            cv2.circle(frame, coord, 10, (0, 255, 0), 2)  # Zielone kółko z obwódką
+            cv2.circle(frame, coord, 1, (0, 0, 255), 2)  # Zielone kółko z obwódką
 
         # Wyświetlanie obrazu z kamery
         cv2.imshow('Kamera', frame)
@@ -695,9 +695,9 @@ def draw_circle_on_click():
     cap.release()
     cv2.destroyAllWindows()
 
-
 if __name__ == "__main__":
-    SheetInfoTest()
+    draw_circle_on_click()
+    # SheetInfoTest()
     # # singleGcodeTest()
     # # Test czy spakowana funkcja działa
     # paths = [

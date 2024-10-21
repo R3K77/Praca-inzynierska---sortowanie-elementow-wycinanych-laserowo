@@ -171,6 +171,7 @@ def singleGcodeElementCV2(cutting_path,circle_line_data,linear_points_data,bound
 def capture_median_frame():
     while True:
         cap = cv2.VideoCapture(1)
+        cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
         # cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
         # cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
         if not cap.isOpened():
@@ -197,24 +198,22 @@ def cameraImage(median_background_frame):
     gray_frame = cv2.cvtColor(median_frame, cv2.COLOR_BGR2GRAY)
     gray_background  = cv2.cvtColor(median_background_frame,cv2.COLOR_BGR2GRAY)
     diff = cv2.absdiff(gray_background,gray_frame)
-    _, thresholded = cv2.threshold(diff, 70, 150, cv2.THRESH_BINARY)
+    _, thresholded = cv2.threshold(diff, 10, 200, cv2.THRESH_BINARY) # wyzszy prog dla blachy na czarnym
     #odszumienie
     kernel = np.ones((5, 5), np.uint8)
     cleaned_thresholded = cv2.morphologyEx(thresholded, cv2.MORPH_OPEN, kernel)
     contours, _ = cv2.findContours(cleaned_thresholded, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    x, y, w, h = cv2.boundingRect(contours[0])
-    crop = cleaned_thresholded[y:y + h, x:x + w]
-    binarised = cv2.threshold(crop,50,255,cv2.THRESH_BINARY)[1]
+    contours = max(contours, key = cv2.contourArea)
+    x, y, w, h = cv2.boundingRect(contours)
+    crop = cleaned_thresholded[y:y + h, x:x + w].copy()
     cv2.imshow("gray_image",gray_frame)
     cv2.imshow("diff",diff)
     cv2.imshow('thr',cleaned_thresholded)
-    cv2.imshow("binarised",binarised)
     cv2.imshow("przetworzony", crop)
     img_pack = [median_frame,gray_frame,diff,cleaned_thresholded,crop]
     cv2.waitKey(0)
     cv2.destroyAllWindows()
-
-    return binarised , (w,h), img_pack
+    return crop , (w,h), img_pack
 
 def camera_calibration(frame):
     # Wczytanie parametrów kamery z pliku
@@ -318,8 +317,8 @@ def lineFromPoints(x1, y1, x2, y2):
         B = 1
         C = -y1
     else:
-        m = (y2 - y1) / (x2 - x1)  
-        b = y1 - m * x1 
+        m = (y2 - y1) / (x2 - x1)
+        b = y1 - m * x1
         # Równanie prostej w postaci ogólnej: Ax + By + C = 0
         A = m
         B = -1
@@ -464,14 +463,15 @@ def elementStackingRotation(images):
 
 def sheetRotationTranslation(background_frame):
     REFPOINT = (100,100) # robocie refpoint to (0,0)
-    gray_background =  cv2.cvtColor(background_frame,cv2.COLOR_BGR2GRAY)
     _,_,img_pack = cameraImage(background_frame)
-    thresh = img_pack[4]
+    thresh = img_pack[3]
+    org_img = img_pack[0]
     contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    contours = max(contours, key = cv2.contourArea)
     final_contours = contours
-    if len(contours)>4:
-        eps = 0.05 * cv2.arcLength(contours,True)
-        approx = cv2.approxPolyDP(contours,eps,True)
+    if len(final_contours)>4:
+        eps = 0.05 * cv2.arcLength(final_contours,True)
+        approx = cv2.approxPolyDP(final_contours,eps,True)
         final_contours = approx
     final_contours = final_contours.reshape(-1,2)
     sorted_x = sorted(final_contours, key= lambda point: point[0], reverse=True)
@@ -481,9 +481,23 @@ def sheetRotationTranslation(background_frame):
     xb,yb = right_most[1]
     A,B,C = lineFromPoints(xt,yt,xb,yb)
     a = -A/B
-    alpha = math(a)
+    alpha = np.arctan(a)
+    alpha = np.rad2deg(alpha)
+    if alpha > 0:
+        alpha = 90 - alpha
+    else:
+        alpha = -90-alpha
     diff_x = abs(REFPOINT[0] - xb)
     diff_y = abs(REFPOINT[1] - yb)
+    print(f'rotacja: {alpha}, translation: {diff_x,diff_y}')
+    cv2.circle(org_img, REFPOINT,2,(0,0,255), 3)
+    cv2.circle(org_img, (xt,yt), 1,(0,255,255), 3)
+    cv2.circle(org_img,(xb,yb), 1,(255,255,0),3)
+    cv2.line(org_img,(xt,yt),(xb,yb),(255,0,0),3)
+    cv2.imshow("camera_img",org_img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
     return alpha,(diff_x,diff_y)
 
 def testAlgorithmFunction(key, value, pts, pts_hole, linearData, circleLineData):
@@ -635,48 +649,95 @@ def singleGcodeTest():
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
-if __name__ == "__main__":
+def SheetInfoTest():
+    background_image = capture_median_frame()
+    cv2.imshow("bgr",background_image)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    print('background image zrobiony')
+    alpha, translation = sheetRotationTranslation(background_image)
+    print(f'rotacja: {alpha}, translation: {translation}')
 
-    # singleGcodeTest()
-    # Test czy spakowana funkcja działa
-    paths = [
-        "../../../../Gcode to image conversion/NC_files/1.NC",
-        "../../../../Gcode to image conversion/NC_files/2_FIXME.NC",
-        "../../../../Gcode to image conversion/NC_files/3_fixed.NC",
-        "../../../../Gcode to image conversion/NC_files/4.NC",
-        "../../../../Gcode to image conversion/NC_files/5.NC",
-        "../../../../Gcode to image conversion/NC_files/6.NC",
-        "../../../../Gcode to image conversion/NC_files/7.NC",
-        "../../../../Gcode to image conversion/NC_files/8.NC",
-    ]
-    for path in paths:
-        os.chdir(r'C:\Users\Rafał\Documents\GitHub\Projekt-Przejsciowy---sortowanie-elementow-wycinanych-laserowo\Image preprocessing\Camera data handling\testy\System Wizyjny - kontrola jakości\GcodeExtraction')
-        images, pts, sheet_size, pts_hole, circleLineData, linearData = allGcodeElementsCV2(
-            sheet_path=path,
-            arc_pts_len=300)
-        os.chdir(
-            r'C:\Users\Rafał\Documents\GitHub\Projekt-Przejsciowy---sortowanie-elementow-wycinanych-laserowo\Image preprocessing\Camera data handling\testy\System Wizyjny - kontrola jakości\GcodeExtraction\ZdjeciaElementy')
-        # rotations = elementStackingRotation(images)
-        for key, value in images.items():
-            try:
-                linData = linearData[f'{key}']
-            except KeyError:
-                linData = []
-            try:
-                circData = circleLineData[f'{key}']
-            except KeyError:
-                circData = []
-            gcode_data_packed = {
-                "linearData": linData,
-                "circleData": circData,
-                "image": value,
-            }
-            testAlgorithmFunction(key,value,pts,pts_hole,linearData,circleLineData)
-            # testTilt(value,gcode_data_packed,key) # podmienic funkcje w zaleznosci od testu
-            # img = cv2.hconcat([value,img_transformed])
-            # cv2.imshow("obraz",img)
-            # cv2.waitKey(0)
-            # cv2.destroyAllWindows()
+def draw_circle_on_click():
+    # Zmienna do przechowywania współrzędnych kliknięcia
+    click_coordinates = []
+
+    # Funkcja obsługująca kliknięcie myszą
+    def mouse_callback(event, x, y, flags, param):
+        if event == cv2.EVENT_LBUTTONDOWN:
+            # Gdy klikniemy lewym przyciskiem myszy, dodaj współrzędne
+            click_coordinates.append((x, y))
+            print(f"Kliknięto na koordynatach: ({x}, {y})")
+
+    # Uruchomienie kamery
+    cap = cv2.VideoCapture(1)
+    cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
+    # Ustawienie funkcji callback dla okna z obrazem
+    cv2.namedWindow('Kamera')
+    cv2.setMouseCallback('Kamera', mouse_callback)
+
+    while True:
+        # Odczyt obrazu z kamery
+        ret, frame = cap.read()
+
+        # Rysowanie kółek w miejscach kliknięcia
+        for coord in click_coordinates:
+            cv2.circle(frame, coord, 10, (0, 255, 0), 2)  # Zielone kółko z obwódką
+
+        # Wyświetlanie obrazu z kamery
+        cv2.imshow('Kamera', frame)
+
+        # Warunek wyjścia (klawisz 'q' zamyka aplikację)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+    # Zwolnienie zasobów
+    cap.release()
+    cv2.destroyAllWindows()
+
+
+if __name__ == "__main__":
+    SheetInfoTest()
+    # # singleGcodeTest()
+    # # Test czy spakowana funkcja działa
+    # paths = [
+    #     "../../../../Gcode to image conversion/NC_files/1.NC",
+    #     "../../../../Gcode to image conversion/NC_files/2_FIXME.NC",
+    #     "../../../../Gcode to image conversion/NC_files/3_fixed.NC",
+    #     "../../../../Gcode to image conversion/NC_files/4.NC",
+    #     "../../../../Gcode to image conversion/NC_files/5.NC",
+    #     "../../../../Gcode to image conversion/NC_files/6.NC",
+    #     "../../../../Gcode to image conversion/NC_files/7.NC",
+    #     "../../../../Gcode to image conversion/NC_files/8.NC",
+    # ]
+    # for path in paths:
+    #     os.chdir(r'C:\Users\Rafał\Documents\GitHub\Projekt-Przejsciowy---sortowanie-elementow-wycinanych-laserowo\Image preprocessing\Camera data handling\testy\System Wizyjny - kontrola jakości\GcodeExtraction')
+    #     images, pts, sheet_size, pts_hole, circleLineData, linearData = allGcodeElementsCV2(
+    #         sheet_path=path,
+    #         arc_pts_len=300)
+    #     os.chdir(
+    #         r'C:\Users\Rafał\Documents\GitHub\Projekt-Przejsciowy---sortowanie-elementow-wycinanych-laserowo\Image preprocessing\Camera data handling\testy\System Wizyjny - kontrola jakości\GcodeExtraction\ZdjeciaElementy')
+    #     # rotations = elementStackingRotation(images)
+    #     for key, value in images.items():
+    #         try:
+    #             linData = linearData[f'{key}']
+    #         except KeyError:
+    #             linData = []
+    #         try:
+    #             circData = circleLineData[f'{key}']
+    #         except KeyError:
+    #             circData = []
+    #         gcode_data_packed = {
+    #             "linearData": linData,
+    #             "circleData": circData,
+    #             "image": value,
+    #         }
+    #         testAlgorithmFunction(key,value,pts,pts_hole,linearData,circleLineData)
+    #         # testTilt(value,gcode_data_packed,key) # podmienic funkcje w zaleznosci od testu
+    #         # img = cv2.hconcat([value,img_transformed])
+    #         # cv2.imshow("obraz",img)
+    #         # cv2.waitKey(0)
+    #         # cv2.destroyAllWindows()
 
 
 

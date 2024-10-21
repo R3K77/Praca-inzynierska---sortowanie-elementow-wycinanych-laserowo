@@ -642,6 +642,7 @@ def sheetRotationTranslation(background_frame):
     gray_background =  cv2.cvtColor(background_frame,cv2.COLOR_BGR2GRAY)
     _,_,img_pack = cameraImage(background_frame)
     thresh = img_pack[4]
+    org_img = img_pack[0]
     contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     final_contours = contours
     if len(contours)>4:
@@ -659,6 +660,10 @@ def sheetRotationTranslation(background_frame):
     alpha = math(a)
     diff_x = abs(REFPOINT[0] - xb)
     diff_y = abs(REFPOINT[1] - yb)
+    cv2.circle(org_img, REFPOINT,2,(0,0,255), 3)
+    cv2.imshow("camera_img",org_img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
     return alpha,(diff_x,diff_y)
 
 def testAlgorithmFunction(key, value, pts, pts_hole, linearData, circleLineData):

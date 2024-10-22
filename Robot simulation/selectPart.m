@@ -11,13 +11,23 @@ function [RefPose, partID, goalZoffset] = selectPart(partGT,goalPoints)
     %     error('All parts have been selected.');
     % end
     
-    partID = partCounter;
+    % partID = partCounter;
     
     % Ensure the STL file for the current partID exists
-    stlFile = sprintf('meshes/output_%d.stl', partID - 1);
-    if ~isfile(stlFile)
-        error('STL file for partID %d does not exist.', partID - 1);
-    end
+    % stlFile = sprintf('meshes/output_%d.stl', partID - 1);
+
+    data = readtable('element_details.csv');
+
+    filename = data.Nazwa{partCounter};
+    % filename_dir = strcat('meshes/', filename);
+
+    % partID - indeks elementu w pliku CSV
+    filename = strrep(filename, '.stl', '');
+    partID = findStringInCSV('element_details.csv', filename) - 1;
+
+    % if ~isfile(filename_dir)
+    %     error('STL file for partID %d does not exist.', partID);
+    % end
     
     goalZoffset = 0.01;
     

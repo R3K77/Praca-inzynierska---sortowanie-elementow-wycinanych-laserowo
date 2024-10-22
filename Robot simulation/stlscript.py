@@ -1,11 +1,11 @@
 import numpy as np
 from stl import mesh
 import sys
+import csv
 
 sys.path.append('.\\Image preprocessing\\Gcode to image conversion')
 
-from gcode_analize import *
-from centroid import *
+from _functions_gcode_analize import *
 import matplotlib.pyplot as plt
 
 def extrude_contours(contours, thickness):
@@ -39,6 +39,20 @@ def extrude_contours(contours, thickness):
 
     return mesh_data
 
+# Funkcja do wczytania danych z pliku CSV
+def load_csv_data(csv_file):
+    csv_data = []
+    with open(csv_file, newline='') as f:
+        reader = csv.reader(f)
+        next(reader)  # Pomijamy nagłówek
+        for row in reader:
+            csv_data.append(row)
+    return csv_data
+
+# Wczytanie danych z pliku CSV
+csv_file = 'element_details.csv'  # Podaj ścieżkę do pliku CSV
+csv_data = load_csv_data(csv_file)
+
 file_paths = [
     "./Image preprocessing/Gcode to image conversion/NC_files/4.nc"
 ]
@@ -51,7 +65,7 @@ for i in range(len(cutting_paths)):
     first_element_name = list(cutting_paths.keys())[i]
     if len(first_element_name) == 4:
         continue
-        
+
     first_element_paths = cutting_paths[first_element_name]
     element_paths = first_element_paths[0]
 
@@ -73,18 +87,6 @@ for i in range(len(cutting_paths)):
     rectangle_corners = [(x_min, y_min), (x_min, y_max), (x_max, y_max), (x_max, y_min)]
     elements.append(rectangle_corners)
 
-    print(rectangle_corners)
-
-    # Rysowanie rogów prostokąta
-    x_coords = [corner[0] for corner in rectangle_corners]
-    y_coords = [corner[1] for corner in rectangle_corners]
-
-    # plt.plot(x_coords, y_coords, 'ro')
-    # plt.xlabel('X')
-    # plt.ylabel('Y')
-    # plt.title('Rectangle Corners')
-    # plt.show()
-
 # Funkcja do obliczania centroidu prostokąta
 def calculate_centroid(rectangle):
     x_coords = [point[0] for point in rectangle]
@@ -94,14 +96,23 @@ def calculate_centroid(rectangle):
     return centroid_x, centroid_y
 
 # Sortowanie elementów według współrzędnej X centroidu
-elements.sort(key=lambda rect: calculate_centroid(rect)[0])
+# elements.sort(key=lambda rect: calculate_centroid(rect)[0])
 
+# Pętla generująca pliki STL
 for i in range(len(elements)):
     # Grubość konturów
     thickness = 2.0
 
+    # Sprawdzenie, czy jest wystarczająca ilość danych w CSV
+    if i >= len(csv_data):
+        print(f'Brak wystarczającej ilości danych w pliku CSV dla elementu {i}')
+        break
+
     # Tworzenie obiektu mesh
     stl_mesh = extrude_contours([elements[i]], thickness)
 
-    # Zapisywanie do pliku STL
-    stl_mesh.save(f'.\\Robot simulation\\meshes\\output_{i}.stl')
+    # Zapisywanie do pliku STL z nazwą z CSV
+    stl_name = csv_data[i][0]  # Nazwa elementu z pierwszej kolumny CSV
+    stl_mesh.save(f'.\\Robot simulation\\meshes\\{stl_name}.stl')
+
+print('Pliki STL zostały wygenerowane pomyślnie')

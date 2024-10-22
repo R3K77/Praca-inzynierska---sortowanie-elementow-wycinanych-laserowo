@@ -6,10 +6,12 @@ function [partGT, env] = generateGroundTruth(numberOfParts, env)
     fixedZ = -0.001;  % Assuming part height of 0.0508
     partGT(:, 3) = fixedZ;  % Fixed Z-coordinate
     partGT(:, 4) = 0;  % Fixed rotation (if needed)
+
     
     % Load and place parts
     for i = 1:numberOfParts
-        filename = sprintf('meshes/output_%d.stl', i - 1);
+        [garbage_, filename] = findStl('meshes/blacha*.stl', i);
+        filename = strcat('meshes/', filename);
         FV = stlread(filename);
         % Create a collision box for each part
         partDimensions = max(FV.Points) - min(FV.Points);

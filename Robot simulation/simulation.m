@@ -30,7 +30,7 @@ hold on
 binLength = 0.5; % Along X axis
 binWidth = 0.5; % Along Y axis
 binHeight = 0.0;
-binCenterPosition = [0.5+0.15 0.5 0];
+binCenterPosition = [0.65 0.5 0];
 binRotation = 0;
 
 % Initialize environment
@@ -40,24 +40,28 @@ hold on
 % Load parts and generate ground truth
 data = readmatrix("element_details.csv");
 data = sortrows(data, 1);
-dataElement = data(:, 1:2);
-dataBox = data(:, 3:4);
+dataElement = data(:, 2:3);
+dataBox = data(:, 5:6);
 goalPoints = dataElement/1000;
 goalBoxes = dataBox/1000;
 numberOfParts = size(goalPoints, 1);
 
 [partGT, env] = generateGroundTruth(numberOfParts, env);
 
+listSTL = [];
+
 % Plot Parts
 partHandles = gobjects(numberOfParts, 1);
 for i = 1:numberOfParts
-    filename = sprintf('meshes/output_%d.stl', i - 1);
+    data = readtable('element_details.csv');
+    stl_file = data.Nazwa{i};
+    filename = strcat('meshes/', stl_file, '.stl');
     FV = stlread(filename);
     partHandles(i) = patch(gca, 'Faces', FV.ConnectivityList, 'Vertices', FV.Points + partGT(i, 1:3), 'FaceColor', [0.8 0.8 1.0], 'Tag', 'part');
 end
 
 % Adjust the camera and axis limits
-axis([-0.3 0.7 -0.6 0.6 -0.01 0.7]);
+axis([-0.25 1.0 -0.6 0.6 -0.01 0.9]);
 view([120 70]);
 
 drawnow;
@@ -134,7 +138,7 @@ for p = 1:numberOfParts
 
     % Show animation of the interpolated path
     if showAnimation
-        rateObj = rateControl(60);
+        rateObj = rateControl(180);
         for i = 1 : size(interpConfigurations, 1)
             show(ur5e,interpConfigurations(i,:),'PreservePlot',false,'Frames','off','Collisions','off','Visuals','on','FastUpdate',true);
             drawnow
@@ -145,10 +149,13 @@ for p = 1:numberOfParts
 
     endEffectorApproachTransform = getTransform(ur5e,interpConfigurations(end,:),ur5e.BodyNames{end});
     eulerAtEndEffector = tform2eul(endEffectorApproachTransform);
-
+    
+    % Zapisz przesunięcie i orientację elementu względem chwytaka
+    elementOffset = [-goalPoints(p, :) 0]; % Przesunięcie elementu względem chwytaka
+    elementRotation = -deg2rad(partGT(partID,4)) + eulerAtEndEffector(1) + pi; % Orientacja elementu względem chwytaka
 
     % Add part as a collision box with the robot end-effector tool
-    ur5e = attachPart(ur5e, -deg2rad(partGT(partID,4))+eulerAtEndEffector(1)+pi, partID, [-goalPoints(p, :) 0], [-goalPoints(p, :) 0]);
+    ur5e = attachPart(ur5e, elementRotation, partID, elementOffset, elementOffset);
 
     % goalPoints(1, :) = [];
 
@@ -195,15 +202,15 @@ for p = 1:numberOfParts
         goalRegion = workspaceGoalRegion(ur5e.BodyNames{end});
         goalRegion.ReferencePose(1:3,1:3) = endEffectorApproachTransform(1:3,1:3);
 
-        goalRegion.Bounds(1, :) = [0 0];  % X Bounds
-        goalRegion.Bounds(2, :) = [0 0];  % Y Bounds
-        goalRegion.Bounds(3, :) = [0 0];  % Z Bounds
-        goalRegion.Bounds(4, :) = [0 0];  % Rotation about the Z-axis
+        goalRegion.Bounds(1, :) = [-0.01 0.01];  % X Bounds
+        goalRegion.Bounds(2, :) = [-0.01 0.01];  % Y Bounds
+        goalRegion.Bounds(3, :) = [-0.01 0.01];  % Z Bounds
+        goalRegion.Bounds(4, :) = [-2*pi 2*pi];  % Rotation about the Z-axis
         goalRegion.Bounds(5, :) = [0 0];  % Rotation about the Y-axis
         goalRegion.Bounds(6, :) = [0 0];  % Rotation about the X-axis
 
-        goalRegion.ReferencePose(1:3,4) = [goalPoints(p, 1) + 0.15 goalPoints(p, 2) 0.05]';
-        goalRegion.EndEffectorOffsetPose = trvec2tform([0 0 0]);
+        goalRegion.ReferencePose(1:3,4) = [goalBoxes(partID, 1) goalBoxes(partID, 2) 0.10]' + [0.25 -0.85 0]'; %CHUJHCUJ
+        goalRegion.EndEffectorOffsetPose = trvec2tform([0 0 0.01]);
         goalRegion.EndEffectorOffsetPose = ...
             goalRegion.EndEffectorOffsetPose*eul2tform([0 0 0],"ZYX");
 
@@ -213,7 +220,7 @@ for p = 1:numberOfParts
         drawnow;
 
         % Compute path for retract based on the given goal region
-        path = plan(planner,interpConfigurations(end,:),goalRegion);
+        path = plan(planner,interpConfigurations(end,:),goalRegion)
     else
         % Pre-computed retract goal configuration
         goalConfiguration = [-0.2240   -1.3443    1.2348   -1.4613   -1.5708    1.3468];
@@ -255,7 +262,7 @@ for p = 1:numberOfParts
 
     % Show animation of the interpolated configuration for retract trajectory
     if showAnimation
-        rateObj = rateControl(60);
+        rateObj = rateControl(180);
         for i = 1 : 1 : size(interpConfigurations, 1)
             show(ur5e,interpConfigurations(i,:),'PreservePlot',false,'Frames','off','Collisions','off','Visuals','on','FastUpdate',true);
             waitfor(rateObj);
@@ -269,13 +276,15 @@ for p = 1:numberOfParts
     % Compute end pose for placing the object
     if isDesign
         % Fixed End-Position so using IK instead of the work space goal region
-        targetPoseAngle = [-deg2rad(partGT(partID,4))+eulerAtEndEffector(1)-pi/2 pi 0];
-        targetPoseXYZ = [goalBoxes(partID, :) 0] + [0.15 -0.05 0];
-        targetPose = trvec2tform(targetPoseXYZ)*eul2tform(targetPoseAngle,"ZYX");
+        targetPoseAngle = [-deg2rad(partGT(partID,4))+eulerAtEndEffector(1)-pi/2 pi 0]
+        % [goalPoints(p, 1) goalPoints(p, 2) 0.05]' + [0.35 -0.55 0]';
+        % targetPoseXYZ = [goalPoints(p, 1) goalPoints(p, 2) 0.05] + [0.35 -0.55 0]; %CHUJHCUJ
+        targetPoseXYZ = [goalBoxes(partID, 1), goalBoxes(partID, 2), 0] + [0.25 -0.85 0] %CHUJHCUJ
+        targetPose = trvec2tform(targetPoseXYZ) * eul2tform(targetPoseAngle, "ZXY");
         goalFrame.Pose = targetPose;
-
+        
         % Create IK object and set parameters
-        ik = inverseKinematics('RigidBodyTree',ur5e);
+        ik = inverseKinematics('RigidBodyTree', ur5e);
         ik.SolverParameters.AllowRandomRestart = false;
         ik.SolverParameters.GradientTolerance = 1e-13;
         ik.SolverParameters.MaxTime = 5;
@@ -283,10 +292,10 @@ for p = 1:numberOfParts
         weights = [1 1 1 1 1 1]; % Weights
 
         % Set favorable initial guess
-        initialGuess = [1.3792  -1.0782    1.2490   -1.7416   -1.5708    1.7333];
+        initialGuess = [1.3792 -1.0782 1.2490 -1.7416 -1.5708 1.7333];
 
         % Compute IK solution for target pose
-        [configSoln,solnInfo] = ik(ur5e.BodyNames{end},targetPose,weights,initialGuess);
+        [configSoln, solnInfo] = ik(ur5e.BodyNames{end}, targetPose, weights, initialGuess);
 
         % Check for pose threshold. If condition does not satisfies then
         % compute IK again with random restart
@@ -294,7 +303,7 @@ for p = 1:numberOfParts
             ik.SolverParameters.MaxTime = 10;
             ik.SolverParameters.AllowRandomRestart = true;
 
-            [configSoln,solnInfo] = ik(ur5e.BodyNames{end},targetPose,weights,initialGuess);
+            [configSoln, solnInfo] = ik(ur5e.BodyNames{end}, targetPose, weights, initialGuess);
 
             if solnInfo.PoseErrorNorm > poseThr
                 warning("IK Failure");
@@ -302,25 +311,24 @@ for p = 1:numberOfParts
             end
 
             planner.EnableConnectHeuristic = false;
-            planner.SkippedSelfCollisions='parent';
-            planner.IgnoreSelfCollision = true;
+            planner.SkippedSelfCollisions = 'parent';
+            planner.IgnoreSelfCollision = false;
         end
     else
         % Fixed joint configuration based on previous analysis
-        configSoln = [1.3792  -1.0821    1.2291   -1.7178   -1.5708    wrapToPi(deg2rad(partGT(partID,4)+placeAngleOffset))];
-        goalFrame.Pose = getTransform(ur5e,configSoln,ur5e.BodyNames{end});
+        configSoln = [1.3792 -1.0821 1.2291 -1.7178 -1.5708 wrapToPi(deg2rad(partGT(partID, 4) + placeAngleOffset))];
+        goalFrame.Pose = getTransform(ur5e, configSoln, ur5e.BodyNames{end});
     end
-
 
     % Parameters for the planner for the place trajectory
     planner.MaxConnectionDistance = 0.5;
-    planner.ValidationDistance = planner.MaxConnectionDistance/2;
+    planner.ValidationDistance = planner.MaxConnectionDistance / 2;
 
     % Show the place configuration with the robot in rigid body tree
     % environment with goal frame
     figure(f1);
     hold on
-    show(goalFrame,gca);
+    show(goalFrame, gca);
     drawnow;
 
     % Compute path, short path, and interpolated path for the place
@@ -330,25 +338,61 @@ for p = 1:numberOfParts
     cumulativePath{3} = interpConfigurations;
 
     % Delete Goal Region from the figure
-    delete(findobj(f1,'type', 'hgtransform'));
+    delete(findobj(f1, 'type', 'hgtransform'));
     hold on;
-    show(goalFrame,gca);
+    show(goalFrame, gca);
 
     % Show animation of the interpolated configuration for place trajectory
     if showAnimation
-        rateObj = rateControl(60);
+        rateObj = rateControl(180);
         for i = 1 : size(interpConfigurations, 1)
-            show(ur5e,interpConfigurations(i,:),'PreservePlot',false,'Frames','off','Collisions','off','Visuals','on','FastUpdate',true);
+            show(ur5e, interpConfigurations(i, :), 'PreservePlot', false, 'Frames', 'off', 'Collisions', 'off', 'Visuals', 'on', 'FastUpdate', true);
             waitfor(rateObj);
         end
     end
 
-    % Delete Part from the body after placing the object (Modify the robot
-    % rigid body tree environment)
-    removeBody(ur5e,'part');
+    % Delete Part from the body after placing the object (Modify the robot rigid body tree environment)
+    removeBody(ur5e, 'part');
     RemainingParts = RemainingParts - 1;
 
-    %%%%%% Rest position %%%%%%
+    % Plotowanie elementu w nowej lokalizacji
+    hold on;
+
+    data = readtable('element_details.csv');
+    filename = data.Nazwa{partID};
+    filename = strcat('meshes/', filename, '.stl');
+
+    FV = stlread(filename);
+
+    % Przygotowanie transformacji
+    % Transformacja od układu elementu do układu chwytaka
+    elementToGripper = trvec2tform(elementOffset) * axang2tform([0 0 1 elementRotation]);
+
+    % elementToGripper = trvec2tform(elementOffset) * axang2tform([0 0 1 0]);
+
+    % Transformacja od układu chwytaka do układu globalnego (targetPose)
+    % Skumulowana transformacja od układu elementu do układu globalnego
+    totalTransform = targetPose * elementToGripper
+
+
+    % Zastosowanie skumulowanej transformacji do wierzchołków
+    points = [FV.Points, ones(size(FV.Points, 1), 1)]' % Dodanie jedynek dla współrzędnych homogenicznych
+    transformedPoints = (totalTransform * points)'; % Przemnożenie przez macierz transformacji
+    transformedPoints = transformedPoints(:, 1:3) % Wyodrębnienie współrzędnych x, y, z
+
+    fprintf('Element %d placed at position: %f %f %f\n', partID, totalTransform(1, 4), totalTransform(2, 4), totalTransform(3, 4));
+    % Rysowanie elementu
+    partHandles(partID) = patch(gca, 'Faces', FV.ConnectivityList, 'Vertices', transformedPoints, ...
+                                'FaceColor', [0.8 0.8 1.0], 'Tag', 'part');
+
+
+    % Define velocity and acceleration limits
+    maxqd = pi/2; % in rad/s
+    maxqdd = deg2rad(100); % in rad/s^2
+    vellimits = repmat([-maxqd; maxqd], 1, 6);
+    accellimits = repmat([-maxqdd; maxqdd], 1, 6);
+
+    % Rest position
     % Send robot to home position after placing the object
     % Update the Planner
     planner = manipulatorRRT(ur5e,env);
@@ -358,19 +402,20 @@ for p = 1:numberOfParts
 
     path = plan(planner, interpConfigurations(end, :), homePosition);
     shortPath = shorten(planner, path, numIter);
-    cumulativePath{4} = shortPath;
     interpConfigurations = interpolate(planner, shortPath);
 
-    % Delete Robot from the figure
-    delete(findobj(f1,'type', 'hgtransform'));
+    % Interpolate the rest trajectory using contopptraj
+    [q, qd, qdd, t] = contopptraj(interpConfigurations', vellimits', accellimits', NumSamples=size(interpConfigurations, 1) * 10);
 
+    % Animate the movement back to home position
     if showAnimation
-        rateObj = rateControl(60);
-        for i = 1 : size(interpConfigurations, 1)
-            show(ur5e,interpConfigurations(i,:),'PreservePlot',false,'Frames','off','Collisions','off','Visuals','on','FastUpdate',true);
+        rateObj = rateControl(180);
+        for i = 1 : size(q, 2)
+            show(ur5e, q(:, i)', 'PreservePlot', false, 'Frames', 'off', 'Collisions', 'off', 'Visuals', 'on', 'FastUpdate', true);
             waitfor(rateObj);
         end
     end
+    
 
     %% Trajectory interpolation using contopptraj with the max acceleration and max velocity bounds
     % Robot Parameters
@@ -386,7 +431,7 @@ for p = 1:numberOfParts
     % Show animation of final interpolated trajectory if flag is enabled
     if showAnimationTraj
         hold on;
-        rateObj = rateControl(60);
+        rateObj = rateControl(180);
         for i = 1 : size(q,2)
             show(ur5e,q(:,i)','PreservePlot',false,'Frames','off','Collisions','off','Visuals','on','FastUpdate',true);
             waitfor(rateObj);
@@ -420,7 +465,7 @@ for p = 1:numberOfParts
     % Show animation of the trajectory
     if showAnimationTraj
         hold on;
-        rateObj = rateControl(60);
+        rateObj = rateControl(180);
         for i = 1 : size(q,2)
             show(ur5e,q(:,i)','PreservePlot',false,'Frames','off','Collisions','off','Visuals','on','FastUpdate',true);
             waitfor(rateObj);

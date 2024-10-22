@@ -1,6 +1,9 @@
 function ur5e = attachPart(ur5e, rotation, partID, collisionPoint, visualPoint)
   % Part Dimensions
-  filename = sprintf('meshes/output_%d.stl', partID - 1);
+  data = readtable('element_details.csv');
+  filename = data.Nazwa{partID};
+  
+  filename = strcat('meshes/', filename, '.stl');
   FV = stlread(filename);
   partDimensions = max(FV.Points) - min(FV.Points);
   

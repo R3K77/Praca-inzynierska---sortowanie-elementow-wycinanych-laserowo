@@ -32,9 +32,9 @@ DETAIL_Z = 0                            # Wysokość pobrania detalu
 # --------------------------------------------------------------- #
 def create_boxes():
     box_positions = [
-        (330, 50), (330, 190), (330, 750), (330, 380), (421, 250),
-        (421, 300), (421, 350), (421, 400), (421, 450), (421, 500),
-        (421, 550), (421, 600), (421, 650), (421, 700), (421, 750),
+        (0, 600), (0, 700), (150, 700), (300, 700), (450, 700),
+        (550, 700), (0, 800), (150, 800), (300, 800), (450, 800),
+        (550, 600), (421, 600), (421, 650), (421, 700), (421, 750),
         (421, 800), (421, 850), (421, 900), (421, 950), (421, 1000),
         (421, 1050), (421, 1100), (421, 1150), (421, 1200), (421, 1250)
     ]
@@ -215,7 +215,7 @@ def add_custom_legend(ax):
 # ----------------------------------------------------------- #
 def main():
     nc_file_paths = [
-        "./Image preprocessing/Gcode to image conversion/NC_files/6.nc" #"NC_files/8.nc" #"./Image preprocessing/Gcode to image conversion/NC_files/8.nc"
+        "./Image preprocessing/Gcode to image conversion/NC_files/4.nc" #"NC_files/8.nc" #"./Image preprocessing/Gcode to image conversion/NC_files/8.nc"
     ]
 
     # Pętla główna przetwarzająca pliki NC

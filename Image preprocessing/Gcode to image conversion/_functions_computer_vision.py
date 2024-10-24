@@ -666,75 +666,72 @@ def sheetRotationTranslation(background_frame):
     cv2.destroyAllWindows()
     return alpha,(diff_x,diff_y)
 
-def testAlgorithmFunction(key, value, pts, pts_hole, linearData, circleLineData):
-    """
-    Funkcja testowa do sprawdzania działania funkcji obróbki obrazu
+import cv2
 
-    Args:
-        key: Nazwa klucza obrazu.
-        value: Obraz do przetwarzania.
-        pts: Słownik punktów konturu.
-        pts_hole: Słownik punktów otworu.
-        linearData: Dane dotyczące punktów prostych.
-        circleLineData: Dane dotyczące punktów kolistych.
-    """
-    # Porównanie contours i approx poly w znajdowaniu punktów.
-    corners, contours, contourImage, polyImage, hullImage = imageBInfoExtraction(value)
-    # wyciąganie ze słownika
-    points = pts[f'{key}']
-    points_hole = pts_hole[f'{key}']
-    try:
-        linData = linearData[f'{key}']
-    except KeyError:
-        linData = []
+def nothing(x):
+    pass
 
-    try:
-        circData = circleLineData[f'{key}']
-    except KeyError:
-        circData = []
+def get_crop_values():
+    # Otwórz dostęp do kamery
+    cap = cv2.VideoCapture(1)
 
-    gcode_data_packed = {
-        "linearData": linData,
-        "circleData": circData,
-        "image": value,
-    }
-    _,img_lines,img_circles = linesContourCompare(value, gcode_data_packed)
-    buf = cv2.cvtColor(value, cv2.COLOR_GRAY2BGR)
+    if not cap.isOpened():
+        print("Nie można otworzyć kamery")
+        return None
 
-    # ========== COLOR SCHEME PUNKTOW =============
-    # czerwony - punkty proste głównego obrysu
-    # żółty - punkty koliste głównego obrysu
-    # różowy - punkty proste otworu
-    # zielony - punkty koliste otworu
+    # Tworzenie okna
+    cv2.namedWindow('Podgląd z kamery')
 
-    # Wizualizacja punktów głównego konturu + punktow kolistych
-    # for i in range(len(points)):
-    #     cv2.circle(buf, (points[i][0], points[i][1]), 3, (0, 0, 255), 3)
-    #
-    # # # Wizualizacja punktów wycięć + punktow kolistych
-    # for j in range(len(points_hole)):
-    #     for i in range(len(points_hole[j])):
-    #         cv2.circle(buf, (points_hole[j][i][0], points_hole[j][i][1]), 2, (0, 255, 0), 2)
+    # Dodanie suwaków
+    cv2.createTrackbar('Góra', 'Podgląd z kamery', 0, 100, nothing)
+    cv2.createTrackbar('Dół', 'Podgląd z kamery', 0, 100, nothing)
+    cv2.createTrackbar('Lewa', 'Podgląd z kamery', 0, 100, nothing)
+    cv2.createTrackbar('Prawa', 'Podgląd z kamery', 0, 100, nothing)
 
-    # Wyświetlanie obrazów, zakomentowane linie można odkomentować w razie potrzeby
-    # cv2.polylines(buf, [points], True, (0, 0, 255), thickness=3)
-    # cv2.imshow("imageB Contour", contourImage)
-    # cv2.imshow("imageB Poly", polyImage)
-    # cv2.imshow("imageB Hull", hullImage)
-    # # Gigazdjęcie
-    # imgTop = cv2.hconcat([buf, contourImage])
-    # imgBottom = cv2.hconcat([polyImage, hullImage])
-    # imgMerge = cv2.vconcat([imgTop, imgBottom])
-    # cv2.imshow("BIG MERGE", imgMerge)
-    value = cv2.cvtColor(value, cv2.COLOR_GRAY2BGR)
-    value_with_border = cv2.copyMakeBorder(value, 5, 5, 5, 5, cv2.BORDER_CONSTANT, value=[0, 0, 0])
-    img_lines_with_border = cv2.copyMakeBorder(img_lines, 5, 5, 5, 5, cv2.BORDER_CONSTANT, value=[0, 0, 0])
-    img_circles_with_border = cv2.copyMakeBorder(img_circles, 5, 5, 5, 5, cv2.BORDER_CONSTANT, value=[0, 0, 0])
-    img = cv2.hconcat([value_with_border, img_lines_with_border])
-    img2 = cv2.hconcat([img, img_circles_with_border])
-    cv2.imwrite(f"{key}.jpg", value_with_border)
-    cv2.imwrite(f"{key}_lines.jpg",img_lines_with_border)
-    cv2.imwrite(f"{key}_circles.jpg",img_circles_with_border)
-    # cv2.imshow("Gcode image + punkty Gcode", img2)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
+    # Zmienna przechowująca końcowe wartości
+    crop_values = {"top": 0, "bottom": 0, "left": 0, "right": 0}
+
+    while True:
+        # Przechwyć klatkę z kamery
+        ret, frame = cap.read()
+
+        # Jeśli nie udało się pobrać klatki, zakończ
+        if not ret:
+            print("Nie można pobrać klatki")
+            break
+
+        # Pobierz wartości z suwaków
+        top = cv2.getTrackbarPos('Góra', 'Podgląd z kamery')
+        bottom = cv2.getTrackbarPos('Dół', 'Podgląd z kamery')
+        left = cv2.getTrackbarPos('Lewa', 'Podgląd z kamery')
+        right = cv2.getTrackbarPos('Prawa', 'Podgląd z kamery')
+
+        # Oblicz nowe wymiary obrazu
+        h, w, _ = frame.shape
+        top_px = int(h * (top / 100))
+        bottom_px = int(h * (bottom / 100))
+        left_px = int(w * (left / 100))
+        right_px = int(w * (right / 100))
+
+        # Wycinanie obrazu (slicing)
+        sliced_frame = frame[top_px:h-bottom_px, left_px:w-right_px]
+
+        # Wyświetl obraz po przycięciu
+        cv2.imshow('Podgląd z kamery', sliced_frame)
+
+        # Wyjście po naciśnięciu 'q'
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            # Zapisz ostateczne wartości
+            crop_values["top"] = top_px
+            crop_values["bottom"] = bottom_px
+            crop_values["left"] = left_px
+            crop_values["right"] = right_px
+            break
+
+    # Zakończ nagrywanie i zamknij okna
+    cap.release()
+    cv2.destroyAllWindows()
+
+    return crop_values
+
+

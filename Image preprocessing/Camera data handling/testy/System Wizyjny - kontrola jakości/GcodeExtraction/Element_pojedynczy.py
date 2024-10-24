@@ -462,7 +462,7 @@ def elementStackingRotation(images):
     return output_rotation
 
 def sheetRotationTranslation(background_frame):
-    REFPOINT = (100,100) # robocie refpoint to (0,0)
+    REFPOINT = (22,58) # robocie refpoint to (0,0)
     _,_,img_pack = cameraImage(background_frame)
     thresh = img_pack[3]
     org_img = img_pack[0]

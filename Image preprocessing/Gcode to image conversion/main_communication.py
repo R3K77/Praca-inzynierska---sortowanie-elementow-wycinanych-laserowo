@@ -4,6 +4,8 @@
 
 import socket
 import csv
+import json
+from collections import defaultdict
 from _functions_computer_vision import *
 # Konfiguracja serwera
 HOST = '0.0.0.0'  # Nasłuchiwanie na wszystkich interfejsach sieciowych
@@ -11,9 +13,14 @@ PORT = 59152      # Port zgodny z konfiguracją w robocie KUKA
 
 def main():
     # Bufor pod system wizyjny
+    crop_values = {'bottom': 0, 'left': 127, 'right': 76, 'top': 152}
+    # crop_values = get_crop_values()
+    computer_vision_data = []
+    images = defaultdict(list)
     print("Przygotowanie systemu wizyjnego")
     cutting_paths, _, _, _, _, sheet_size_line, circleLineData, linearPointsData = visualize_cutting_paths_extended(
         "NC_files/8.nc")
+    median_background_frame = capture_median_frame(crop_values)
     print("Przygotowanie gotowe")
     # # Tworzenie gniazda serwera
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -22,17 +29,9 @@ def main():
     server_socket.listen(1)
 
     print(f"Serwer nasłuchuje na {HOST}:{PORT}")
-
-    #TODO przed startem robota powinien być ruch do docelowego punktu
-    # w ktorym dzieje sie quality control zeby zebrac median_frame
-    # snippet:
-    print("CV - przygotowanie, oczekiwanie na odjazd robota")
-
-    client_socket, client_address = server_socket.accept()
-    data = client_socket.recv(1024).decode('utf-8',errors='ignore')
-    if data:
-        background_image = capture_median_frame()
-        alpha, translation = sheetRotationTranslation(background_image)
+    # if data:
+    #     background_image = capture_median_frame()
+    #     alpha, translation = sheetRotationTranslation(background_image)
     while True:
         # Akceptowanie połączenia od klienta (robota KUKA)
         client_socket, client_address = server_socket.accept()
@@ -65,18 +64,23 @@ def main():
                     client_socket.send(response.encode('ascii'))
                     print(f"Wysłano dane: {response}")
 
-
-
                     # Oczekiwanie na informację zwrotną od robota
                     data = client_socket.recv(1024).decode('utf-8', errors='ignore')
                     print(f"Otrzymane dane: {data}")
                     
                     # System wizyjny
                     element_name = row[0]
-                    camera_image,bound_box_size = cameraImage(median_background_frame)
+                    camera_image,bound_box_size = cameraImage(median_background_frame,crop_values)
                     gcode_data = singleGcodeElementCV2(cutting_paths[element_name],circleLineData[element_name],linearPointsData[element_name],bound_box_size)
-                    is_element_correct = linesContourCompare(camera_image,gcode_data)
-
+                    is_element_correct,RMSE,_,_ = linesContourCompare(camera_image,gcode_data)
+                    computer_vision_data.append({
+                        "element_name": element_name,
+                        "camera_image": camera_image,
+                        "RMSE": RMSE,
+                        "is_correct": is_element_correct,
+                    })
+                    images[element_name].append(camera_image)
+                    images[element_name].append(gcode_data['image'])
                     # ------------- ODŁOŻENIE DETALU -------------
                     # if is_element_correct:
                     print(f"Odczytano dane z csv: {box_x}, {box_y}, {box_z}")
@@ -127,6 +131,14 @@ def main():
             data = client_socket.recv(1024).decode('utf-8', errors='ignore')
             client_socket.close()
             print("Połączenie zamknięte")
+            output_file = "computer_vision_data.json"
+            # Zapisywanie danych do pliku JSON
+            with open(output_file, 'w') as f:
+                json.dump(computer_vision_data, f, indent=4)
+            for key,lst in images.items():
+                for i in range(len(lst)):
+                    cv2.imwrite(f"saved_images/{key}_{i}.jpg", lst[i])
+
 
 if __name__ == "__main__":
     main()

@@ -343,7 +343,7 @@ def singleGcodeElementCV2(cutting_path,circle_line_data,linear_points_data,bound
     }
     return gcode_data_packed
 
-def capture_median_frame():
+def capture_median_frame(crop_values):
     while True:
         cap = cv2.VideoCapture(1)
         # cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
@@ -360,15 +360,24 @@ def capture_median_frame():
         frame = camera_calibration(frame)
         if not ret:
             continue
-        frames.append(frame)
+        # Pobieranie wymiarów obrazu
+        h, w, _ = frame.shape
+        # Wycinanie obrazu na podstawie wartości przycięcia
+        top_px = crop_values["top"]
+        bottom_px = crop_values["bottom"]
+        left_px = crop_values["left"]
+        right_px = crop_values["right"]
+        sliced_frame = frame[top_px:h - bottom_px, left_px:w - right_px]
+
+        frames.append(sliced_frame)
 
     cap.release()
     median_frame = np.median(np.array(frames), axis=0).astype(np.uint8)
 
     return median_frame
 
-def cameraImage(median_background_frame):
-    median_frame = capture_median_frame()
+def cameraImage(median_background_frame,crop_values):
+    median_frame = capture_median_frame(crop_values)
     gray_frame = cv2.cvtColor(median_frame, cv2.COLOR_BGR2GRAY)
     gray_background  = cv2.cvtColor(median_background_frame,cv2.COLOR_BGR2GRAY)
     diff = cv2.absdiff(gray_background,gray_frame)
@@ -380,23 +389,15 @@ def cameraImage(median_background_frame):
     x, y, w, h = cv2.boundingRect(contours[0])
     crop = cleaned_thresholded[y:y + h, x:x + w]
     binarised = cv2.threshold(crop,50,255,cv2.THRESH_BINARY)[1]
-    cv2.imshow("gray_image",gray_frame)
-    cv2.imshow("diff",diff)
-    cv2.imshow('thr',cleaned_thresholded)
-    cv2.imshow("binarised",binarised)
-    cv2.imshow("przetworzony", crop)
     img_pack = [median_frame,gray_frame,diff,cleaned_thresholded,crop]
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-
     return binarised , (w,h), img_pack
 
 def camera_calibration(frame):
     # Wczytanie parametrów kamery z pliku
-    loaded_mtx = np.loadtxt('../../../settings/mtx_matrix.txt', delimiter=',')
-    loaded_dist = np.loadtxt('../../../settings/distortion_matrix.txt', delimiter=',')
-    loaded_newcameramtx = np.loadtxt('../../../settings/new_camera_matrix.txt', delimiter=',')
-    loaded_roi = np.loadtxt('../../../settings/roi_matrix.txt', delimiter=',')
+    loaded_mtx = np.loadtxt('settings/mtx_matrix.txt', delimiter=',')
+    loaded_dist = np.loadtxt('settings/distortion_matrix.txt', delimiter=',')
+    loaded_newcameramtx = np.loadtxt('settings/new_camera_matrix.txt', delimiter=',')
+    loaded_roi = np.loadtxt('settings/roi_matrix.txt', delimiter=',')
 
     # Kalibracja kamery
     frame = cv2.undistort(frame, loaded_mtx, loaded_dist, None, loaded_newcameramtx)
@@ -517,7 +518,7 @@ def linesContourCompare(imageB,gcode_data):
         ret = cv2.matchShapes(contours[0],contoursB[0],1,0.0)
         if ret > 0.05:
             print(f'Odkształcenie, ret: {ret} \n')
-            return False, img,img
+            return False,0, img,img
         gcodeLines = {
             "circle": gcode_data['circleData'],
             "linear": [],
@@ -572,15 +573,15 @@ def linesContourCompare(imageB,gcode_data):
         if RMSE > 1.1:
             print("Detal posiada błąd wycięcia")
             print(f'ret: {ret} \n')
-            return False, imgCopy_lines,imgCopy_circ
+            return False,RMSE, imgCopy_lines,imgCopy_circ
         else:
             print("Detal poprawny")
             print(f'ret: {ret} \n')
-            return True, imgCopy_lines,imgCopy_circ
+            return True,RMSE, imgCopy_lines,imgCopy_circ
     except Exception as e:
         print("Podczas przetwarzania obrazu wystąpił błąd")
         print(e)
-        return False, imageB, imageB
+        return False,0, imageB, imageB
 
 def randomColor():
     """
@@ -660,10 +661,6 @@ def sheetRotationTranslation(background_frame):
     alpha = math(a)
     diff_x = abs(REFPOINT[0] - xb)
     diff_y = abs(REFPOINT[1] - yb)
-    cv2.circle(org_img, REFPOINT,2,(0,0,255), 3)
-    cv2.imshow("camera_img",org_img)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
     return alpha,(diff_x,diff_y)
 
 import cv2
@@ -694,7 +691,7 @@ def get_crop_values():
     while True:
         # Przechwyć klatkę z kamery
         ret, frame = cap.read()
-
+        frame = camera_calibration(frame)
         # Jeśli nie udało się pobrać klatki, zakończ
         if not ret:
             print("Nie można pobrać klatki")

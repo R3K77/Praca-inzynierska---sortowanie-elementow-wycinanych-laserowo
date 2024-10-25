@@ -4,6 +4,8 @@ import numpy as np
 import cv2
 import random
 import re
+import json
+
 
 def calculate_centroid(poly):
     """
@@ -103,6 +105,10 @@ def visualize_cutting_paths_extended(file_path, x_max=500, y_max=1000, arc_pts_l
 
             # Formatowanie nazwy z zerami wiodącymi
             current_element_name = f"{name}_{element_index[name]:03d}"  # Dodaje zera wiodące do indeksu
+            if current_element_name == "_001":
+                current_element_name = prev_element_name
+                continue
+            prev_element_name = current_element_name
             if current_path:
                 if current_element_name not in elements:
                     elements[current_element_name] = []
@@ -169,6 +175,16 @@ def visualize_cutting_paths_extended(file_path, x_max=500, y_max=1000, arc_pts_l
 
     # Rozmiar arkusza
     x_min, y_min = 0, 0
+    split = sheet_size_line.split()
+    sheet_size = (split[1], split[2])
+    json_object = {
+        "elements" : elements,
+        "sheet_size" : sheet_size,
+        "curveCircleData" : curveCircleData,
+        "linearPointsData" : linearPointsData,
+    }
+    with open(f"elements_data_json/{current_element_name[:7]}.json","w") as f:
+        json.dump(json_object,f)
 
     return elements, x_min, x_max, y_min, y_max, sheet_size_line, curveCircleData, linearPointsData
 
@@ -663,8 +679,6 @@ def sheetRotationTranslation(background_frame):
     diff_y = abs(REFPOINT[1] - yb)
     return alpha,(diff_x,diff_y)
 
-import cv2
-
 def nothing(x):
     pass
 
@@ -731,4 +745,16 @@ def get_crop_values():
 
     return crop_values
 
-
+if __name__ == "__main__":
+    paths = [
+        "NC_files/1.NC",
+        "NC_files/2_FIXME.NC",
+        "NC_files/3.NC",
+        "NC_files/4.NC",
+        "NC_files/5.NC",
+        "NC_files/6.NC",
+        "NC_files/7.NC",
+        "NC_files/8.NC",
+    ]
+    for path in paths:
+        visualize_cutting_paths_extended(path)

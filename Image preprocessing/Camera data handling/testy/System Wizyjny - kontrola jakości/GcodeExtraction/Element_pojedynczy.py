@@ -168,7 +168,7 @@ def singleGcodeElementCV2(cutting_path,circle_line_data,linear_points_data,bound
     }
     return gcode_data_packed
 
-def capture_median_frame():
+def capture_median_frame(crop_values):
     frames = 100
     BgrSubtractor = cv2.createBackgroundSubtractorMOG2(history = frames, varThreshold=50,detectShadows=True)
     cap = cv2.VideoCapture(0)
@@ -177,23 +177,36 @@ def capture_median_frame():
     while frames > 0:
         ret,frame = cap.read()
         frame = camera_calibration(frame)
+        h,w,_ = frame.shape
+        top_px = crop_values["top"]
+        bottom_px = crop_values["bottom"]
+        left_px = crop_values["left"]
+        right_px = crop_values["right"]
+        sliced_frame = frame[top_px:h - bottom_px, left_px:w - right_px]
         if not ret:
             break
-        BgrSubtractor.apply(frame,learningRate = 0.1)
+        BgrSubtractor.apply(sliced_frame,learningRate = 0.1)
         frames -=1
-
+    cap.release()
     return BgrSubtractor
 
-def cameraImage(BgrSubtractor):
+def cameraImage(BgrSubtractor,crop_values):
     cap = cv2.VideoCapture(0)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
     ret,frame = cap.read()
     while not ret:
         ret,frame = cap.read()
-    frame = camera_calibration(frame)
 
-    fg_mask = BgrSubtractor.apply(frame,learningRate = 0)
+    frame = camera_calibration(frame)
+    h, w, _ = frame.shape
+    top_px = crop_values["top"]
+    bottom_px = crop_values["bottom"]
+    left_px = crop_values["left"]
+    right_px = crop_values["right"]
+    sliced_frame = frame[top_px:h - bottom_px, left_px:w - right_px]
+
+    fg_mask = BgrSubtractor.apply(sliced_frame,learningRate = 0)
     _,fg_mask = cv2.threshold(fg_mask, 130, 255, cv2.THRESH_BINARY)
     kernel = np.ones((5, 5), np.uint8)
     cleaned_thresholded = cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN, kernel)
@@ -496,6 +509,7 @@ def sheetRotationTranslation(bgr_subtractor):
     cv2.destroyAllWindows()
 
     return alpha,(diff_x,diff_y)
+
 
 def testAlgorithmFunction(key, value, pts, pts_hole, linearData, circleLineData):
     """

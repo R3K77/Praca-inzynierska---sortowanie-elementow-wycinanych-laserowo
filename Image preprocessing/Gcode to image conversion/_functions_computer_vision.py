@@ -73,7 +73,6 @@ def visualize_cutting_paths_extended(file_path, x_max=500, y_max=1000, arc_pts_l
 
                 elements[current_element_name].append(current_path)
                 current_path = []
-                linearPointsData[current_element_name].append(current_position)
 
         else:
             matches_cnc = pattern_cnc_commands_extended.findall(line)
@@ -85,8 +84,6 @@ def visualize_cutting_paths_extended(file_path, x_max=500, y_max=1000, arc_pts_l
                     if laser_on and current_path:  # Zapis ścieżki do bieżącego elementu
                         if current_element_name not in elements:
                             elements[current_element_name] = []
-
-                        linearPointsData[current_element_name].append(current_position)
 
                         elements[current_element_name].append(current_path)
                         current_path = []
@@ -298,53 +295,53 @@ def singleGcodeElementCV2(cutting_path,circle_line_data,linear_points_data,bound
     return gcode_data_packed
 
 def capture_median_frame(crop_values):
-    while True:
-        cap = cv2.VideoCapture(1)
-        # cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-        # cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
-        if not cap.isOpened():
-            print("Nie udało się otworzyć kamerki")
-            continue
-        else:
-            break
-
-    frames = []
-    while len(frames) < 10:
-        ret, frame = cap.read()
+    frames = 100
+    BgrSubtractor = cv2.createBackgroundSubtractorMOG2(history = frames, varThreshold=50,detectShadows=True)
+    cap = cv2.VideoCapture(0)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+    while frames > 0:
+        ret,frame = cap.read()
         frame = camera_calibration(frame)
-        if not ret:
-            continue
-        # Pobieranie wymiarów obrazu
-        h, w, _ = frame.shape
-        # Wycinanie obrazu na podstawie wartości przycięcia
+        h,w,_ = frame.shape
         top_px = crop_values["top"]
         bottom_px = crop_values["bottom"]
         left_px = crop_values["left"]
         right_px = crop_values["right"]
         sliced_frame = frame[top_px:h - bottom_px, left_px:w - right_px]
-
-        frames.append(sliced_frame)
-
+        if not ret:
+            break
+        BgrSubtractor.apply(sliced_frame,learningRate = 0.1)
+        frames -=1
     cap.release()
-    median_frame = np.median(np.array(frames), axis=0).astype(np.uint8)
+    return BgrSubtractor
 
-    return median_frame
+def cameraImage(BgrSubtractor,crop_values):
+    cap = cv2.VideoCapture(0)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+    ret,frame = cap.read()
+    while not ret:
+        ret,frame = cap.read()
 
-def cameraImage(median_background_frame,crop_values):
-    median_frame = capture_median_frame(crop_values)
-    gray_frame = cv2.cvtColor(median_frame, cv2.COLOR_BGR2GRAY)
-    gray_background  = cv2.cvtColor(median_background_frame,cv2.COLOR_BGR2GRAY)
-    diff = cv2.absdiff(gray_background,gray_frame)
-    _, thresholded = cv2.threshold(diff, 70, 150, cv2.THRESH_BINARY)
-    #odszumienie
+    frame = camera_calibration(frame)
+    h, w, _ = frame.shape
+    top_px = crop_values["top"]
+    bottom_px = crop_values["bottom"]
+    left_px = crop_values["left"]
+    right_px = crop_values["right"]
+    sliced_frame = frame[top_px:h - bottom_px, left_px:w - right_px]
+
+    fg_mask = BgrSubtractor.apply(sliced_frame,learningRate = 0)
+    _,fg_mask = cv2.threshold(fg_mask, 130, 255, cv2.THRESH_BINARY)
     kernel = np.ones((5, 5), np.uint8)
-    cleaned_thresholded = cv2.morphologyEx(thresholded, cv2.MORPH_OPEN, kernel)
+    cleaned_thresholded = cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN, kernel)
     contours, _ = cv2.findContours(cleaned_thresholded, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    x, y, w, h = cv2.boundingRect(contours[0])
-    crop = cleaned_thresholded[y:y + h, x:x + w]
-    binarised = cv2.threshold(crop,50,255,cv2.THRESH_BINARY)[1]
-    img_pack = [median_frame,gray_frame,diff,cleaned_thresholded,crop]
-    return binarised , (w,h), img_pack
+    contours = max(contours, key = cv2.contourArea)
+    x, y, w, h = cv2.boundingRect(contours)
+    crop = cleaned_thresholded[y:y + h, x:x + w].copy()
+    img_pack = [crop,cleaned_thresholded,frame]
+    return crop, (w,h), img_pack
 
 def camera_calibration(frame):
     # Wczytanie parametrów kamery z pliku
@@ -468,7 +465,7 @@ def linesContourCompare(imageB,gcode_data):
     try:
         img = gcode_data['image']
         contours, _ = cv2.findContours(img,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
-        cornersB, contoursB, contourBImage, _, _ = imageBInfoExtraction(imageB)
+        contoursB,_ = cv2.findContours(imageB,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
         ret = cv2.matchShapes(contours[0],contoursB[0],1,0.0)
         if ret > 0.05:
             print(f'Odkształcenie, ret: {ret} \n')
@@ -486,14 +483,12 @@ def linesContourCompare(imageB,gcode_data):
             if i == len(gcode_data['linearData']): # obsluga ostatni + pierwszy punkty linia łącząca
                 x1, y1 = gcode_data['linearData'][i-1]
                 x2, y2 = gcode_data['linearData'][0]
-                cv2.line(imgCopy_lines, (int(x1), int(y1)), (int(x2), int(y2)), randomColor(), 3)
                 A, B, C = lineFromPoints(x1, y1, x2, y2)
                 gcodeLines['linear'].append((A, B, C))
                 break
 
             x1,y1 = gcode_data['linearData'][i]
             x2,y2 = gcode_data['linearData'][i-1]
-            cv2.line(imgCopy_lines,(int(x1),int(y1)),(int(x2),int(y2)),randomColor(),3)
             A,B,C = lineFromPoints(x1,y1,x2,y2)
             gcodeLines['linear'].append((A,B,C))
         cntrErrors = []
@@ -536,17 +531,6 @@ def linesContourCompare(imageB,gcode_data):
         print("Podczas przetwarzania obrazu wystąpił błąd")
         print(e)
         return False,0, imageB, imageB
-
-def randomColor():
-    """
-        Generates a random color in BGR format.
-    Returns:
-        tuple: A tuple representing the color (B, G, R).
-    """
-    b = random.randint(0, 255)  # Random blue value
-    g = random.randint(0, 255)  # Random green value
-    r = random.randint(0, 255)  # Random red value
-    return (b, g, r)
 
 def elementStackingRotation(images):
     """
@@ -592,17 +576,20 @@ def elementStackingRotation(images):
                 output_rotation[key] = 0
     return output_rotation
 
-def sheetRotationTranslation(background_frame):
-    REFPOINT = (100,100) # robocie refpoint to (0,0)
-    gray_background =  cv2.cvtColor(background_frame,cv2.COLOR_BGR2GRAY)
-    _,_,img_pack = cameraImage(background_frame)
-    thresh = img_pack[4]
-    org_img = img_pack[0]
+def sheetRotationTranslation(bgr_subtractor):
+    REFPOINT = (1444, 517) # robocie refpoint to (0,0)
+    _,_,img_pack = cameraImage(bgr_subtractor)
+    thresh = img_pack[1]
+    org_img = img_pack[2]
     contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    cv2.imshow("thresh",img_pack[1])
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    contours = max(contours, key = cv2.contourArea)
     final_contours = contours
-    if len(contours)>4:
-        eps = 0.05 * cv2.arcLength(contours,True)
-        approx = cv2.approxPolyDP(contours,eps,True)
+    if len(final_contours)>4:
+        eps = 0.05 * cv2.arcLength(final_contours,True)
+        approx = cv2.approxPolyDP(final_contours,eps,True)
         final_contours = approx
     final_contours = final_contours.reshape(-1,2)
     sorted_x = sorted(final_contours, key= lambda point: point[0], reverse=True)
@@ -610,11 +597,17 @@ def sheetRotationTranslation(background_frame):
     right_most = sorted(right_most, key=lambda point: point[1])
     xt,yt  = right_most[0]
     xb,yb = right_most[1]
-    A,B,C = lineFromPoints(xt,yt,xb,yb)
+    A,B,_ = lineFromPoints(xt,yt,xb,yb)
     a = -A/B
-    alpha = math(a)
+    alpha = np.arctan(a)
+    alpha = np.rad2deg(alpha)
+    if alpha > 0:
+        alpha = 90 - alpha
+    else:
+        alpha = -90-alpha
     diff_x = abs(REFPOINT[0] - xb)
     diff_y = abs(REFPOINT[1] - yb)
+
     return alpha,(diff_x,diff_y)
 
 def nothing(x):

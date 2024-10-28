@@ -1,9 +1,10 @@
-import math
 from collections import defaultdict
+
+from shapely.lib import reverse
+
 from _functions_gcode_analize import find_main_and_holes
 import numpy as np
 import cv2
-import random
 import re
 import json
 
@@ -469,7 +470,7 @@ def linesContourCompare(imageB,gcode_data):
         ret = cv2.matchShapes(contours[0],contoursB[0],1,0.0)
         if ret > 0.05:
             print(f'Odkształcenie, ret: {ret} \n')
-            return False,0, img,img
+            return False,0,ret
         gcodeLines = {
             "circle": gcode_data['circleData'],
             "linear": [],
@@ -522,61 +523,39 @@ def linesContourCompare(imageB,gcode_data):
         if RMSE > 1.1:
             print("Detal posiada błąd wycięcia")
             print(f'ret: {ret} \n')
-            return False,RMSE, imgCopy_lines,imgCopy_circ
-        else:
-            print("Detal poprawny")
-            print(f'ret: {ret} \n')
-            return True,RMSE, imgCopy_lines,imgCopy_circ
+            return False,RMSE, ret
+
+        print("Detal poprawny")
+        print(f'ret: {ret} \n')
+        return True,RMSE, ret
+
     except Exception as e:
         print("Podczas przetwarzania obrazu wystąpił błąd")
         print(e)
-        return False,0, imageB, imageB
+        return False,0, ret
 
-def elementStackingRotation(images):
-    """
-        Calculates rotation between objects of the same class.
-    Args:
-        images: Dict of generated cv2 images from gcode
-    Returns:
-        output_rotation: Dict of rotations when putting the element away
-    """
-    hash = defaultdict(list)
-    output_rotation = {}
-    for key, value in images.items():
-        cut_key = key[0:-4]
-        if cut_key not in hash:
-            hash[cut_key].append(value)
-            output_rotation[key] = 0
-        else:
-            sift = cv2.SIFT_create()
-            kp_first,des_first = sift.detectAndCompute(hash[cut_key][0], None)
-            kp_other,des_other = sift.detectAndCompute(value, None)
-            if len(kp_first) == 0 or len(kp_other) == 0: # brak matchy sift, głównie złe klasy
-                output_rotation[key] = 0
-                continue
-            bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck = True)
-            matches = bf.match(des_first,des_other)
-            matches = sorted(matches, key=lambda x: x.distance)
-            src_pts = np.float32([kp_first[m.queryIdx].pt for m in matches]).reshape(-1,1,2)
-            dst_pts = np.float32([kp_other[m.trainIdx].pt for m in matches]).reshape(-1,1,2)
-            if len(src_pts) < 4 or len(dst_pts) < 4: # brak matchy sift
-                #powody braku matcha
-                # złe klasowanie
-                # błąd metody?
-                output_rotation[key] = 0
-                continue
-            M,mask = cv2.findHomography(src_pts,dst_pts,cv2.RANSAC,5.0)
-            if M is not None:
-                angle = np.degrees(np.arctan2(M[1,0],M[0,0]))
-                print(f"Kąt obrotu między obrazami: {angle} stopni")
-                hash[cut_key].append(value)
-                output_rotation[key] = (angle)
-            else:
-                print("Homografia nie została znaleziona.")
-                output_rotation[key] = 0
-    return output_rotation
+def elementStackingRotation(cv_data,name,curr_image):
+    if name in cv_data:
+        sift = cv2.SIFT_create()
+        kp_first,des_first = sift.detectAndCompute(cv_data[name]['gcode_data']['image'], None)
+        kp_other,des_other = sift.detectAndCompute(curr_image, None)
+        if len(kp_first) == 0 or len(kp_other) == 0:
+            return 0
 
-def sheetRotationTranslation(bgr_subtractor):
+        bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
+        matches = bf.match(des_first, des_other)
+        matches = sorted(matches, key=lambda x: x.distance)
+        src_pts = np.float32([kp_first[m.queryIdx].pt for m in matches]).reshape(-1, 1, 2)
+        dst_pts = np.float32([kp_other[m.trainIdx].pt for m in matches]).reshape(-1, 1, 2)
+        if len(src_pts) < 4 or len(dst_pts) < 4:  # brak matchy sift
+            return 0
+
+        M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+        if M:
+            return np.degrees(np.arctan2(M[1, 0], M[0, 0]))
+    return 0
+
+def sheetRotationTranslation(bgr_subtractor,sheet_size):
     REFPOINT = (1444, 517) # robocie refpoint to (0,0)
     _,_,img_pack = cameraImage(bgr_subtractor)
     thresh = img_pack[1]
@@ -593,6 +572,11 @@ def sheetRotationTranslation(bgr_subtractor):
         final_contours = approx
     final_contours = final_contours.reshape(-1,2)
     sorted_x = sorted(final_contours, key= lambda point: point[0], reverse=True)
+    sorted_y = sorted(final_contours, key=lambda point: point[1],reverse=True)
+
+    bottom_points = sorted_y[:2]
+    bottom_points = sorted(bottom_points, key=lambda point: point[0])
+    xl,yl = bottom_points[0]
     right_most = sorted_x[:2]
     right_most = sorted(right_most, key=lambda point: point[1])
     xt,yt  = right_most[0]
@@ -605,8 +589,12 @@ def sheetRotationTranslation(bgr_subtractor):
         alpha = 90 - alpha
     else:
         alpha = -90-alpha
-    diff_x = abs(REFPOINT[0] - xb)
-    diff_y = abs(REFPOINT[1] - yb)
+    diff_x_px = abs(REFPOINT[0] - xb)
+    diff_y_px = abs(REFPOINT[1] - yb)
+
+    scalePxMm = np.sqrt((xl - xb)**2 + (yl - yb)**2)
+    diff_x = diff_x_px * scalePxMm
+    diff_y = diff_y_px * scalePxMm
 
     return alpha,(diff_x,diff_y)
 

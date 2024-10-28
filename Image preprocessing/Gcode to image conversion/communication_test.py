@@ -23,7 +23,8 @@ def communication_loop(sheet_name):
     with open('element_details.csv','r') as f:
         line = f.readline()
         while line:
-            ...
+            print(line)
+            line = f.readline()
 
 
 

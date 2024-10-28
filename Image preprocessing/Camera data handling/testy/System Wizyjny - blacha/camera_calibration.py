@@ -33,20 +33,20 @@ def main():
     CALIBRATION_DIR = "./frames/"
 
     # Inicjalizacja kamery
-    cap = cv2.VideoCapture(1)
+    cap = cv2.VideoCapture(0)
     dir = Path(CALIBRATION_DIR)
     dir.mkdir(parents=True, exist_ok=True)
 
     counter = 0
     
     # Wykonanie zdjęć szachownicy w celu kalibracji kamery
-    while (True):
+    while True:
         if not cap.grab():
             break
 
         _, frame = cap.retrieve()
         cv2.imshow('frame', frame)
-        key = cv2.waitKey(1)
+        key = cv2.waitKey(0)
         
         # Wyjście z programu po naciśnięciu klawisza 'q'
         if key & 0xFF == ord('q'):

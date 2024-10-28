@@ -28,7 +28,11 @@ from centroid import calculate_centroid
 # - liczba punktów łuków jest argumentem wejściowym funkcji, większa rozdzielczość
 # - zwrotka rozmiaru blachy, dane koła i punktow liniowych (do systemu wizyjnego)
 
-def visualize_cutting_paths_extended(file_path, x_max=500, y_max=1000, arc_pts_len = 200):
+import re
+import numpy as np
+from collections import defaultdict
+
+def visualize_cutting_paths_extended(file_path, x_max=500, y_max=1000, arc_pts_len=200):
     sheet_size_line = None
     with open(file_path, 'r') as file:
         file_content = file.read().splitlines()
@@ -40,11 +44,12 @@ def visualize_cutting_paths_extended(file_path, x_max=500, y_max=1000, arc_pts_l
     laser_on = False
     elements = {}
     current_element_name = 'Unnamed'
-    element_index = {}  # Słownik do przechowywania indeksów dla każdej nazwy elementu
+    element_index = {}
     current_path = []
     current_position = (0, 0)
     curveCircleData = defaultdict(list)
     linearPointsData = defaultdict(list)
+    previous_circle = False  # Flaga śledzenia poprzedniego ruchu kolistego
 
     for line in file_content:
         element_match = pattern_element_name.search(line)
@@ -53,69 +58,68 @@ def visualize_cutting_paths_extended(file_path, x_max=500, y_max=1000, arc_pts_l
         if element_match:
             name = element_match.group(1)
             if name not in element_index:
-                element_index[name] = 1  # Rozpocznij liczenie od 1
+                element_index[name] = 1
             else:
                 element_index[name] += 1
 
-            # Formatowanie nazwy z zerami wiodącymi
-            current_element_name = f"{name}_{element_index[name]:03d}"  # Dodaje zera wiodące do indeksu
+            current_element_name = f"{name}_{element_index[name]:03d}"
             if current_path:
                 if current_element_name not in elements:
                     elements[current_element_name] = []
 
                 elements[current_element_name].append(current_path)
                 current_path = []
-                linearPointsData[current_element_name].append(current_position)
 
         else:
             matches_cnc = pattern_cnc_commands_extended.findall(line)
             for match in matches_cnc:
                 command = match[0]
-                if command == 'M10':  # Laser ON
+                if command == 'M10':
                     laser_on = True
-                elif command == 'M11':  # Laser OFF
-                    if laser_on and current_path:  # Zapis ścieżki do bieżącego elementu
+                    previous_circle = False
+                elif command == 'M11':
+                    if laser_on and current_path:
                         if current_element_name not in elements:
                             elements[current_element_name] = []
-
-                        linearPointsData[current_element_name].append(current_position)
 
                         elements[current_element_name].append(current_path)
                         current_path = []
                     laser_on = False
-                elif laser_on:  # Dodaj punkty do ścieżki, jeśli laser jest włączony
-                    # Obsługa instrukcji cięcia...
-                    if command.startswith('G01'):  # Linia prosta
+                    previous_circle = False
+                elif laser_on:
+                    if command.startswith('G01'):
                         x, y = float(match[1]), float(match[2])
                         current_path.append((x, y))
                         current_position = (x, y)
+                        linearPointsData[current_element_name].append((x, y, previous_circle))
+                        previous_circle = False
 
-                        linearPointsData[current_element_name].append(current_position)
-
-                    elif command.startswith('G02') or command.startswith('G03'):  # Ruch okrężny
+                    elif command.startswith('G02') or command.startswith('G03'):
                         x, y, i, j = (float(match[3]), float(match[4]),
                                       float(match[5]), float(match[6]))
-                        center_x = current_position[0] + i  # Środek łuku na osi X
-                        center_y = current_position[1] + j  # Środek łuku na osi Y
-                        radius = np.sqrt(i ** 2 + j ** 2)  # Promień łuku
+                        center_x = current_position[0] + i
+                        center_y = current_position[1] + j
+                        radius = np.sqrt(i ** 2 + j ** 2)
                         start_angle = np.arctan2(current_position[1] - center_y,
-                                                 current_position[0] - center_x)  # Kąt początkowy łuku (w radianach)
-                        end_angle = np.arctan2(y - center_y, x - center_x)  # Kąt końcowy łuku (w radianach)
+                                                 current_position[0] - center_x)
+                        end_angle = np.arctan2(y - center_y, x - center_x)
 
-                        if command.startswith('G02'):  # Zgodnie z ruchem wskazówek zegara
+                        if command.startswith('G02'):
                             if end_angle > start_angle:
                                 end_angle -= 2 * np.pi
-                        else:  # Przeciwnie do ruchu wskazówek zegara
+                        else:
                             if end_angle < start_angle:
                                 end_angle += 2 * np.pi
 
-                        angles = np.linspace(start_angle, end_angle, num=arc_pts_len)  # Generowanie punktów łuku (50 punktów)
-                        arc_points = [(center_x + radius * np.cos(a), center_y + radius * np.sin(a)) for a in
-                                      angles]  # Obliczenie punktów łuku
-                        curveCircleData[current_element_name].append((center_x,center_y,radius))
-                        linearPointsData[current_element_name].append(arc_points[-1])
-                        current_path.extend(arc_points)  # Dodanie punktów łuku do ścieżki
-                        current_position = (x, y)  # Aktualizacja pozycji
+                        angles = np.linspace(start_angle, end_angle, num=arc_pts_len)
+                        arc_points = [(center_x + radius * np.cos(a), center_y + radius * np.sin(a)) for a in angles]
+                        curveCircleData[current_element_name].append((center_x, center_y, radius))
+                        linearPointsData[current_element_name].append((arc_points[-1][0],arc_points[-1][1],True))
+
+                        current_path.extend(arc_points)
+                        current_position = (x, y)
+                        previous_circle = True
+
 
     # Jeśli laser został wyłączony po ostatnim cięciu, dodajemy ścieżkę do listy
     if current_path:

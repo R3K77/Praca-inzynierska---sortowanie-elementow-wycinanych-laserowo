@@ -47,7 +47,7 @@ plt.grid(axis='y', alpha=0.75)
 # Add titles and labels
 plt.xlabel('Masa [g]', font='times new roman', size=13)
 plt.ylabel('Ilość detali [szt]', font='times new roman', size=13)
-plt.xticks(fontname='Times New Roman', size=12)
+plt.xticks(fontname='Times New Roman', size=12, rotation=25, ticks=range(0, max(all_masses) + 200, 200),)
 plt.yticks(fontname='Times New Roman', size=12)
 
 # Show the plot

@@ -1,10 +1,12 @@
 # ----------- Plik wykorzystywany do komunikacji z robotem KUKA ------------ #
 # Autorzy: Bartłomiej Szalwach, Maciej Mróz, Rafał Szygenda
 # -------------------------------------------------------------------------- #
-
+import base64
 import socket
 import csv
 import json
+import orjson
+
 import keyboard
 from collections import defaultdict
 from _functions_computer_vision import *
@@ -17,7 +19,8 @@ PORT = 59152  # Port zgodny z konfiguracją w robocie KUKA
 def main(json_name):
     # Bufor pod system wizyjny
     cv_data = {}
-    crop_values = {'bottom': 0, 'left': 127, 'right': 76, 'top': 152}
+    # crp = get_crop_values()
+    crop_values = {'bottom': 38, 'left': 127, 'right': 120, 'top': 156}
     BgrSubstractor = capture_median_frame(crop_values)
     with open(f'elements_data_json/{json_name}.json','r') as f:
         data = json.load(f)
@@ -25,10 +28,10 @@ def main(json_name):
     sheet_size = data['sheet_size']
     curveData = data['curveCircleData']
     linearData = data['linearPointsData']
-    print("Umieść blachę w stanowisku roboczym ...")
-    keyboard.wait('space')
-    print("Zbieranie informacji o położeniu blachy")
-    angle,translation_mm = sheetRotationTranslation(BgrSubstractor)
+    # print("Umieść blachę w stanowisku roboczym ...")
+    # keyboard.wait('space')
+    # print("Zbieranie informacji o położeniu blachy")
+    # angle,translation_mm = sheetRotationTranslation(BgrSubstractor)
     # # Tworzenie gniazda serwera
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -46,6 +49,8 @@ def main(json_name):
         reader = csv.reader(file)
         next(reader)  # Pominięcie nagłówka
         for row in reader:
+            if not row:
+                break
             # ------------- POBRANIE DETALU -------------
             detail_x = float(row[1])
             detail_y = float(row[2])
@@ -62,32 +67,51 @@ def main(json_name):
 
             # Formatowanie danych do wysłania
             response = f"{send_valueX:09.4f}{send_valueY:09.4f}{send_valueZ:09.4f}a"
-            print(f"Przygotowano dane: {response}")
             client_socket.send(response.encode('ascii'))
-            print(f"Wysłano dane: {response}")
-
+            print(f"Wysłano dane do ruchu A")
             # Oczekiwanie na informację zwrotną od robota
             data = client_socket.recv(1024).decode('utf-8', errors='ignore')
-            print(f"Otrzymane dane: {data}")
+            print(f"Robot Dane: {data}")
 
             # System wizyjny
+            print("odpalam system wizyjny")
             name = row[0]
             crop, bounding_box,_ = cameraImage(BgrSubstractor,crop_values)
-            gcode_data = singleGcodeElementCV2(elements[name],curveData[name],linearData[name],bounding_box)
+
+            try:
+                curves = curveData[name]
+            except KeyError:
+                curves = []
+            try:
+                linear = linearData[name]
+            except KeyError:
+                linear = []
+
+            gcode_data = singleGcodeElementCV2(elements[name],curves,linear,bounding_box)
             correct,RMSE,ret = linesContourCompare(crop,gcode_data)
             palletizing_angle = elementStackingRotation(cv_data,name,gcode_data['image'])
+            # temporary fix do enkodowania obrazow do jsona
+            _,buffer = cv2.imencode('.jpg', gcode_data['image'])
+            _,buffer2 = cv2.imencode('.jpg', crop)
+            gcode_image_base64 = base64.b64encode(buffer).decode('utf-8')
+            camera_image_base64 = base64.b64encode(buffer2).decode('utf-8')
+
             cv_data[name] = {
-                "gcode_data": gcode_data,
+                "gcode_data": {
+                    'image': gcode_image_base64,
+                    "linearData": gcode_data['linearData'],
+                    "circleData": gcode_data['circleData'],
+                },
                 "correct": correct,
                 "RMSE": RMSE,
                 "deformation": ret,
-                "camera_image": crop,
+                "camera_image": camera_image_base64,
                 "palletizing_angle": palletizing_angle
             }
             #TODO W ROBOCIE DODAĆ WAITFOR DO ODEBRANIA KOLEJNEJ RAMKI!!!!!!!!!!!!
-
+            # data = client_socket.recv(1024).decode('utf-8', errors='ignore')
+            # print(f"Robot dane: {data}")
             # ------------- ODŁOŻENIE DETALU -------------
-            print(f"Odczytano dane z csv: {box_x}, {box_y}, {box_z}")
             # Wartości do wysłania
             if correct:
                 send_valueY = box_x
@@ -121,13 +145,41 @@ def main(json_name):
     client_socket.send(response.encode('ascii'))
     print(f"Wysłano dane: {response}")
 
-    # Oczekiwanie na informację zwrotną od robota
+    # Oczekiwanie    na informację zwrotną od robota
     data = client_socket.recv(1024).decode('utf-8', errors='ignore')
     client_socket.close()
     print("Połączenie zamknięte")
     with open(f'cv_data_{json_name}.json','w',encoding ='utf8') as f:
         json.dump(cv_data,f,ensure_ascii=False)
 
+def readRobotCVJsonData(json_name):
+    with open(f'cv_data_{json_name}.json','r') as f:
+        data = json.load(f)
+
+    for key,value in data.items():
+        image_bytes1 = base64.b64decode(value['camera_image'])
+        image_bytes2 = base64.b64decode(value['gcode_data']['image'])
+        image_gcode = cv2.imdecode(np.frombuffer(image_bytes2, np.uint8), cv2.IMREAD_COLOR)
+        image_camera = cv2.imdecode(np.frombuffer(image_bytes1, np.uint8), cv2.IMREAD_COLOR)
+        print(f'Element: {key}')
+        print(f'rmse : {value["RMSE"]}')
+        print(f"deformation : {value['deformation']}")
+        print(f'palletizing_angle : {value["palletizing_angle"]}')
+        print("\n \n")
+        cv2.imshow("gcode", image_gcode)
+        cv2.imshow("camera", image_camera)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+
+
 
 if __name__ == "__main__":
-    main()
+    # crop = get_crop_values()
+    # print('chuj')
+    # main('blacha8')
+    readRobotCVJsonData('blacha8')
+    #FIX
+    # Domyślnie w gcode elementy maja swoj "obrot", aby uniknac trduniejszego,
+    # dodać do kamery obrót obrazu o 90/180 stopni aby wyrownac obroty miedzy gcode-real image
+    # do quality control włączyć światło

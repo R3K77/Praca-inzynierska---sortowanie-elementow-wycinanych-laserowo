@@ -298,9 +298,7 @@ def singleGcodeElementCV2(cutting_path,circle_line_data,linear_points_data,bound
 def capture_median_frame(crop_values):
     frames = 100
     BgrSubtractor = cv2.createBackgroundSubtractorMOG2(history = frames, varThreshold=50,detectShadows=True)
-    cap = cv2.VideoCapture(0)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+    cap = cv2.VideoCapture(1)
     while frames > 0:
         ret,frame = cap.read()
         frame = camera_calibration(frame)
@@ -318,9 +316,9 @@ def capture_median_frame(crop_values):
     return BgrSubtractor
 
 def cameraImage(BgrSubtractor,crop_values):
-    cap = cv2.VideoCapture(0)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+    cap = cv2.VideoCapture(1)
+    # cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+    # cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
     ret,frame = cap.read()
     while not ret:
         ret,frame = cap.read()
@@ -342,6 +340,10 @@ def cameraImage(BgrSubtractor,crop_values):
     x, y, w, h = cv2.boundingRect(contours)
     crop = cleaned_thresholded[y:y + h, x:x + w].copy()
     img_pack = [crop,cleaned_thresholded,frame]
+    cap.release()
+    cv2.imshow("fg_mask",fg_mask)
+    cv2.imshow("cleaned_thresholded",cleaned_thresholded)
+    cv2.imshow("crop",crop)
     return crop, (w,h), img_pack
 
 def camera_calibration(frame):
@@ -468,7 +470,7 @@ def linesContourCompare(imageB,gcode_data):
         contours, _ = cv2.findContours(img,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
         contoursB,_ = cv2.findContours(imageB,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
         ret = cv2.matchShapes(contours[0],contoursB[0],1,0.0)
-        if ret > 0.05:
+        if ret > 0.5:
             print(f'Odkształcenie, ret: {ret} \n')
             return False,0,ret
         gcodeLines = {

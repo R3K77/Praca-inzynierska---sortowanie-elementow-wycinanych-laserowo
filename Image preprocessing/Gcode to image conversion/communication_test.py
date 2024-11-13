@@ -5,6 +5,8 @@ import base64
 import socket
 import csv
 import json
+
+import cv2
 import orjson
 
 import keyboard
@@ -28,10 +30,10 @@ def main(json_name):
     sheet_size = data['sheet_size']
     curveData = data['curveCircleData']
     linearData = data['linearPointsData']
-    # print("Umieść blachę w stanowisku roboczym ...")
-    # keyboard.wait('space')
-    # print("Zbieranie informacji o położeniu blachy")
-    # angle,translation_mm = sheetRotationTranslation(BgrSubstractor)
+    print("Umieść blachę w stanowisku roboczym ...")
+    keyboard.wait('space')
+    print("Zbieranie informacji o położeniu blachy")
+    angle,translation_mm = sheetRotationTranslation(BgrSubstractor)
     # # Tworzenie gniazda serwera
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -74,54 +76,54 @@ def main(json_name):
             print(f"Robot Dane: {data}")
 
             # System wizyjny
-            print("odpalam system wizyjny")
-            name = row[0]
-            crop, bounding_box,_ = cameraImage(BgrSubstractor,crop_values)
+            # print("odpalam system wizyjny")
+            # name = row[0]
+            # crop, bounding_box,_ = cameraImage(BgrSubstractor,crop_values)
+            #
+            # try:
+            #     curves = curveData[name]
+            # except KeyError:
+            #     curves = []
+            # try:
+            #     linear = linearData[name]
+            # except KeyError:
+            #     linear = []
+            #
+            # gcode_data = singleGcodeElementCV2(elements[name],curves,linear,bounding_box)
+            # correct,RMSE,ret = linesContourCompare(crop,gcode_data)
+            # palletizing_angle = elementStackingRotation(cv_data,name,gcode_data['image'])
+            # # temporary fix do enkodowania obrazow do jsona
+            # _,buffer = cv2.imencode('.jpg', gcode_data['image'])
+            # _,buffer2 = cv2.imencode('.jpg', crop)
+            # gcode_image_base64 = base64.b64encode(buffer).decode('utf-8')
+            # camera_image_base64 = base64.b64encode(buffer2).decode('utf-8')
+            #
+            # cv_data[name] = {
+            #     "gcode_data": {
+            #         'image': gcode_image_base64,
+            #         "linearData": gcode_data['linearData'],
+            #         "circleData": gcode_data['circleData'],
+            #     },
+            #     "correct": correct,
+            #     "RMSE": RMSE,
+            #     "deformation": ret,
+            #     "camera_image": camera_image_base64,
+            #     "palletizing_angle": palletizing_angle
+            # }
 
-            try:
-                curves = curveData[name]
-            except KeyError:
-                curves = []
-            try:
-                linear = linearData[name]
-            except KeyError:
-                linear = []
-
-            gcode_data = singleGcodeElementCV2(elements[name],curves,linear,bounding_box)
-            correct,RMSE,ret = linesContourCompare(crop,gcode_data)
-            palletizing_angle = elementStackingRotation(cv_data,name,gcode_data['image'])
-            # temporary fix do enkodowania obrazow do jsona
-            _,buffer = cv2.imencode('.jpg', gcode_data['image'])
-            _,buffer2 = cv2.imencode('.jpg', crop)
-            gcode_image_base64 = base64.b64encode(buffer).decode('utf-8')
-            camera_image_base64 = base64.b64encode(buffer2).decode('utf-8')
-
-            cv_data[name] = {
-                "gcode_data": {
-                    'image': gcode_image_base64,
-                    "linearData": gcode_data['linearData'],
-                    "circleData": gcode_data['circleData'],
-                },
-                "correct": correct,
-                "RMSE": RMSE,
-                "deformation": ret,
-                "camera_image": camera_image_base64,
-                "palletizing_angle": palletizing_angle
-            }
-            #TODO W ROBOCIE DODAĆ WAITFOR DO ODEBRANIA KOLEJNEJ RAMKI!!!!!!!!!!!!
             # data = client_socket.recv(1024).decode('utf-8', errors='ignore')
             # print(f"Robot dane: {data}")
             # ------------- ODŁOŻENIE DETALU -------------
             # Wartości do wysłania
-            if correct:
-                send_valueY = box_x
-                send_valueX = box_y
-                send_valueZ = box_z
-            else:
-                #TODO DODAĆ BOXA Z BŁĘDNYMI ELEMENTAMI
-                send_valueY = box_x
-                send_valueX = box_y
-                send_valueZ = box_z
+            # if correct:
+            send_valueY = box_x
+            send_valueX = box_y
+            send_valueZ = box_z
+            # else:
+            #     #TODO DODAĆ BOXA Z BŁĘDNYMI ELEMENTAMI
+            #     send_valueY = box_x
+            #     send_valueX = box_y
+            #     send_valueZ = box_z
 
             #TODO Dodać bazę do robota na inny stół do paletyzacji :)
 
@@ -166,6 +168,7 @@ def readRobotCVJsonData(json_name):
         print(f"deformation : {value['deformation']}")
         print(f'palletizing_angle : {value["palletizing_angle"]}')
         print("\n \n")
+        # image_gcode = cv2.resize(image_gcode)
         cv2.imshow("gcode", image_gcode)
         cv2.imshow("camera", image_camera)
         cv2.waitKey(0)
@@ -175,10 +178,11 @@ def readRobotCVJsonData(json_name):
 
 
 if __name__ == "__main__":
-    # crop = get_crop_values()
-    # print('chuj')
+    crop,sliced_frame = get_crop_values(1)
+    draw_circle_on_click(sliced_frame)
+
     # main('blacha8')
-    readRobotCVJsonData('blacha8')
+    # readRobotCVJsonData('blacha8')
     #FIX
     # Domyślnie w gcode elementy maja swoj "obrot", aby uniknac trduniejszego,
     # dodać do kamery obrót obrazu o 90/180 stopni aby wyrownac obroty miedzy gcode-real image

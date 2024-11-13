@@ -295,10 +295,12 @@ def singleGcodeElementCV2(cutting_path,circle_line_data,linear_points_data,bound
     }
     return gcode_data_packed
 
-def capture_median_frame(crop_values):
+def capture_median_frame(crop_values,camera_id):
     frames = 100
     BgrSubtractor = cv2.createBackgroundSubtractorMOG2(history = frames, varThreshold=50,detectShadows=True)
-    cap = cv2.VideoCapture(1)
+    cap = cv2.VideoCapture(camera_id)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
     while frames > 0:
         ret,frame = cap.read()
         frame = camera_calibration(frame)
@@ -315,10 +317,10 @@ def capture_median_frame(crop_values):
     cap.release()
     return BgrSubtractor
 
-def cameraImage(BgrSubtractor,crop_values):
-    cap = cv2.VideoCapture(1)
-    # cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-    # cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+def cameraImage(BgrSubtractor,crop_values,camera_id):
+    cap = cv2.VideoCapture(camera_id)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
     ret,frame = cap.read()
     while not ret:
         ret,frame = cap.read()
@@ -536,26 +538,49 @@ def linesContourCompare(imageB,gcode_data):
         print(e)
         return False,0, ret
 
-def elementStackingRotation(cv_data,name,curr_image):
-    if name in cv_data:
-        sift = cv2.SIFT_create()
-        kp_first,des_first = sift.detectAndCompute(cv_data[name]['gcode_data']['image'], None)
-        kp_other,des_other = sift.detectAndCompute(curr_image, None)
-        if len(kp_first) == 0 or len(kp_other) == 0:
-            return 0
-
-        bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
-        matches = bf.match(des_first, des_other)
-        matches = sorted(matches, key=lambda x: x.distance)
-        src_pts = np.float32([kp_first[m.queryIdx].pt for m in matches]).reshape(-1, 1, 2)
-        dst_pts = np.float32([kp_other[m.trainIdx].pt for m in matches]).reshape(-1, 1, 2)
-        if len(src_pts) < 4 or len(dst_pts) < 4:  # brak matchy sift
-            return 0
-
-        M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
-        if M:
-            return np.degrees(np.arctan2(M[1, 0], M[0, 0]))
-    return 0
+def elementStackingRotation(images):
+    """
+        Calculates rotation between objects of the same class.
+    Args:
+        images: Dict of generated cv2 images from gcode
+    Returns:
+        output_rotation: Dict of rotations when putting the element away
+    """
+    hash = defaultdict(list)
+    output_rotation = {}
+    for key, value in images.items():
+        cut_key = key[0:-4]
+        if cut_key not in hash:
+            hash[cut_key].append(value)
+            output_rotation[key] = 0
+        else:
+            sift = cv2.SIFT_create()
+            kp_first,des_first = sift.detectAndCompute(hash[cut_key][0], None)
+            kp_other,des_other = sift.detectAndCompute(value, None)
+            if len(kp_first) == 0 or len(kp_other) == 0: # brak matchy sift, głównie złe klasy
+                output_rotation[key] = 0
+                continue
+            bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck = True)
+            matches = bf.match(des_first,des_other)
+            matches = sorted(matches, key=lambda x: x.distance)
+            src_pts = np.float32([kp_first[m.queryIdx].pt for m in matches]).reshape(-1,1,2)
+            dst_pts = np.float32([kp_other[m.trainIdx].pt for m in matches]).reshape(-1,1,2)
+            if len(src_pts) < 4 or len(dst_pts) < 4: # brak matchy sift
+                #powody braku matcha
+                # złe klasowanie
+                # błąd metody?
+                output_rotation[key] = 0
+                continue
+            M,mask = cv2.findHomography(src_pts,dst_pts,cv2.RANSAC,5.0)
+            if M is not None:
+                angle = np.degrees(np.arctan2(M[1,0],M[0,0]))
+                print(f"Kąt obrotu między obrazami: {angle} stopni")
+                hash[cut_key].append(value)
+                output_rotation[key] = (angle)
+            else:
+                print("Homografia nie została znaleziona.")
+                output_rotation[key] = 0
+    return output_rotation
 
 def sheetRotationTranslation(bgr_subtractor,sheet_size):
     REFPOINT = (1444, 517) # robocie refpoint to (0,0)
@@ -603,10 +628,11 @@ def sheetRotationTranslation(bgr_subtractor,sheet_size):
 def nothing(x):
     pass
 
-def get_crop_values():
+def get_crop_values(camera_id):
     # Otwórz dostęp do kamery
-    cap = cv2.VideoCapture(1)
-
+    cap = cv2.VideoCapture(camera_id)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
     if not cap.isOpened():
         print("Nie można otworzyć kamery")
         return None
@@ -664,7 +690,21 @@ def get_crop_values():
     cap.release()
     cv2.destroyAllWindows()
 
-    return crop_values
+    return crop_values, sliced_frame
+
+def draw_circle_on_click(image):
+    def click_event(event, x, y, flags, param):
+        if event == cv2.EVENT_LBUTTONDOWN:
+            # Rysowanie kółka o promieniu 1 piksel w miejscu kliknięcia
+            cv2.circle(image, (x, y), 1, (0, 0, 255), -1)
+            print(f"Kliknięto punkt: ({x}, {y})")
+            cv2.imshow("Obraz", image)
+
+    # Wyświetlenie obrazu i ustawienie funkcji obsługi zdarzenia kliknięcia
+    cv2.imshow("Obraz", image)
+    cv2.setMouseCallback("Obraz", click_event)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
 
 if __name__ == "__main__":
     paths = [

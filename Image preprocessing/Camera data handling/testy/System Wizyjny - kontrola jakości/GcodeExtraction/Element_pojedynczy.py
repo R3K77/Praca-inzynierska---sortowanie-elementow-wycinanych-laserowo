@@ -683,10 +683,10 @@ def draw_circle_on_click():
             print(f"Kliknięto na koordynatach: ({x}, {y})")
 
     # Uruchomienie kamery
-    cap = cv2.VideoCapture(0)
-    cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+    cap = cv2.VideoCapture(1)
+    # cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
+    # cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+    # cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
     # Ustawienie funkcji callback dla okna z obrazem
     cv2.namedWindow('Kamera')
     cv2.setMouseCallback('Kamera', mouse_callback)
@@ -714,7 +714,7 @@ if __name__ == "__main__":
     # draw_circle_on_click()
     # SheetInfoTest()
     # # singleGcodeTest()
-    # # Test czy spakowana funkcja działa
+    # Test czy spakowana funkcja działa
     paths = [
         "../../../../Gcode to image conversion/NC_files/1.NC",
         "../../../../Gcode to image conversion/NC_files/2_FIXME.NC",
@@ -726,33 +726,34 @@ if __name__ == "__main__":
         "../../../../Gcode to image conversion/NC_files/8.NC",
     ]
     for path in paths:
-        os.chdir(r'C:\Users\Rafał\Documents\GitHub\Projekt-Przejsciowy---sortowanie-elementow-wycinanych-laserowo\Image preprocessing\Camera data handling\testy\System Wizyjny - kontrola jakości\GcodeExtraction')
+        # os.chdir(r'C:\Users\Rafał\Documents\GitHub\Projekt-Przejsciowy---sortowanie-elementow-wycinanych-laserowo\Image preprocessing\Camera data handling\testy\System Wizyjny - kontrola jakości\GcodeExtraction')
         images, pts, sheet_size, pts_hole, circleLineData, linearData = allGcodeElementsCV2(
             sheet_path=path,
             arc_pts_len=300)
-        os.chdir(
-            r'C:\Users\Rafał\Documents\GitHub\Projekt-Przejsciowy---sortowanie-elementow-wycinanych-laserowo\Image preprocessing\Camera data handling\testy\System Wizyjny - kontrola jakości\GcodeExtraction\ZdjeciaElementy')
-        # rotations = elementStackingRotation(images)
-        for key, value in images.items():
-            try:
-                linData = linearData[f'{key}']
-            except KeyError:
-                linData = []
-            try:
-                circData = circleLineData[f'{key}']
-            except KeyError:
-                circData = []
-            gcode_data_packed = {
-                "linearData": linData,
-                "circleData": circData,
-                "image": value,
-            }
-            testAlgorithmFunction(key,value,pts,pts_hole,linearData,circleLineData)
-            # testTilt(value,gcode_data_packed,key) # podmienic funkcje w zaleznosci od testu
-            # img = cv2.hconcat([value,img_transformed])
-            # cv2.imshow("obraz",img)
-            # cv2.waitKey(0)
-            # cv2.destroyAllWindows()
+        # os.chdir(
+        #     r'C:\Users\Rafał\Documents\GitHub\Projekt-Przejsciowy---sortowanie-elementow-wycinanych-laserowo\Image preprocessing\Camera data handling\testy\System Wizyjny - kontrola jakości\GcodeExtraction\ZdjeciaElementy')
+        rotations = elementStackingRotation(images)
+        print(rotations)
+        # for key, value in images.items():
+        #     try:
+        #         linData = linearData[f'{key}']
+        #     except KeyError:
+        #         linData = []
+        #     try:
+        #         circData = circleLineData[f'{key}']
+        #     except KeyError:
+        #         circData = []
+        #     gcode_data_packed = {
+        #         "linearData": linData,
+        #         "circleData": circData,
+        #         "image": value,
+        #     }
+        #     testAlgorithmFunction(key,value,pts,pts_hole,linearData,circleLineData)
+        #     testTilt(value,gcode_data_packed,key) # podmienic funkcje w zaleznosci od testu
+        #     img = cv2.hconcat([value,img_transformed])
+        #     cv2.imshow("obraz",img)
+        #     cv2.waitKey(0)
+        #     cv2.destroyAllWindows()
 
 
 

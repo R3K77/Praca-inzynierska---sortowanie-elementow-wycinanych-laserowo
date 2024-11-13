@@ -23,7 +23,9 @@ def main(json_name):
     cv_data = {}
     # crp = get_crop_values()
     crop_values = {'bottom': 38, 'left': 127, 'right': 120, 'top': 156}
-    BgrSubstractor = capture_median_frame(crop_values)
+    crop_values_sheet = {}
+    BgrSubstractor_Quality = capture_median_frame(crop_values)
+    BgrSubstractor_Sheet = capture_median_frame()
     with open(f'elements_data_json/{json_name}.json','r') as f:
         data = json.load(f)
     elements = data['elements']
@@ -33,7 +35,7 @@ def main(json_name):
     print("Umieść blachę w stanowisku roboczym ...")
     keyboard.wait('space')
     print("Zbieranie informacji o położeniu blachy")
-    angle,translation_mm = sheetRotationTranslation(BgrSubstractor)
+    angle,translation_mm = sheetRotationTranslation(BgrSubstractor_Quality)
     # # Tworzenie gniazda serwera
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -78,7 +80,7 @@ def main(json_name):
             # System wizyjny
             # print("odpalam system wizyjny")
             # name = row[0]
-            # crop, bounding_box,_ = cameraImage(BgrSubstractor,crop_values)
+            # crop, bounding_box,_ = cameraImage(BgrSubstractor_Quality,crop_values)
             #
             # try:
             #     curves = curveData[name]
@@ -173,8 +175,6 @@ def readRobotCVJsonData(json_name):
         cv2.imshow("camera", image_camera)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
-
-
 
 
 if __name__ == "__main__":

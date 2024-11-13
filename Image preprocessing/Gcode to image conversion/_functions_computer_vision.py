@@ -517,6 +517,9 @@ def linesContourCompare(imageB,gcode_data):
                         d_minimal = d_circ
 
                 cntrErrors.append(d_minimal)
+
+        certainErrors = [e for e in cntrErrors if e > 1]
+        accuracy = 100 * (len(certainErrors)/len(cntrErrors))
         RMSE = np.sqrt(sum(e*e for e in cntrErrors)/len(cntrErrors))
         print("----------")
         contourSum = 0
@@ -524,7 +527,7 @@ def linesContourCompare(imageB,gcode_data):
             contourSum += len(contour)
         print("ilosc punktow: ",contourSum)
         print("RMSE:",RMSE)
-        if RMSE > 1.1:
+        if accuracy < 99.5:
             print("Detal posiada błąd wycięcia")
             print(f'ret: {ret} \n')
             return False,RMSE, ret
@@ -538,9 +541,10 @@ def linesContourCompare(imageB,gcode_data):
         print(e)
         return False,0, ret
 
-def elementStackingRotation(images):
+def elementRotationSIFT(images):
     """
-        Calculates rotation between objects of the same class.
+    Calculates rotation between objects of the same class using SIFT.
+
     Args:
         images: Dict of generated cv2 images from gcode
     Returns:
@@ -548,42 +552,52 @@ def elementStackingRotation(images):
     """
     hash = defaultdict(list)
     output_rotation = {}
+
     for key, value in images.items():
-        cut_key = key[0:-4]
+        cut_key = key[:-4]
+
         if cut_key not in hash:
             hash[cut_key].append(value)
             output_rotation[key] = 0
         else:
+            # Initialize SIFT
             sift = cv2.SIFT_create()
-            kp_first,des_first = sift.detectAndCompute(hash[cut_key][0], None)
-            kp_other,des_other = sift.detectAndCompute(value, None)
-            if len(kp_first) == 0 or len(kp_other) == 0: # brak matchy sift, głównie złe klasy
+            kp_first, des_first = sift.detectAndCompute(hash[cut_key][0], None)
+            kp_other, des_other = sift.detectAndCompute(value, None)
+
+            if len(kp_first) == 0 or len(kp_other) == 0:
                 output_rotation[key] = 0
                 continue
-            bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck = True)
-            matches = bf.match(des_first,des_other)
+
+            bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
+            matches = bf.match(des_first, des_other)
             matches = sorted(matches, key=lambda x: x.distance)
-            src_pts = np.float32([kp_first[m.queryIdx].pt for m in matches]).reshape(-1,1,2)
-            dst_pts = np.float32([kp_other[m.trainIdx].pt for m in matches]).reshape(-1,1,2)
-            if len(src_pts) < 4 or len(dst_pts) < 4: # brak matchy sift
-                #powody braku matcha
-                # złe klasowanie
-                # błąd metody?
+            src_pts = np.float32([kp_first[m.queryIdx].pt for m in matches]).reshape(-1, 1, 2)
+            dst_pts = np.float32([kp_other[m.trainIdx].pt for m in matches]).reshape(-1, 1, 2)
+
+            if len(src_pts) < 4 or len(dst_pts) < 4:
                 output_rotation[key] = 0
                 continue
-            M,mask = cv2.findHomography(src_pts,dst_pts,cv2.RANSAC,5.0)
+
+            M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+
             if M is not None:
-                angle = np.degrees(np.arctan2(M[1,0],M[0,0]))
-                print(f"Kąt obrotu między obrazami: {angle} stopni")
+                angle = np.degrees(np.arctan2(M[1, 0], M[0, 0]))
+                print(f"Rotation angle between images: {angle} degrees")
                 hash[cut_key].append(value)
-                output_rotation[key] = (angle)
+                output_rotation[key] = angle
             else:
-                print("Homografia nie została znaleziona.")
+                print("Homography could not be found.")
                 output_rotation[key] = 0
+
     return output_rotation
 
+
+def elementRotationMoments(images):
+    pass
+
 def sheetRotationTranslation(bgr_subtractor,sheet_size):
-    REFPOINT = (1444, 517) # robocie refpoint to (0,0)
+    REFPOINT = (1444, 517) # punkt (0,0,z) bazy robota
     _,_,img_pack = cameraImage(bgr_subtractor)
     thresh = img_pack[1]
     org_img = img_pack[2]

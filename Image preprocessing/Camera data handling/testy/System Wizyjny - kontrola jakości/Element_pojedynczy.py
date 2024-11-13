@@ -389,14 +389,20 @@ def linesContourCompare(imageB,gcode_data):
                         d_minimal = d_circ
 
                 cntrErrors.append(d_minimal)
+
+        certainErrors = [e for e in cntrErrors if e > 1]
+        accuracy = 100 * (len(certainErrors)/len(cntrErrors))
         RMSE = np.sqrt(sum(e*e for e in cntrErrors)/len(cntrErrors))
+
+
         print("----------")
         contourSum = 0
         for contour in contoursB:
             contourSum += len(contour)
         print("ilosc punktow: ",contourSum)
-        print("RMSE:",RMSE)
-        if RMSE > 1.1:
+        print("Accuracy: ", accuracy)
+        print("RMSE: ",RMSE)
+        if accuracy < 99.5:
             print("Detal posiada błąd wycięcia")
             print(f'ret: {ret} \n')
             return False, imgCopy_lines,imgCopy_circ
@@ -420,9 +426,10 @@ def randomColor():
     r = random.randint(0, 255)  # Random red value
     return (b, g, r)
 
-def elementStackingRotation(images):
+def elementRotationSIFT(images):
     """
-        Calculates rotation between objects of the same class.
+    Calculates rotation between objects of the same class using SIFT.
+
     Args:
         images: Dict of generated cv2 images from gcode
     Returns:
@@ -430,39 +437,253 @@ def elementStackingRotation(images):
     """
     hash = defaultdict(list)
     output_rotation = {}
+
     for key, value in images.items():
-        cut_key = key[0:-4]
+        cut_key = key[:-4]
+
         if cut_key not in hash:
             hash[cut_key].append(value)
             output_rotation[key] = 0
         else:
+            # Initialize SIFT
             sift = cv2.SIFT_create()
-            kp_first,des_first = sift.detectAndCompute(hash[cut_key][0], None)
-            kp_other,des_other = sift.detectAndCompute(value, None)
-            if len(kp_first) == 0 or len(kp_other) == 0: # brak matchy sift, głównie złe klasy
+            kp_first, des_first = sift.detectAndCompute(hash[cut_key][0], None)
+            kp_other, des_other = sift.detectAndCompute(value, None)
+
+            if len(kp_first) == 0 or len(kp_other) == 0:
                 output_rotation[key] = 0
                 continue
-            bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck = True)
-            matches = bf.match(des_first,des_other)
+
+            bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
+            matches = bf.match(des_first, des_other)
             matches = sorted(matches, key=lambda x: x.distance)
-            src_pts = np.float32([kp_first[m.queryIdx].pt for m in matches]).reshape(-1,1,2)
-            dst_pts = np.float32([kp_other[m.trainIdx].pt for m in matches]).reshape(-1,1,2)
-            if len(src_pts) < 4 or len(dst_pts) < 4: # brak matchy sift
-                #powody braku matcha
-                # złe klasowanie
-                # błąd metody?
+            src_pts = np.float32([kp_first[m.queryIdx].pt for m in matches]).reshape(-1, 1, 2)
+            dst_pts = np.float32([kp_other[m.trainIdx].pt for m in matches]).reshape(-1, 1, 2)
+
+            if len(src_pts) < 4 or len(dst_pts) < 4:
                 output_rotation[key] = 0
                 continue
-            M,mask = cv2.findHomography(src_pts,dst_pts,cv2.RANSAC,5.0)
+
+            M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+
             if M is not None:
-                angle = np.degrees(np.arctan2(M[1,0],M[0,0]))
-                print(f"Kąt obrotu między obrazami: {angle} stopni")
+                angle = np.degrees(np.arctan2(M[1, 0], M[0, 0]))
+                print(f"Rotation angle between images: {angle} degrees")
                 hash[cut_key].append(value)
-                output_rotation[key] = (angle)
+                output_rotation[key] = angle
             else:
-                print("Homografia nie została znaleziona.")
+                print("Homography could not be found.")
                 output_rotation[key] = 0
+
     return output_rotation
+
+def elementRotationPCU(images):
+    """
+    Calculates rotation between binary images of simple shapes using PCA on contours.
+
+    Args:
+        images: Dict of binary cv2 images from gcode.
+    Returns:
+        output_rotation: Dict of rotations between pairs of images.
+    """
+    hash = defaultdict(list)
+    output_rotation = {}
+
+    for key, value in images.items():
+        cut_key = key[:-4]  # Exclude file extension
+
+        # Check if the base image is stored in hash
+        if cut_key not in hash:
+            hash[cut_key].append(value)
+            output_rotation[key] = 0
+        else:
+            # Get the contours of both images
+            contours1, _ = cv2.findContours(hash[cut_key][0], cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            contours2, _ = cv2.findContours(value, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+            # Check if contours were found in both images
+            if len(contours1) == 0 or len(contours2) == 0:
+                output_rotation[key] = 0
+                continue
+
+            # Perform PCA on the contour points to get the orientation angle
+            def get_orientation_angle(contour):
+                contour_points = np.squeeze(contour)
+                if len(contour_points.shape) < 2:  # Check if there are enough points
+                    return None
+                mean, eigenvectors = cv2.PCACompute(contour_points.astype(np.float32), mean=None)
+                # Calculate the angle of the primary eigenvector
+                angle = np.arctan2(eigenvectors[0, 1], eigenvectors[0, 0])  # radians
+                return np.degrees(angle)  # convert to degrees
+
+            # Get angles for each contour
+            angle1 = get_orientation_angle(contours1[0])
+            angle2 = get_orientation_angle(contours2[0])
+
+            # Ensure both angles are valid
+            if angle1 is None or angle2 is None:
+                output_rotation[key] = 0
+                continue
+
+            # Calculate relative rotation
+            relative_rotation = angle2 - angle1
+            # relative_rotation = (relative_rotation + 360) % 360  # Normalize to [0, 360)
+
+            # Handle cases close to 180-degree difference (for flipped shapes)
+            if abs(relative_rotation - 180) < 5:  # Tolerance of 5 degrees for 180-degree rotations
+                relative_rotation = 180
+
+            output_rotation[key] = relative_rotation
+            hash[cut_key].append(value)
+
+    return output_rotation
+
+def elementRotationMoments(images):
+    """
+    Calculates rotation between binary images of simple shapes using contours.
+
+    Args:
+        images: Dict of binary cv2 images from gcode.
+    Returns:
+        output_rotation: Dict of rotations between pairs of images.
+    """
+    hash = defaultdict(list)
+    output_rotation = {}
+
+    for key, value in images.items():
+        cut_key = key[:-4]  # Exclude file extension
+
+        # Check if the base image is stored in hash
+        if cut_key not in hash:
+            hash[cut_key].append(value)
+            output_rotation[key] = 0
+        else:
+            # Get the contours of both images
+            contours1, _ = cv2.findContours(hash[cut_key][0], cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            contours2, _ = cv2.findContours(value, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+            # Check if contours were found in both images
+            if len(contours1) == 0 or len(contours2) == 0:
+                output_rotation[key] = 0
+                continue
+
+            # Compute image moments to find the center of each shape
+            M1 = cv2.moments(contours1[0])
+            M2 = cv2.moments(contours2[0])
+
+            if M1["m00"] == 0 or M2["m00"] == 0:
+                output_rotation[key] = 0
+                continue
+
+            # Calculate the centroid of each contour
+            cX1, cY1 = int(M1["m10"] / M1["m00"]), int(M1["m01"] / M1["m00"])
+            cX2, cY2 = int(M2["m10"] / M2["m00"]), int(M2["m01"] / M2["m00"])
+
+            # Shift contours so centroids overlap
+            shifted_contour1 = contours1[0] - [cX1, cY1]
+            shifted_contour2 = contours2[0] - [cX2, cY2]
+
+            # Calculate the rotation angle using principal component analysis (PCA)
+            _, _, angle1 = cv2.fitEllipse(shifted_contour1)
+            _, _, angle2 = cv2.fitEllipse(shifted_contour2)
+
+            # Calculate relative rotation
+            relative_rotation = angle2 - angle1
+            relative_rotation = (relative_rotation + 360) % 360  # Normalize to [0, 360)
+
+            # Handle cases close to 180-degree difference (for flipped shapes)
+            if abs(relative_rotation - 180) < 5:  # Tolerance of 5 degrees for 180-degree rotations
+                relative_rotation = 180
+
+            output_rotation[key] = relative_rotation
+            hash[cut_key].append(value)
+
+    return output_rotation
+
+def elementRotationByTemplateMatching(images):
+    """
+    Calculates rotation between binary images of simple shapes by using template matching with rotated templates.
+
+    Args:
+        images: Dict of binary cv2 images.
+    Returns:
+        output_rotation: Dict of rotations between pairs of images.
+    """
+    hash = defaultdict(list)
+    output_rotation = {}
+
+    for key, value in images.items():
+        cut_key = key[:-4]  # Exclude file extension
+
+        if cut_key not in hash:
+            hash[cut_key].append(value)
+            output_rotation[key] = 0
+        else:
+            # Get the template image (first image in the hash)
+            template = hash[cut_key][0]
+            # Prepare the current image (second image in the comparison)
+            target = value
+
+            # Initialize variables for maximum match
+            max_match = -1  # To keep track of the best match value
+            best_angle = 0  # Angle that gives the best match
+
+            # Loop over a range of angles (e.g., 0 to 360 degrees)
+            for angle in range(0, 360, 5):  # Test every 5 degrees (adjust as needed)
+                # Rotate the template by the current angle
+                rotated_template = rotate_image(template, angle)
+
+                # Check if the rotated template is larger than the target image
+                if rotated_template.shape[0] > target.shape[0] or rotated_template.shape[1] > target.shape[1]:
+                    # Resize the rotated template to fit within the target image size
+                    scale_factor = min(target.shape[0] / rotated_template.shape[0], target.shape[1] / rotated_template.shape[1])
+                    rotated_template = cv2.resize(rotated_template, (0, 0), fx=scale_factor, fy=scale_factor)
+
+                # Perform template matching
+                result = cv2.matchTemplate(target, rotated_template, cv2.TM_CCOEFF_NORMED)
+
+                # Handle edge case where the result is empty or doesn't match
+                if result is None or result.size == 0:
+                    continue
+
+                # Get the maximum match value and location
+                _, max_val, _, max_loc = cv2.minMaxLoc(result)
+
+                # Check if the current match is better than the previous ones
+                if max_val > max_match:
+                    max_match = max_val
+                    best_angle = angle
+
+            # Store the best angle found
+            output_rotation[key] = best_angle
+            print(f"Rotation angle for {key}: {best_angle} degrees")
+
+            # Add the current image to the hash for future comparisons
+            hash[cut_key].append(value)
+
+    return output_rotation
+
+def rotate_image(image, angle):
+    """
+    Rotates an image by a given angle.
+
+    Args:
+        image: The input image to rotate.
+        angle: The angle by which to rotate the image.
+
+    Returns:
+        The rotated image.
+    """
+    # Get the image center, which will be the center of rotation
+    (h, w) = image.shape[:2]
+    center = (w // 2, h // 2)
+
+    # Create the rotation matrix
+    M = cv2.getRotationMatrix2D(center, angle, 1.0)
+
+    # Perform the rotation
+    rotated = cv2.warpAffine(image, M, (w, h))
+    return rotated
 
 def sheetRotationTranslation(bgr_subtractor):
     REFPOINT = (1444, 517) # robocie refpoint to (0,0)
@@ -509,7 +730,6 @@ def sheetRotationTranslation(bgr_subtractor):
     cv2.destroyAllWindows()
 
     return alpha,(diff_x,diff_y)
-
 
 def testAlgorithmFunction(key, value, pts, pts_hole, linearData, circleLineData):
     """
@@ -649,7 +869,7 @@ def testAdditionalHole(imageB,gcode_data):
 
 def singleGcodeTest():
     (cutting_paths, _, _, _, _, sheet_size_line, circleLineData,
-     linearPointsData) = visualize_cutting_paths_extended('../../../../Gcode to image conversion/NC_files/8.NC')
+     linearPointsData) = visualize_cutting_paths_extended('../../../Gcode to image conversion/NC_files/8.NC')
     median_background_frame = capture_median_frame()
     cv2.imshow("bgr",median_background_frame)
     cv2.waitKey(0)
@@ -716,14 +936,14 @@ if __name__ == "__main__":
     # # singleGcodeTest()
     # Test czy spakowana funkcja działa
     paths = [
-        "../../../../Gcode to image conversion/NC_files/1.NC",
-        "../../../../Gcode to image conversion/NC_files/2_FIXME.NC",
-        "../../../../Gcode to image conversion/NC_files/3_fixed.NC",
-        "../../../../Gcode to image conversion/NC_files/4.NC",
-        "../../../../Gcode to image conversion/NC_files/5.NC",
-        "../../../../Gcode to image conversion/NC_files/6.NC",
-        "../../../../Gcode to image conversion/NC_files/7.NC",
-        "../../../../Gcode to image conversion/NC_files/8.NC",
+        "../../../Gcode to image conversion/NC_files/1.NC",
+        "../../../Gcode to image conversion/NC_files/2_FIXME.NC",
+        "../../../Gcode to image conversion/NC_files/3_fixed.NC",
+        "../../../Gcode to image conversion/NC_files/4.NC",
+        "../../../Gcode to image conversion/NC_files/5.NC",
+        "../../../Gcode to image conversion/NC_files/6.NC",
+        "../../../Gcode to image conversion/NC_files/7.NC",
+        "../../../Gcode to image conversion/NC_files/8.NC",
     ]
     for path in paths:
         # os.chdir(r'C:\Users\Rafał\Documents\GitHub\Projekt-Przejsciowy---sortowanie-elementow-wycinanych-laserowo\Image preprocessing\Camera data handling\testy\System Wizyjny - kontrola jakości\GcodeExtraction')
@@ -732,8 +952,13 @@ if __name__ == "__main__":
             arc_pts_len=300)
         # os.chdir(
         #     r'C:\Users\Rafał\Documents\GitHub\Projekt-Przejsciowy---sortowanie-elementow-wycinanych-laserowo\Image preprocessing\Camera data handling\testy\System Wizyjny - kontrola jakości\GcodeExtraction\ZdjeciaElementy')
-        rotations = elementStackingRotation(images)
+        rotations = elementRotationByTemplateMatching(images)
         print(rotations)
+        if path == "../../../Gcode to image conversion/NC_files/8.NC":
+            for key,value in images.items():
+                cv2.imshow(key,value)
+                cv2.waitKey(0)
+                cv2.destroyAllWindows
         # for key, value in images.items():
         #     try:
         #         linData = linearData[f'{key}']

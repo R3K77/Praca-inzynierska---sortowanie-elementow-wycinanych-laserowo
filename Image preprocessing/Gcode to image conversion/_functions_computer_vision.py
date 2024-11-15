@@ -842,7 +842,7 @@ def rotate_image(image, angle):
     return rotated
 
 def sheetRotationTranslation(bgr_subtractor,camera_id,crop_values,sheet_length_mm):
-    REFPOINT = (1444, 517) # punkt (0,0,z) bazy robota
+    REFPOINT = (1133, 561) # punkt (0,0,z) bazy robota
     _,_,img_pack = cameraImage(bgr_subtractor,crop_values,camera_id)
     thresh = img_pack[1]
     org_img = img_pack[2]
@@ -882,7 +882,7 @@ def sheetRotationTranslation(bgr_subtractor,camera_id,crop_values,sheet_length_m
     diff_x = diff_x_px * scalePxMm
     diff_y = diff_y_px * scalePxMm
 
-    return alpha,(diff_x,diff_y)
+    return alpha,(-diff_x,-diff_y)
 
 def recalibratePoint(point,angle,translation):
     angle_rad = np.radians(angle)

@@ -22,27 +22,22 @@ def main(json_name):
     # Bufor pod system wizyjny
     cv_data = {}
     # crp = get_crop_values()
-    crop_values = {'bottom': 38, 'left': 127, 'right': 120, 'top': 156}
-    crop_values_sheet = {}
+    crop_values = {'bottom': 38, 'left': 127, 'right': 120, 'top': 156} #TODO wymienic na fhd
+    crop_values_sheet = {'bottom': 467, 'left': 0, 'right': 418, 'top': 0}
     # BgrSubstractor_Quality = capture_median_frame(crop_values,1)
-    BgrSubstractor_Sheet = capture_median_frame(crop_values_sheet,1)
+
     with open(f'elements_data_json/{json_name}.json','r') as f:
         data = json.load(f)
     elements = data['elements']
-    SHEET_SIZE = 1200
+    SHEET_SIZE = 570
     curveData = data['curveCircleData']
     linearData = data['linearPointsData']
     angles_elements = data['rotation']
-    print("Umieść blachę w stanowisku roboczym ...")
-    keyboard.wait('space')
-    print("Zbieranie informacji o położeniu blachy")
-    angle_sheet,translation_mm = sheetRotationTranslation(BgrSubstractor_Sheet,1,crop_values_sheet,SHEET_SIZE)
     # # Tworzenie gniazda serwera
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server_socket.bind((HOST, PORT))
     server_socket.listen(1)
-
     print(f"Serwer nasłuchuje na {HOST}:{PORT}")
     try:
         client_socket, client_address = server_socket.accept()
@@ -50,6 +45,13 @@ def main(json_name):
     except Exception as e:
         print(f"Błąd: \n {e}")
         return
+    BgrSubstractor_Sheet = capture_median_frame(crop_values_sheet, 1)
+    print("Umieść blachę w stanowisku roboczym (spacja)")
+    keyboard.wait('space')
+    print("Zbieranie informacji o położeniu blachy")
+    angle_sheet,translation_mm = sheetRotationTranslation(BgrSubstractor_Sheet,1,crop_values_sheet,SHEET_SIZE)
+    print(f"angle:{angle_sheet} ")
+    print(f"translation: {translation_mm}")
     with open('element_details.csv', 'r') as file:
         reader = csv.reader(file)
         next(reader)  # Pominięcie nagłówka
@@ -75,7 +77,7 @@ def main(json_name):
             # Formatowanie danych do wysłania
             response = f"{send_valueX:09.4f}{send_valueY:09.4f}{send_valueZ:09.4f}{send_valueAngle:09.4f}a"
             client_socket.send(response.encode('ascii'))
-            print(f"Wysłano dane do ruchu A")
+            print(f"Wysłano dane do ruchu A \n {response }")
             # Oczekiwanie na informację zwrotną od robota
             data = client_socket.recv(1024).decode('utf-8', errors='ignore')
             print(f"Robot Dane: {data}")

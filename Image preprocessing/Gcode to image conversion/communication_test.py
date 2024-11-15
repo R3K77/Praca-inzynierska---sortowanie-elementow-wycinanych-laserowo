@@ -7,7 +7,7 @@ import csv
 import json
 
 import cv2
-import orjson
+# import orjson
 
 import keyboard
 from collections import defaultdict
@@ -24,18 +24,19 @@ def main(json_name):
     # crp = get_crop_values()
     crop_values = {'bottom': 38, 'left': 127, 'right': 120, 'top': 156}
     crop_values_sheet = {}
-    BgrSubstractor_Quality = capture_median_frame(crop_values)
-    BgrSubstractor_Sheet = capture_median_frame()
+    # BgrSubstractor_Quality = capture_median_frame(crop_values,1)
+    BgrSubstractor_Sheet = capture_median_frame(crop_values_sheet,1)
     with open(f'elements_data_json/{json_name}.json','r') as f:
         data = json.load(f)
     elements = data['elements']
-    sheet_size = data['sheet_size']
+    SHEET_SIZE = 1200
     curveData = data['curveCircleData']
     linearData = data['linearPointsData']
+    angles_elements = data['rotation']
     print("Umieść blachę w stanowisku roboczym ...")
     keyboard.wait('space')
     print("Zbieranie informacji o położeniu blachy")
-    angle,translation_mm = sheetRotationTranslation(BgrSubstractor_Quality)
+    angle_sheet,translation_mm = sheetRotationTranslation(BgrSubstractor_Sheet,1,crop_values_sheet,SHEET_SIZE)
     # # Tworzenie gniazda serwera
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -56,6 +57,7 @@ def main(json_name):
             if not row:
                 break
             # ------------- POBRANIE DETALU -------------
+            name = row[0]
             detail_x = float(row[1])
             detail_y = float(row[2])
             detail_z = float(row[3])
@@ -63,14 +65,15 @@ def main(json_name):
             box_x = float(row[4])
             box_y = float(row[5])
             box_z = float(row[6])
-
+            calibrated_point = recalibratePoint((detail_x,detail_y),angle_sheet,translation_mm)
             # Wartości do wysłania
-            send_valueY = detail_x
-            send_valueX = detail_y
+            send_valueY = calibrated_point[0]
+            send_valueX = calibrated_point[1]
             send_valueZ = detail_z
+            send_valueAngle = angles_elements[name]
 
             # Formatowanie danych do wysłania
-            response = f"{send_valueX:09.4f}{send_valueY:09.4f}{send_valueZ:09.4f}a"
+            response = f"{send_valueX:09.4f}{send_valueY:09.4f}{send_valueZ:09.4f}{send_valueAngle:09.4f}a"
             client_socket.send(response.encode('ascii'))
             print(f"Wysłano dane do ruchu A")
             # Oczekiwanie na informację zwrotną od robota
@@ -79,7 +82,7 @@ def main(json_name):
 
             # System wizyjny
             # print("odpalam system wizyjny")
-            # name = row[0]
+
             # crop, bounding_box,_ = cameraImage(BgrSubstractor_Quality,crop_values)
             #
             # try:
@@ -127,10 +130,9 @@ def main(json_name):
             #     send_valueX = box_y
             #     send_valueZ = box_z
 
-            #TODO Dodać bazę do robota na inny stół do paletyzacji :)
 
             # Formatowanie danych do wysłania
-            response = f"{send_valueX:09.4f}{send_valueY:09.4f}{send_valueZ:09.4f}b"
+            response = f"{send_valueX:09.4f}{send_valueY:09.4f}{send_valueZ:09.4f}{send_valueAngle:09.4f}b"
             print(f"Przygotowano dane: {response}")
             client_socket.send(response.encode('ascii'))
             print(f"Wysłano dane: {response}")
@@ -144,7 +146,7 @@ def main(json_name):
     send_valueY = 2000.0
     send_valueZ = 2000.0
     # Formatowanie danych do wysłania
-    response = f"{send_valueX:09.4f}{send_valueY:09.4f}{send_valueZ:09.4f}c"
+    response = f"{send_valueX:09.4f}{send_valueY:09.4f}{send_valueZ:09.4f}{send_valueAngle:09.4f}c"
     print(f"Przygotowano dane: {response}")
     client_socket.send(response.encode('ascii'))
     print(f"Wysłano dane: {response}")
@@ -178,10 +180,9 @@ def readRobotCVJsonData(json_name):
 
 
 if __name__ == "__main__":
-    crop,sliced_frame = get_crop_values(1)
-    draw_circle_on_click(sliced_frame)
-
-    # main('blacha8')
+    # crop,sliced_frame = get_crop_values(1)
+    # draw_circle_on_click(sliced_frame)
+    main('blacha8')
     # readRobotCVJsonData('blacha8')
     #FIX
     # Domyślnie w gcode elementy maja swoj "obrot", aby uniknac trduniejszego,

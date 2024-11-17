@@ -875,14 +875,14 @@ def sheetRotationTranslation(bgr_subtractor,camera_id,crop_values,sheet_length_m
         alpha = 90 - alpha
     else:
         alpha = -90-alpha
-    diff_x_px = abs(REFPOINT[0] - xb)
-    diff_y_px = abs(REFPOINT[1] - yb)
+    diff_x_px = REFPOINT[0] - xb
+    diff_y_px = REFPOINT[1] - yb
 
     scalePxMm = sheet_length_mm / np.sqrt((xl - xb)**2 + (yl - yb)**2)
     diff_x = diff_x_px * scalePxMm
     diff_y = diff_y_px * scalePxMm
 
-    return alpha,(-diff_x,-diff_y)
+    return alpha,(diff_x,diff_y)
 
 def recalibratePoint(point,angle,translation):
     angle_rad = np.radians(angle)

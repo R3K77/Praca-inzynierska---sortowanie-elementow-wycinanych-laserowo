@@ -342,6 +342,8 @@ def capture_median_frame(crop_values,camera_id):
     cap = cv2.VideoCapture(camera_id)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+    cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
+    cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.25)
     while frames > 0:
         ret,frame = cap.read()
         frame = camera_calibration(frame)
@@ -362,6 +364,8 @@ def cameraImage(BgrSubtractor,crop_values,camera_id):
     cap = cv2.VideoCapture(camera_id)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+    cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
+    cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.25)
     ret,frame = cap.read()
     while not ret:
         ret,frame = cap.read()
@@ -384,9 +388,9 @@ def cameraImage(BgrSubtractor,crop_values,camera_id):
     crop = cleaned_thresholded[y:y + h, x:x + w].copy()
     img_pack = [crop,cleaned_thresholded,sliced_frame,fg_mask]
     cap.release()
-    cv2.imshow("fg_mask",fg_mask)
-    cv2.imshow("cleaned_thresholded",cleaned_thresholded)
-    cv2.imshow("crop",crop)
+    # cv2.imshow("fg_mask",fg_mask)
+    # cv2.imshow("cleaned_thresholded",cleaned_thresholded)
+    # cv2.imshow("crop",crop)
     return crop, (w,h), img_pack
 
 def camera_calibration(frame):
@@ -842,7 +846,7 @@ def rotate_image(image, angle):
     return rotated
 
 def sheetRotationTranslation(bgr_subtractor,camera_id,crop_values,sheet_length_mm):
-    REFPOINT = (1133, 561) # punkt (0,0,z) bazy robota
+    REFPOINT = (1143, 522) # punkt (0,0,z) bazy robota
     _,_,img_pack = cameraImage(bgr_subtractor,crop_values,camera_id)
     thresh = img_pack[1]
     org_img = img_pack[2]
@@ -881,8 +885,8 @@ def sheetRotationTranslation(bgr_subtractor,camera_id,crop_values,sheet_length_m
     scalePxMm = sheet_length_mm / np.sqrt((xl - xb)**2 + (yl - yb)**2)
     diff_x = diff_x_px * scalePxMm
     diff_y = diff_y_px * scalePxMm
-    data_out = [(xl,yl),(xt,yt),(xb,yb),(A,B,C),(thresh,final_contours),img_pack]
-    return alpha,(diff_x,diff_y),data_out
+    data_out = [(xl,yl),(xt,yt),(xb,yb),(A,B,C),img_pack,final_contours]
+    return alpha,(-diff_x,-diff_y),data_out
 
 def recalibratePoint(point,angle,translation):
     angle_rad = np.radians(angle)

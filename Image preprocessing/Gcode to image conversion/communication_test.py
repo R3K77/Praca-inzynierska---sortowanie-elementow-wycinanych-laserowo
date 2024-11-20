@@ -21,10 +21,9 @@ PORT = 59152  # Port zgodny z konfiguracją w robocie KUKA
 def main(json_name):
     # Bufor pod system wizyjny
     cv_data = {}
-    # crp = get_crop_values()
-    crop_values = {'bottom': 38, 'left': 127, 'right': 120, 'top': 156} #TODO wymienic na fhd
-    crop_values_sheet = {'bottom': 467, 'left': 0, 'right': 418, 'top': 0}
-    BgrSubstractor_Quality = capture_median_frame(crop_values,1)
+    crop_values_sheet = {'bottom': 499, 'left': 0, 'right': 437, 'top': 0} #right 23 down 47
+    # crop_values = {'bottom': 38, 'left': 127, 'right': 120, 'top': 156} #TODO wymienic na fhd
+    # BgrSubstractor_Quality = capture_median_frame(crop_values,1)
 
     with open(f'elements_data_json/{json_name}.json','r') as f:
         data = json.load(f)
@@ -45,21 +44,31 @@ def main(json_name):
     except Exception as e:
         print(f"Błąd: \n {e}")
         return
+    print("zbieranie informacji o stanowisku roboczym")
     BgrSubstractor_Sheet = capture_median_frame(crop_values_sheet, 1)
     print("Umieść blachę w stanowisku roboczym (spacja)")
     keyboard.wait('space')
     print("Zbieranie informacji o położeniu blachy")
     angle_sheet,translation_mm,sheetData = sheetRotationTranslation(BgrSubstractor_Sheet,1,crop_values_sheet,SHEET_SIZE)
+    photos1 = []
     for img in sheetData[4]:
         _, buf = cv2.imencode('.jpg', img)
         imgbase64 = base64.b64encode(buf).decode('utf-8')
+        photos1.append(imgbase64)
     cv_data['sheet'] = {
-        "right_down_point": sheetData[2],
-        "right_up_point": sheetData[1],
-        "left_down_point": sheetData[0],
-        "right_side_linear_fcn": sheetData[3],
-        "images":
+        "right_down_point": [int(sheetData[2][0]),int(sheetData[2][1])],
+        "right_up_point": [int(sheetData[1][0]),int(sheetData[1][1])],
+        "left_down_point": [int(sheetData[0][0]),int(sheetData[0][1])],
+        "right_side_linear_fcn": [int(sheetData[3][0]),int(sheetData[3][1]),int(sheetData[3][2])],
+        "bonusImages": {
+            "camera_image": photos1[2],
+            "MOG2_image": photos1[3],
+            "object_full_image": photos1[1],
+        }
     }
+    with open(f'cv_data_{json_name}_sheetTest.json','w',encoding ='utf8') as f:
+        json.dump(cv_data,f,ensure_ascii=False)
+
     print(f"angle:{angle_sheet} ")
     print(f"translation: {translation_mm}")
     with open('element_details.csv', 'r') as file:
@@ -79,8 +88,8 @@ def main(json_name):
             box_z = float(row[6])
             calibrated_point = recalibratePoint((detail_x,detail_y),angle_sheet,translation_mm)
             # Wartości do wysłania
-            send_valueY = calibrated_point[0]
-            send_valueX = calibrated_point[1]
+            send_valueY = calibrated_point[1]
+            send_valueX = calibrated_point[0]
             send_valueZ = detail_z
             send_valueAngle = angles_elements[name]
 
@@ -93,51 +102,51 @@ def main(json_name):
             print(f"Robot Dane: {data}")
 
             # System wizyjny
-            print("odpalam system wizyjny")
+            # print("odpalam system wizyjny")
 
-            crop, bounding_box,img_pack = cameraImage(BgrSubstractor_Quality,crop_values)
-
-            try:
-                curves = curveData[name]
-            except KeyError:
-                curves = []
-            try:
-                linear = linearData[name]
-            except KeyError:
-                linear = []
-
-            gcode_data = singleGcodeElementCV2(elements[name],curves,linear,bounding_box)
-            correct,RMSE,ret = linesContourCompare(crop,gcode_data)
-            # palletizing_angle = elementStackingRotation(cv_data,name,gcode_data['image'])
-            # temporary fix do enkodowania obrazow do jsona
-            _,buffer = cv2.imencode('.jpg', gcode_data['image'])
-            _,buffer2 = cv2.imencode('.jpg', crop)
-            photos = []
-            for img in img_pack:
-                _,buf = cv2.imencode('.jpg',img)
-                imgbase64 = base64.b64encode(buf).decode('utf-8')
-                photos.append(imgbase64)
-
-            gcode_image_base64 = base64.b64encode(buffer).decode('utf-8')
-            camera_image_base64 = base64.b64encode(buffer2).decode('utf-8')
-
-            cv_data[name] = {
-                "gcode_data": {
-                    'image': gcode_image_base64,
-                    "linearData": gcode_data['linearData'],
-                    "circleData": gcode_data['circleData'],
-                },
-                "correct": correct,
-                "RMSE": RMSE,
-                "deformation": ret,
-                "object_image": camera_image_base64,
-                "palletizing_angle": send_valueAngle,
-                "bonusImages":{
-                    "camera_image": photos[2],
-                    "MOG2_image": photos[3],
-                    "object_full_image": photos[1],
-                }
-            }
+            # crop, bounding_box,img_pack = cameraImage(BgrSubstractor_Quality,crop_values)
+            #
+            # try:
+            #     curves = curveData[name]
+            # except KeyError:
+            #     curves = []
+            # try:
+            #     linear = linearData[name]
+            # except KeyError:
+            #     linear = []
+            #
+            # gcode_data = singleGcodeElementCV2(elements[name],curves,linear,bounding_box)
+            # correct,RMSE,ret = linesContourCompare(crop,gcode_data)
+            #
+            # # fix do enkodowania obrazow do jsona
+            # _,buffer = cv2.imencode('.jpg', gcode_data['image'])
+            # _,buffer2 = cv2.imencode('.jpg', crop)
+            # photos = []
+            # for img in img_pack:
+            #     _,buf = cv2.imencode('.jpg',img)
+            #     imgbase64 = base64.b64encode(buf).decode('utf-8')
+            #     photos.append(imgbase64)
+            #
+            # gcode_image_base64 = base64.b64encode(buffer).decode('utf-8')
+            # camera_image_base64 = base64.b64encode(buffer2).decode('utf-8')
+            #
+            # cv_data[name] = {
+            #     "gcode_data": {
+            #         'image': gcode_image_base64,
+            #         "linearData": gcode_data['linearData'],
+            #         "circleData": gcode_data['circleData'],
+            #     },
+            #     "correct": correct,
+            #     "RMSE": RMSE,
+            #     "deformation": ret,
+            #     "object_image": camera_image_base64,
+            #     "palletizing_angle": send_valueAngle,
+            #     "bonusImages":{
+            #         "camera_image": photos[2],
+            #         "MOG2_image": photos[3],
+            #         "object_full_image": photos[1],
+            #     }
+            # }
 
             data = client_socket.recv(1024).decode('utf-8', errors='ignore')
             print(f"Robot dane: {data}")
@@ -178,7 +187,7 @@ def main(json_name):
     data = client_socket.recv(1024).decode('utf-8', errors='ignore')
     client_socket.close()
     print("Połączenie zamknięte")
-    with open(f'cv_data_{json_name}.json','w',encoding ='utf8') as f:
+    with open(f'cv_data_{json_name}_sheetTest.json','w',encoding ='utf8') as f:
         json.dump(cv_data,f,ensure_ascii=False)
 
 def readRobotCVJsonData(json_name):
@@ -201,12 +210,65 @@ def readRobotCVJsonData(json_name):
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
+def load_and_display_data(json_file):
+    # Wczytaj dane z pliku JSON
+    with open(json_file, 'r', encoding='utf8') as f:
+        cv_data = json.load(f)
+
+    # Wyodrębnij dane z JSONa
+    sheet_data = cv_data['sheet']
+    right_down_point = tuple(sheet_data['right_down_point'])
+    right_up_point = tuple(sheet_data['right_up_point'])
+    left_down_point = tuple(sheet_data['left_down_point'])
+    bonus_images = sheet_data['bonusImages']
+
+    # Punkt referencyjny
+    REFPOINT = (1143, 522)
+
+    # Odtwórz obrazy z Base64
+    camera_image = cv2.imdecode(np.frombuffer(base64.b64decode(bonus_images['camera_image']), np.uint8), cv2.IMREAD_COLOR)
+    mog2_image = cv2.imdecode(np.frombuffer(base64.b64decode(bonus_images['MOG2_image']), np.uint8), cv2.IMREAD_COLOR)
+    object_full_image = cv2.imdecode(np.frombuffer(base64.b64decode(bonus_images['object_full_image']), np.uint8), cv2.IMREAD_COLOR)
+
+    # Zaznacz punkty na obrazie MOG2
+    marked_image = mog2_image.copy()
+    # Zaznaczenie punktów
+    cv2.circle(marked_image, right_down_point, 5, (0, 0, 255), -1)  # Czerwony
+    cv2.putText(marked_image, 'Right Down', (right_down_point[0] + 10, right_down_point[1]), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+
+    cv2.circle(marked_image, right_up_point, 5, (0, 255, 0), -1)  # Zielony
+    cv2.putText(marked_image, 'Right Up', (right_up_point[0] + 10, right_up_point[1]), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+
+    cv2.circle(marked_image, left_down_point, 5, (255, 0, 0), -1)  # Niebieski
+    cv2.putText(marked_image, 'Left Down', (left_down_point[0] + 10, left_down_point[1]), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
+
+    # Zaznaczenie punktu referencyjnego
+    cv2.circle(marked_image, REFPOINT, 5, (0, 255, 255), -1)  # Żółty
+    cv2.putText(marked_image, 'REFPOINT', (REFPOINT[0] + 10, REFPOINT[1]), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
+
+    # Rysowanie linii od REFPOINT do Right Down
+    cv2.line(marked_image, REFPOINT, right_down_point, (255, 255, 0), 2)  # Jasnoniebieska linia
+
+    # Wyświetl obrazy
+    cv2.imshow("Camera Image", camera_image)
+    cv2.imshow("MOG2 Image with Points", marked_image)
+    cv2.imshow("Object Full Image", object_full_image)
+
+    # Poczekaj na klawisz ESC, aby zamknąć
+    print("Naciśnij ESC, aby zamknąć...")
+    while True:
+        key = cv2.waitKey(0) & 0xFF
+        if key == 27:  # ESC
+            break
+
+    cv2.destroyAllWindows()
 
 if __name__ == "__main__":
     # crop,sliced_frame = get_crop_values(1)
     # draw_circle_on_click(sliced_frame)
     main('blacha8')
-    # readRobotCVJsonData('blacha8')
+    # readRobotCVJs onData('blacha8')
+    load_and_display_data("cv_data_blacha8_sheetTest.json")
     #FIX
     # Domyślnie w gcode elementy maja swoj "obrot", aby uniknac trduniejszego,
     # dodać do kamery obrót obrazu o 90/180 stopni aby wyrownac obroty miedzy gcode-real image

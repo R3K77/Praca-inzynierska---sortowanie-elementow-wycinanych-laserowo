@@ -50,6 +50,11 @@ def main(json_name):
     keyboard.wait('space')
     print("Zbieranie informacji o położeniu blachy")
     angle_sheet,translation_mm,sheetData = sheetRotationTranslation(BgrSubstractor_Sheet,1,crop_values_sheet,SHEET_SIZE)
+    while translation_mm[0] < 0 or translation_mm[1] < 0:
+        print("popraw położenie blachy, tak aby translacja byla nieujemna")
+        keyboard.wait('space')
+        print("Zbieranie informacji o położeniu blachy")
+        angle_sheet,translation_mm,sheetData = sheetRotationTranslation(BgrSubstractor_Sheet,1,crop_values_sheet,SHEET_SIZE)
     photos1 = []
     for img in sheetData[4]:
         _, buf = cv2.imencode('.jpg', img)

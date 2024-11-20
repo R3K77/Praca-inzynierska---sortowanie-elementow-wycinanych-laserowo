@@ -24,7 +24,7 @@ def main(json_name):
     # crp = get_crop_values()
     crop_values = {'bottom': 38, 'left': 127, 'right': 120, 'top': 156} #TODO wymienic na fhd
     crop_values_sheet = {'bottom': 467, 'left': 0, 'right': 418, 'top': 0}
-    # BgrSubstractor_Quality = capture_median_frame(crop_values,1)
+    BgrSubstractor_Quality = capture_median_frame(crop_values,1)
 
     with open(f'elements_data_json/{json_name}.json','r') as f:
         data = json.load(f)
@@ -49,7 +49,17 @@ def main(json_name):
     print("Umieść blachę w stanowisku roboczym (spacja)")
     keyboard.wait('space')
     print("Zbieranie informacji o położeniu blachy")
-    angle_sheet,translation_mm = sheetRotationTranslation(BgrSubstractor_Sheet,1,crop_values_sheet,SHEET_SIZE)
+    angle_sheet,translation_mm,sheetData = sheetRotationTranslation(BgrSubstractor_Sheet,1,crop_values_sheet,SHEET_SIZE)
+    for img in sheetData[4]:
+        _, buf = cv2.imencode('.jpg', img)
+        imgbase64 = base64.b64encode(buf).decode('utf-8')
+    cv_data['sheet'] = {
+        "right_down_point": sheetData[2],
+        "right_up_point": sheetData[1],
+        "left_down_point": sheetData[0],
+        "right_side_linear_fcn": sheetData[3],
+        "images":
+    }
     print(f"angle:{angle_sheet} ")
     print(f"translation: {translation_mm}")
     with open('element_details.csv', 'r') as file:
@@ -83,43 +93,54 @@ def main(json_name):
             print(f"Robot Dane: {data}")
 
             # System wizyjny
-            # print("odpalam system wizyjny")
+            print("odpalam system wizyjny")
 
-            # crop, bounding_box,_ = cameraImage(BgrSubstractor_Quality,crop_values)
-            #
-            # try:
-            #     curves = curveData[name]
-            # except KeyError:
-            #     curves = []
-            # try:
-            #     linear = linearData[name]
-            # except KeyError:
-            #     linear = []
-            #
-            # gcode_data = singleGcodeElementCV2(elements[name],curves,linear,bounding_box)
-            # correct,RMSE,ret = linesContourCompare(crop,gcode_data)
+            crop, bounding_box,img_pack = cameraImage(BgrSubstractor_Quality,crop_values)
+
+            try:
+                curves = curveData[name]
+            except KeyError:
+                curves = []
+            try:
+                linear = linearData[name]
+            except KeyError:
+                linear = []
+
+            gcode_data = singleGcodeElementCV2(elements[name],curves,linear,bounding_box)
+            correct,RMSE,ret = linesContourCompare(crop,gcode_data)
             # palletizing_angle = elementStackingRotation(cv_data,name,gcode_data['image'])
-            # # temporary fix do enkodowania obrazow do jsona
-            # _,buffer = cv2.imencode('.jpg', gcode_data['image'])
-            # _,buffer2 = cv2.imencode('.jpg', crop)
-            # gcode_image_base64 = base64.b64encode(buffer).decode('utf-8')
-            # camera_image_base64 = base64.b64encode(buffer2).decode('utf-8')
-            #
-            # cv_data[name] = {
-            #     "gcode_data": {
-            #         'image': gcode_image_base64,
-            #         "linearData": gcode_data['linearData'],
-            #         "circleData": gcode_data['circleData'],
-            #     },
-            #     "correct": correct,
-            #     "RMSE": RMSE,
-            #     "deformation": ret,
-            #     "camera_image": camera_image_base64,
-            #     "palletizing_angle": palletizing_angle
-            # }
+            # temporary fix do enkodowania obrazow do jsona
+            _,buffer = cv2.imencode('.jpg', gcode_data['image'])
+            _,buffer2 = cv2.imencode('.jpg', crop)
+            photos = []
+            for img in img_pack:
+                _,buf = cv2.imencode('.jpg',img)
+                imgbase64 = base64.b64encode(buf).decode('utf-8')
+                photos.append(imgbase64)
 
-            # data = client_socket.recv(1024).decode('utf-8', errors='ignore')
-            # print(f"Robot dane: {data}")
+            gcode_image_base64 = base64.b64encode(buffer).decode('utf-8')
+            camera_image_base64 = base64.b64encode(buffer2).decode('utf-8')
+
+            cv_data[name] = {
+                "gcode_data": {
+                    'image': gcode_image_base64,
+                    "linearData": gcode_data['linearData'],
+                    "circleData": gcode_data['circleData'],
+                },
+                "correct": correct,
+                "RMSE": RMSE,
+                "deformation": ret,
+                "object_image": camera_image_base64,
+                "palletizing_angle": send_valueAngle,
+                "bonusImages":{
+                    "camera_image": photos[2],
+                    "MOG2_image": photos[3],
+                    "object_full_image": photos[1],
+                }
+            }
+
+            data = client_socket.recv(1024).decode('utf-8', errors='ignore')
+            print(f"Robot dane: {data}")
             # ------------- ODŁOŻENIE DETALU -------------
             # Wartości do wysłania
             # if correct:

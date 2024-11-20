@@ -382,7 +382,7 @@ def cameraImage(BgrSubtractor,crop_values,camera_id):
     contours = max(contours, key = cv2.contourArea)
     x, y, w, h = cv2.boundingRect(contours)
     crop = cleaned_thresholded[y:y + h, x:x + w].copy()
-    img_pack = [crop,cleaned_thresholded,frame]
+    img_pack = [crop,cleaned_thresholded,sliced_frame,fg_mask]
     cap.release()
     cv2.imshow("fg_mask",fg_mask)
     cv2.imshow("cleaned_thresholded",cleaned_thresholded)
@@ -867,7 +867,7 @@ def sheetRotationTranslation(bgr_subtractor,camera_id,crop_values,sheet_length_m
     right_most = sorted(right_most, key=lambda point: point[1])
     xt,yt  = right_most[0]
     xb,yb = right_most[1]
-    A,B,_ = lineFromPoints(xt,yt,xb,yb)
+    A,B,C = lineFromPoints(xt,yt,xb,yb)
     a = -A/B
     alpha = np.arctan(a)
     alpha = np.rad2deg(alpha)
@@ -881,8 +881,8 @@ def sheetRotationTranslation(bgr_subtractor,camera_id,crop_values,sheet_length_m
     scalePxMm = sheet_length_mm / np.sqrt((xl - xb)**2 + (yl - yb)**2)
     diff_x = diff_x_px * scalePxMm
     diff_y = diff_y_px * scalePxMm
-
-    return alpha,(diff_x,diff_y)
+    data_out = [(xl,yl),(xt,yt),(xb,yb),(A,B,C),(thresh,final_contours),img_pack]
+    return alpha,(diff_x,diff_y),data_out
 
 def recalibratePoint(point,angle,translation):
     angle_rad = np.radians(angle)

@@ -21,16 +21,16 @@ PORT = 59152  # Port zgodny z konfiguracją w robocie KUKA
 def main(json_name):
     # Bufor pod system wizyjny
     cv_data = {}
-    crop_values_sheet = {'bottom': 499, 'left': 0, 'right': 437, 'top': 0} #right 23 down 47
+    crop_values_sheet = {'bottom': 499, 'left': 0, 'right': 380, 'top': 0} #right 23 down 47
     # crop_values = {'bottom': 38, 'left': 127, 'right': 120, 'top': 156} #TODO wymienic na fhd
     # BgrSubstractor_Quality = capture_median_frame(crop_values,1)
 
     with open(f'elements_data_json/{json_name}.json','r') as f:
         data = json.load(f)
-    elements = data['elements']
+    # elements = data['elements']
     SHEET_SIZE = 570
-    curveData = data['curveCircleData']
-    linearData = data['linearPointsData']
+    # curveData = data['curveCircleData']
+    # linearData = data['linearPointsData']
     angles_elements = data['rotation']
     # # Tworzenie gniazda serwera
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -51,10 +51,14 @@ def main(json_name):
     print("Zbieranie informacji o położeniu blachy")
     angle_sheet,translation_mm,sheetData = sheetRotationTranslation(BgrSubstractor_Sheet,1,crop_values_sheet,SHEET_SIZE)
     while translation_mm[0] < 0 or translation_mm[1] < 0:
-        print("popraw położenie blachy, tak aby translacja byla nieujemna")
+        print("popraw położenie blachy, tak aby translacja byla ujemna")
+        print(f"angle:{angle_sheet} ")
+        print(f"translation: {translation_mm}")
         keyboard.wait('space')
         print("Zbieranie informacji o położeniu blachy")
         angle_sheet,translation_mm,sheetData = sheetRotationTranslation(BgrSubstractor_Sheet,1,crop_values_sheet,SHEET_SIZE)
+    print(f"angle:{angle_sheet} ")
+    print(f"translation: {translation_mm}")
     photos1 = []
     for img in sheetData[4]:
         _, buf = cv2.imencode('.jpg', img)
@@ -65,6 +69,8 @@ def main(json_name):
         "right_up_point": [int(sheetData[1][0]),int(sheetData[1][1])],
         "left_down_point": [int(sheetData[0][0]),int(sheetData[0][1])],
         "right_side_linear_fcn": [int(sheetData[3][0]),int(sheetData[3][1]),int(sheetData[3][2])],
+        "rotation": angle_sheet,
+        "translation": translation_mm,
         "bonusImages": {
             "camera_image": photos1[2],
             "MOG2_image": photos1[3],
@@ -74,8 +80,7 @@ def main(json_name):
     with open(f'cv_data_{json_name}_sheetTest.json','w',encoding ='utf8') as f:
         json.dump(cv_data,f,ensure_ascii=False)
 
-    print(f"angle:{angle_sheet} ")
-    print(f"translation: {translation_mm}")
+
     with open('element_details.csv', 'r') as file:
         reader = csv.reader(file)
         next(reader)  # Pominięcie nagłówka
@@ -83,18 +88,21 @@ def main(json_name):
             if not row:
                 break
             # ------------- POBRANIE DETALU -------------
+
             name = row[0]
             detail_x = float(row[1])
             detail_y = float(row[2])
             detail_z = float(row[3])
             print(f"Odczytano dane z csv: {detail_x}, {detail_y}, {detail_z}")
+            print(f"Nazwa elementu: {name}")
             box_x = float(row[4])
             box_y = float(row[5])
             box_z = float(row[6])
-            calibrated_point = recalibratePoint((detail_x,detail_y),angle_sheet,translation_mm)
+            calibrated_point = recalibratePoint((detail_y,detail_x),angle_sheet,translation_mm)
+            print(f"skalibrowany punkty: Y: {calibrated_point[1]},X: {calibrated_point[0]}")
             # Wartości do wysłania
-            send_valueY = calibrated_point[1]
             send_valueX = calibrated_point[0]
+            send_valueY = calibrated_point[1]
             send_valueZ = detail_z
             send_valueAngle = angles_elements[name]
 
@@ -153,8 +161,8 @@ def main(json_name):
             #     }
             # }
 
-            data = client_socket.recv(1024).decode('utf-8', errors='ignore')
-            print(f"Robot dane: {data}")
+            # data = client_socket.recv(1024).decode('utf-8', errors='ignore')
+            # print(f"Robot dane: {data}")
             # ------------- ODŁOŻENIE DETALU -------------
             # Wartości do wysłania
             # if correct:
@@ -170,9 +178,8 @@ def main(json_name):
 
             # Formatowanie danych do wysłania
             response = f"{send_valueX:09.4f}{send_valueY:09.4f}{send_valueZ:09.4f}{send_valueAngle:09.4f}b"
-            print(f"Przygotowano dane: {response}")
             client_socket.send(response.encode('ascii'))
-            print(f"Wysłano dane: {response}")
+            print(f"Wysłano dane do ruchu B: {response}")
 
             # Oczekiwanie na informację zwrotną od robota
             data = client_socket.recv(1024).decode('utf-8', errors='ignore')
@@ -215,7 +222,7 @@ def readRobotCVJsonData(json_name):
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
-def load_and_display_data(json_file):
+def readRobotSheetCVJSONData(json_file):
     # Wczytaj dane z pliku JSON
     with open(json_file, 'r', encoding='utf8') as f:
         cv_data = json.load(f)
@@ -228,7 +235,7 @@ def load_and_display_data(json_file):
     bonus_images = sheet_data['bonusImages']
 
     # Punkt referencyjny
-    REFPOINT = (1143, 522)
+    REFPOINT = (1429, 523)
 
     # Odtwórz obrazy z Base64
     camera_image = cv2.imdecode(np.frombuffer(base64.b64decode(bonus_images['camera_image']), np.uint8), cv2.IMREAD_COLOR)
@@ -272,9 +279,9 @@ if __name__ == "__main__":
     # crop,sliced_frame = get_crop_values(1)
     # draw_circle_on_click(sliced_frame)
     main('blacha8')
-    # readRobotCVJs onData('blacha8')
-    load_and_display_data("cv_data_blacha8_sheetTest.json")
-    #FIX
+    # readRobotCVJsonData('blacha8')
+    readRobotSheetCVJSONData ("cv_data_blacha8_sheetTest.json")
+    #FIXn
     # Domyślnie w gcode elementy maja swoj "obrot", aby uniknac trduniejszego,
     # dodać do kamery obrót obrazu o 90/180 stopni aby wyrownac obroty miedzy gcode-real image
     # do quality control włączyć światło

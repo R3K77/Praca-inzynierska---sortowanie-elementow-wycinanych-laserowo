@@ -34,6 +34,8 @@ def main():
 
     # Inicjalizacja kamery
     cap = cv2.VideoCapture(1)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
     dir = Path(CALIBRATION_DIR)
     dir.mkdir(parents=True, exist_ok=True)
 
@@ -109,6 +111,66 @@ def main():
     # Przykład wczytania parametrów kamery z pliku 
     load_mtx, load_dist, load_newcameramtx, load_roi = load_camera_calibration()
     
+def calibrate_camera():
+    # Inicjalizacja kamery
+    cap = cv2.VideoCapture(1)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+
+    # Przygotowanie "punktów" w przestrzeni 3D
+    objp = np.zeros((13 * 9, 3), np.float32)
+    objp[:, :2] = np.mgrid[0:13, 0:9].T.reshape(-1, 2)
+
+    # Tablice do przechowywania punktów obiektów i obrazu
+    objpoints = []
+    imgpoints = []
+
+    # Kryteria zakończenia optymalizacji
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
+
+    print("Naciśnij spację, aby zapisać klatkę, lub 'q' aby zakończyć.")
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            print("Nie udało się odczytać klatki z kamery.")
+            break
+
+        cv2.imshow('Kamera', frame)
+        key = cv2.waitKey(1)
+
+        # Wyjście z programu
+        if key & 0xFF == ord('q'):
+            break
+
+        # Przechwycenie klatki po naciśnięciu spacji
+        elif key & 0xFF == 32:
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            ret, corners = cv2.findChessboardCorners(gray, (13, 9), None)
+
+            if ret:
+                objpoints.append(objp)
+                corners2 = cv2.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)
+                imgpoints.append(corners2)
+                # Zaznacz narożniki
+                cv2.drawChessboardCorners(frame, (13, 9), corners2, ret)
+                cv2.imshow('Kamera', frame)
+                print("Znaleziono narożniki, dodano klatkę do kalibracji.")
+
+    # Zakończenie pracy kamery
+    cap.release()
+    cv2.destroyAllWindows()
+
+    if len(objpoints) == 0 or len(imgpoints) == 0:
+        print("Nie zebrano wystarczającej liczby danych do kalibracji.")
+        return
+
+    print('Kalibrowanie kamery...')
+    # Kalibracja kamery
+    ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
+    h, w = gray.shape[:2]
+    newcameramtx, roi = cv2.getOptimalNewCameraMatrix(mtx, dist, (w, h), 1, (w, h))
+
+    return mtx, dist, newcameramtx, roi
 
 if __name__ == "__main__":
     main()

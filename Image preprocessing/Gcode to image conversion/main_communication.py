@@ -7,15 +7,14 @@ import time
 import csv
 import os
 import sys
+
 # # do importu funkcji
 # sys.path.append(os.path.join(os.path.dirname(__file__), '..','Camera data handling', 'testy', 'System Wizyjny - kontrola jakości', 'GcodeExtraction'))
 # from Element_pojedynczy import *
 # from gcode_analize import visualize_cutting_paths_extended
 # Konfiguracja serwera
 HOST = '0.0.0.0'  # Nasłuchiwanie na wszystkich interfejsach sieciowych
-PORT = 59152      # Port zgodny z konfiguracją w robocie KUKA
-
-
+PORT = 59152  # Port zgodny z konfiguracją w robocie KUKA
 
 
 def main():
@@ -32,13 +31,8 @@ def main():
 
     print(f"Serwer nasłuchuje na {HOST}:{PORT}")
 
-    #TODO przed startem robota powinien być ruch do docelowego punktu
+    # TODO przed startem robota powinien być ruch do docelowego punktu
     # w ktorym dzieje sie quality control zeby zebrac median_frame
-    # snippet:
-    #client_socket, client_address = server_socket.accept()
-    #data = client_socket.recv(1024).decode('utf-8',errors='ignore')
-    #if data:
-    #    median_background_frame = capture_median_frame()
     while True:
         # Akceptowanie połączenia od klienta (robota KUKA)
         client_socket, client_address = server_socket.accept()
@@ -50,7 +44,6 @@ def main():
                 next(reader)  # Pominięcie nagłówka
 
                 for row in reader:
-
                     # ------------- POBRANIE DETALU -------------
                     detail_x = float(row[1])
                     detail_y = float(row[2])
@@ -71,32 +64,15 @@ def main():
                     client_socket.send(response.encode('ascii'))
                     print(f"Wysłano dane: {response}")
 
-
-
                     # Oczekiwanie na informację zwrotną od robota
                     data = client_socket.recv(1024).decode('utf-8', errors='ignore')
                     print(f"Otrzymane dane: {data}")
-                    
-                    # # System wizyjny
-                    # element_name = row[0]
-                    # camera_image,bound_box_size = cameraImage(median_background_frame)
-                    # gcode_data = singleGcodeElementCV2(cutting_paths[element_name],circleLineData[element_name],linearPointsData[element_name],bound_box_size)
-                    # is_element_correct = linesContourCompare(camera_image,gcode_data)
-
                     # ------------- ODŁOŻENIE DETALU -------------
-                    # if is_element_correct:
                     print(f"Odczytano dane z csv: {box_x}, {box_y}, {box_z}")
                     # Wartości do wysłania
                     send_valueY = box_x
                     send_valueX = box_y
                     send_valueZ = box_z
-                    # else:
-                    #
-                    #     #TODO zastąpić boxem dla niepoprawnych elementów
-                    #     send_valueY = box_x
-                    #     send_valueX = box_y
-                    #     send_valueZ = box_z
-
 
                     # Formatowanie danych do wysłania
                     response = f"{send_valueX:09.4f}{send_valueY:09.4f}{send_valueZ:09.4f}b"
@@ -107,10 +83,9 @@ def main():
                     # Oczekiwanie na informację zwrotną od robota
                     data = client_socket.recv(1024).decode('utf-8', errors='ignore')
                     print(f"Otrzymane dane: {data}")
-                
+
             # Sprawdzenie warunku zakończenia połączenia
             if not row:
-                
                 break
 
             # Kontynuuj dalszą część pętli
@@ -134,19 +109,19 @@ def main():
             client_socket.close()
             print("Połączenie zamknięte")
 
+
 if __name__ == "__main__":
     main()
-    
+
     # 2  - otwarcie
     # 5  - zamkniecie
-    
+
     # Dwupołożeniowy bistabilny
-    
+
     # Włączenie ciśnienia:
     # 2 - ON
     # 5 - OFF
-    
+
     # Wyłączenie ciśnienia:
     # 2 - OFF
     # 5 - ON
-    

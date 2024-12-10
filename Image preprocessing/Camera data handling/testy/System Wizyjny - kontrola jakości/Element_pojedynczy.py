@@ -14,7 +14,6 @@ from gcode_analize import visualize_cutting_paths_extended, find_main_and_holes
 # - zrobić zly obraz do porównania żeby było zle rmse DONE
 # - SIFT, rotacja elementow przy odkładaniu DONE
 # - Rotacja translacja blachy DONE
-# - mocowanie do stolu TODO
 
 # przebudowa funkcji do dynamicznej rozdzielczości pod kamere DONE
 def allGcodeElementsCV2(sheet_path, scale = 5, arc_pts_len = 300):
@@ -930,35 +929,50 @@ def draw_circle_on_click():
     cap.release()
     cv2.destroyAllWindows()
 
+def AutoAdditionalHoleTest():
+    path = "../../../Gcode to image conversion/NC_files/8.NC"
+    images, pts, sheet_size, pts_hole, circleLineData, linearData = allGcodeElementsCV2(
+        sheet_path=path,
+        arc_pts_len=300)
+    for key,value in images.items():
+        gcode_data = {
+            "image": images[key],
+            "circleData": circleLineData[key],
+            "linearData": linearData[key],
+        }
+        image_dziura, quality_values =  testAdditionalHole(value,gcode_data)
+        print("siema")
+
 if __name__ == "__main__":
     # draw_circle_on_click()
     # SheetInfoTest()
     # # singleGcodeTest()
     # Test czy spakowana funkcja działa
-    paths = [
-        "../../../Gcode to image conversion/NC_files/1.NC",
-        "../../../Gcode to image conversion/NC_files/2_FIXME.NC",
-        "../../../Gcode to image conversion/NC_files/3_fixed.NC",
-        "../../../Gcode to image conversion/NC_files/4.NC",
-        "../../../Gcode to image conversion/NC_files/5.NC",
-        "../../../Gcode to image conversion/NC_files/6.NC",
-        "../../../Gcode to image conversion/NC_files/7.NC",
-        "../../../Gcode to image conversion/NC_files/8.NC",
-    ]
-    for path in paths:
-        # os.chdir(r'C:\Users\Rafał\Documents\GitHub\Projekt-Przejsciowy---sortowanie-elementow-wycinanych-laserowo\Image preprocessing\Camera data handling\testy\System Wizyjny - kontrola jakości\GcodeExtraction')
-        images, pts, sheet_size, pts_hole, circleLineData, linearData = allGcodeElementsCV2(
-            sheet_path=path,
-            arc_pts_len=300)
-        # os.chdir(
-        #     r'C:\Users\Rafał\Documents\GitHub\Projekt-Przejsciowy---sortowanie-elementow-wycinanych-laserowo\Image preprocessing\Camera data handling\testy\System Wizyjny - kontrola jakości\GcodeExtraction\ZdjeciaElementy')
-        rotations = elementRotationByTemplateMatching(images)
-        print(rotations)
-        if path == "../../../Gcode to image conversion/NC_files/8.NC":
-            for key,value in images.items():
-                cv2.imshow(key,value)
-                cv2.waitKey(0)
-                cv2.destroyAllWindows
+    AutoAdditionalHoleTest()
+    # paths = [
+    #     "../../../Gcode to image conversion/NC_files/1.NC",
+    #     "../../../Gcode to image conversion/NC_files/2_FIXME.NC",
+    #     "../../../Gcode to image conversion/NC_files/3_fixed.NC",
+    #     "../../../Gcode to image conversion/NC_files/4.NC",
+    #     "../../../Gcode to image conversion/NC_files/5.NC",
+    #     "../../../Gcode to image conversion/NC_files/6.NC",
+    #     "../../../Gcode to image conversion/NC_files/7.NC",
+    #     "../../../Gcode to image conversion/NC_files/8.NC",
+    # ]
+    # for path in paths:
+    #     # os.chdir(r'C:\Users\Rafał\Documents\GitHub\Projekt-Przejsciowy---sortowanie-elementow-wycinanych-laserowo\Image preprocessing\Camera data handling\testy\System Wizyjny - kontrola jakości\GcodeExtraction')
+    #     images, pts, sheet_size, pts_hole, circleLineData, linearData = allGcodeElementsCV2(
+    #         sheet_path=path,
+    #         arc_pts_len=300)
+    #     # os.chdir(
+    #     #     r'C:\Users\Rafał\Documents\GitHub\Projekt-Przejsciowy---sortowanie-elementow-wycinanych-laserowo\Image preprocessing\Camera data handling\testy\System Wizyjny - kontrola jakości\GcodeExtraction\ZdjeciaElementy')
+    #     rotations = elementRotationByTemplateMatching(images)
+    #     print(rotations)
+    #     if path == "../../../Gcode to image conversion/NC_files/8.NC":
+    #         for key,value in images.items():
+    #             cv2.imshow(key,value)
+    #             cv2.waitKey(0)
+    #             cv2.destroyAllWindows
         # for key, value in images.items():
         #     try:
         #         linData = linearData[f'{key}']

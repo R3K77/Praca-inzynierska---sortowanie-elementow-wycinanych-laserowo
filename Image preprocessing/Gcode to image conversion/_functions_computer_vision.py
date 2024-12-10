@@ -7,6 +7,8 @@ import numpy as np
 import cv2
 import re
 import json
+import random
+import os
 import base64
 
 def visualize_cutting_paths_extended(file_path, x_max=500, y_max=1000, arc_pts_len = 200):
@@ -512,79 +514,79 @@ def linesContourCompare(imageB,gcode_data):
 
         gcode_data (dictionary): Object with linear and circular movements from gcode element
     """
-    try:
-        img = gcode_data['image']
-        contours, _ = cv2.findContours(img,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
-        contoursB,_ = cv2.findContours(imageB,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
-        ret = cv2.matchShapes(contours[0],contoursB[0],1,0.0)
-        if ret > 0.5:
-            print(f'Odkształcenie, ret: {ret} \n')
-            return False,0,ret
-        gcodeLines = {
-            "circle": gcode_data['circleData'],
-            "linear": [],
-        }
-        imgCopy = imageB.copy()
-        imgCopy_lines = cv2.cvtColor(imgCopy,cv2.COLOR_GRAY2BGR)
-        imgCopy_circ = imgCopy_lines.copy()
-        for i in range(len(gcode_data['linearData'])+1): # tuple i lista tupli
-            if i == 0:
-                continue
-            if i == len(gcode_data['linearData']): # obsluga ostatni + pierwszy punkty linia łącząca
-                x1, y1 = gcode_data['linearData'][i-1]
-                x2, y2 = gcode_data['linearData'][0]
-                A, B, C = lineFromPoints(x1, y1, x2, y2)
-                gcodeLines['linear'].append((A, B, C))
-                break
+    # try:
+    img = gcode_data['image']
+    contours, _ = cv2.findContours(img,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
+    contoursB,_ = cv2.findContours(imageB,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
+    ret = cv2.matchShapes(contours[0],contoursB[0],1,0.0)
+    if ret > 0.5:
+        print(f'Odkształcenie, ret: {ret} \n')
+        return False,0,ret
+    gcodeLines = {
+        "circle": gcode_data['circleData'],
+        "linear": [],
+    }
+    imgCopy = imageB.copy()
+    imgCopy_lines = cv2.cvtColor(imgCopy,cv2.COLOR_GRAY2BGR)
+    imgCopy_circ = imgCopy_lines.copy()
+    for i in range(len(gcode_data['linearData'])+1): # tuple i lista tupli
+        if i == 0:
+            continue
+        if i == len(gcode_data['linearData']): # obsluga ostatni + pierwszy punkty linia łącząca
+            x1, y1 = gcode_data['linearData'][i-1]
+            x2, y2 = gcode_data['linearData'][0]
+            A, B, C = lineFromPoints(x1, y1, x2, y2)
+            gcodeLines['linear'].append((A, B, C))
+            break
 
-            x1,y1 = gcode_data['linearData'][i]
-            x2,y2 = gcode_data['linearData'][i-1]
-            A,B,C = lineFromPoints(x1,y1,x2,y2)
-            gcodeLines['linear'].append((A,B,C))
-        cntrErrors = []
-        for i in range(len(contoursB)):
-            for j in range(len(contoursB[i])):
-                xCntr,yCntr = contoursB[i][j][0] #we love numpy with this one
-                #porównanie do lini prostej
-                d_minimal = 1000
-                for l in range(len(gcodeLines["linear"])):
-                    A,B,C = gcodeLines["linear"][l] # (a,b) y=ax+b
-                    d = np.abs(A*xCntr + B*yCntr + C)/(np.sqrt(A**2 + B**2))
-                    if d < d_minimal:
-                        d_minimal = d
+        x1,y1 = gcode_data['linearData'][i]
+        x2,y2 = gcode_data['linearData'][i-1]
+        A,B,C = lineFromPoints(x1,y1,x2,y2)
+        gcodeLines['linear'].append((A,B,C))
+    cntrErrors = []
+    for i in range(len(contoursB)):
+        for j in range(len(contoursB[i])):
+            xCntr,yCntr = contoursB[i][j][0] #we love numpy with this one
+            #porównanie do lini prostej
+            d_minimal = 1000
+            for l in range(len(gcodeLines["linear"])):
+                A,B,C = gcodeLines["linear"][l] # (a,b) y=ax+b
+                d = np.abs(A*xCntr + B*yCntr + C)/(np.sqrt(A**2 + B**2))
+                if d < d_minimal:
+                    d_minimal = d
 
-                #porównanie do kół
-                for k in range(len(gcodeLines["circle"])):
-                    a, b, r = gcodeLines["circle"][k]
-                    cv2.circle(imgCopy_circ, (int(a),int(b)),int(np.abs(r)),(0,0,255), 3)
-                    d_circ = np.abs(np.sqrt((xCntr - a)**2 + (yCntr - b)**2) - r)
-                    if d_circ < d_minimal:
-                        d_minimal = d_circ
+            #porównanie do kół
+            for k in range(len(gcodeLines["circle"])):
+                a, b, r = gcodeLines["circle"][k]
+                cv2.circle(imgCopy_circ, (int(a),int(b)),int(np.abs(r)),(0,0,255), 3)
+                d_circ = np.abs(np.sqrt((xCntr - a)**2 + (yCntr - b)**2) - r)
+                if d_circ < d_minimal:
+                    d_minimal = d_circ
 
-                cntrErrors.append(d_minimal)
+            cntrErrors.append(d_minimal)
 
-        certainErrors = [e for e in cntrErrors if e > 1]
-        accuracy = 100 * (len(certainErrors)/len(cntrErrors))
-        RMSE = np.sqrt(sum(e*e for e in cntrErrors)/len(cntrErrors))
-        print("----------")
-        contourSum = 0
-        for contour in contoursB:
-            contourSum += len(contour)
-        print("ilosc punktow: ",contourSum)
-        print("RMSE:",RMSE)
-        if accuracy < 99.5:
-            print("Detal posiada błąd wycięcia")
-            print(f'ret: {ret} \n')
-            return False,RMSE, ret
-
-        print("Detal poprawny")
+    certainErrors = [e for e in cntrErrors if e > 1]
+    accuracy = 100 * (len(certainErrors)/len(cntrErrors))
+    RMSE = np.sqrt(sum(e*e for e in cntrErrors)/len(cntrErrors))
+    print("----------")
+    contourSum = 0
+    for contour in contoursB:
+        contourSum += len(contour)
+    print("ilosc punktow: ",contourSum)
+    print("RMSE:",RMSE)
+    if accuracy < 99.5:
+        print("Detal posiada błąd wycięcia")
         print(f'ret: {ret} \n')
-        return True,RMSE, ret
+        return False,RMSE, ret
 
-    except Exception as e:
-        print("Podczas przetwarzania obrazu wystąpił błąd")
-        print(e)
-        return False,0, ret
+    print("Detal poprawny")
+    print(f'ret: {ret} \n')
+    return True,RMSE, ret
+
+    # except Exception as e:
+    #     print("Podczas przetwarzania obrazu wystąpił błąd")
+    #     print(e)
+    #     return False,0, ret
 
 def elementRotationSIFT(images):
     """
@@ -997,5 +999,81 @@ def generate_sheet_json():
     for path in paths:
         visualize_cutting_paths_extended(path)
 
+def testAdditionalHole(imageB,gcode_data):
+    """
+    Draws a random black shape (circle or rectangle) on the given image.
+
+    Args:
+        imageB: Input image on which the shape will be drawn.
+
+    Returns:
+        Image with a random black shape drawn on it.
+    """
+    # Kopia obrazu, aby nie modyfikować oryginału
+    image_copy = imageB.copy()
+
+    # Wybór losowego kształtu: 0 dla koła, 1 dla prostokąta
+    shape_type = random.choice([0, 1])
+
+    # Wymiary obrazu
+    height, width = image_copy.shape[:2]
+
+    # Losowanie współrzędnych dla kształtu
+    x = random.randint(0, width - 1)
+    y = random.randint(0, height - 1)
+
+    # Losowanie rozmiaru kształtu
+    size = random.randint(10, 50)  # Losowy rozmiar kształtu
+
+    if shape_type == 0:  # Okrąg
+        cv2.circle(image_copy, (x, y), size, (0, 0, 0), -1)  # Czarny kolor
+    else:  # Prostokąt
+        top_left = (x, y)
+        bottom_right = (min(x + size, width - 1), min(y + size, height - 1))
+        cv2.rectangle(image_copy, top_left, bottom_right, (0, 0, 0), -1)  # Czarny kolor
+
+    return image_copy, linesContourCompare(image_copy,gcode_data)
+
+def AutoAdditionalHoleTest():
+    # Path to the NC file
+    path = "NC_files/8.NC"
+
+    # Directory to save images
+    save_dir = "CV_program_photos/Additional_hole_test"
+    os.makedirs(save_dir, exist_ok=True)  # Create directory if it doesn't exist
+
+    # Load all G-code elements
+    images, pts, sheet_size, pts_hole, circleLineData, linearData = allGcodeElementsCV2(
+        sheet_path=path,
+        arc_pts_len=300
+    )
+
+    # Process each image
+    for key, value in images.items():
+        gcode_data = {
+            "image": value,
+            "circleData": circleLineData[key],
+            "linearData": linearData[key],
+        }
+
+        # Perform additional hole testing
+        image_dziura, quality_values = testAdditionalHole(value, gcode_data)
+
+        # Display images
+        cv2.imshow("original", value)
+        cv2.imshow("zmodyfikowane zdjecie", image_dziura)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+        # Save images
+        original_image_path = os.path.join(save_dir, f"{key}_original.jpg")
+        modified_image_path = os.path.join(save_dir, f"{key}_modified.jpg")
+
+        cv2.imwrite(original_image_path, value)
+        cv2.imwrite(modified_image_path, image_dziura)
+        print("siema")
+
+
 if __name__ == "__main__":
-    generate_sheet_json()
+    AutoAdditionalHoleTest()
+    # generate_sheet_json()

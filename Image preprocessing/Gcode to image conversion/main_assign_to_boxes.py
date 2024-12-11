@@ -28,7 +28,7 @@ INITIAL_HEIGHT = 0                      # Początkowa wysokość dla pierwszego 
 DETAIL_Z = 0                            # Wysokość pobrania detalu
 DRAW_SUCTION_CANDIDATES = False          # Czy rysować kandydatów na punkty przyłożenia przyssawki
 DRAW_PLACEMENT_ARROWS = True            # Czy rysować strzałki do odłożenia elementów
-NC_FILE_PATH = "./Image preprocessing/Gcode to image conversion/NC_files/1.nc"    # Nazwa pliku NC
+NC_FILE_PATH = "./Image preprocessing/Gcode to image conversion/NC_files/8.nc"    # Nazwa pliku NC
 
 
 # ----------------- Funkcja do tworzenia listy pudełek ----------------- #

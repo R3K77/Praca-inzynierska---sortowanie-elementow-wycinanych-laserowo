@@ -11,6 +11,8 @@ import random
 import os
 import base64
 
+
+REFPOINT = (1423, 549)
 def visualize_cutting_paths_extended(file_path, x_max=500, y_max=1000, arc_pts_len = 200):
     """
     # ----------------- Funkcja do wizualizacji ścieżek cięcia z pliku NC ----------------- #
@@ -346,6 +348,10 @@ def capture_median_frame(crop_values,camera_id):
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
     cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
     cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.25)
+    cap.set(cv2.CAP_PROP_EXPOSURE, -1)
+
+    fgmask_vec = []
+    frames_vec = []
     while frames > 0:
         ret,frame = cap.read()
         frame = camera_calibration(frame)
@@ -357,9 +363,14 @@ def capture_median_frame(crop_values,camera_id):
         sliced_frame = frame[top_px:h - bottom_px, left_px:w - right_px]
         if not ret:
             break
-        BgrSubtractor.apply(sliced_frame,learningRate = 0.1)
+        fg_mask = BgrSubtractor.apply(sliced_frame,learningRate = 0.1)
+        fgmask_vec.append(fg_mask)
+        frames_vec.append(sliced_frame)
         frames -=1
     cap.release()
+    for i in range(len(fgmask_vec)):
+        cv2.imwrite(f"Image preprocessing/Gcode to image conversion/camera_images_debug/fgmask_{i}.png",fgmask_vec[i])
+        cv2.imwrite(f"Image preprocessing/Gcode to image conversion/camera_images_debug/frame_{i}.png",frames_vec[i])
     return BgrSubtractor
 
 def cameraImage(BgrSubtractor,crop_values,camera_id):
@@ -368,6 +379,7 @@ def cameraImage(BgrSubtractor,crop_values,camera_id):
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
     cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
     cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.25)
+    cap.set(cv2.CAP_PROP_EXPOSURE, -1)
     ret,frame = cap.read()
     while not ret:
         ret,frame = cap.read()
@@ -383,7 +395,7 @@ def cameraImage(BgrSubtractor,crop_values,camera_id):
     fg_mask = BgrSubtractor.apply(sliced_frame,learningRate = 0)
     _,fg_mask = cv2.threshold(fg_mask, 130, 255, cv2.THRESH_BINARY)
     kernel = np.ones((5, 5), np.uint8)
-    cleaned_thresholded = cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN, kernel)
+    cleaned_thresholded = fg_mask #cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN, kernel)
     contours, _ = cv2.findContours(cleaned_thresholded, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     contours = max(contours, key = cv2.contourArea)
     x, y, w, h = cv2.boundingRect(contours)
@@ -397,10 +409,10 @@ def cameraImage(BgrSubtractor,crop_values,camera_id):
 
 def camera_calibration(frame):
     # Wczytanie parametrów kamery z pliku
-    loaded_mtx = np.loadtxt('settings/mtx_matrix.txt', delimiter=',')
-    loaded_dist = np.loadtxt('settings/distortion_matrix.txt', delimiter=',')
-    loaded_newcameramtx = np.loadtxt('settings/new_camera_matrix.txt', delimiter=',')
-    loaded_roi = np.loadtxt('settings/roi_matrix.txt', delimiter=',')
+    loaded_mtx = np.loadtxt('Image preprocessing/Gcode to image conversion/settings/mtx_matrix.txt', delimiter=',')
+    loaded_dist = np.loadtxt('Image preprocessing/Gcode to image conversion/settings/distortion_matrix.txt', delimiter=',')
+    loaded_newcameramtx = np.loadtxt('Image preprocessing/Gcode to image conversion/settings/new_camera_matrix.txt', delimiter=',')
+    loaded_roi = np.loadtxt('Image preprocessing/Gcode to image conversion/settings/roi_matrix.txt', delimiter=',')
 
     # Kalibracja kamery
     frame = cv2.undistort(frame, loaded_mtx, loaded_dist, None, loaded_newcameramtx)
@@ -848,7 +860,6 @@ def rotate_image(image, angle):
     return rotated
 
 def sheetRotationTranslation(bgr_subtractor,camera_id,crop_values,sheet_length_mm):
-    REFPOINT = (1429, 523) # punkt (0,0,z) bazy robota
     _,_,img_pack = cameraImage(bgr_subtractor,crop_values,camera_id)
     thresh = img_pack[1]
     org_img = img_pack[2]
@@ -888,7 +899,7 @@ def sheetRotationTranslation(bgr_subtractor,camera_id,crop_values,sheet_length_m
     diff_x_px = REFPOINT[0] - xb
     diff_y_px = REFPOINT[1] - yb
 
-    scalePxMm = sheet_length_mm / np.sqrt((xl - xb)**2 + (yl - yb)**2)
+    scalePxMm = sheet_length_mm / np.sqrt((xl - xb)**2 + (yl - yb)**2) #0.720607
     diff_x = diff_x_px * scalePxMm
     diff_y = diff_y_px * scalePxMm
     data_out = [(xl,yl),(xt,yt),(xb,yb),(A,B,C),img_pack,final_contours]
@@ -912,6 +923,9 @@ def get_crop_values(camera_id):
     cap = cv2.VideoCapture(camera_id)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+    cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
+    cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.25)
+    # cap.set(cv2.CAP_PROP_EXPOSURE, -1)
     if not cap.isOpened():
         print("Nie można otworzyć kamery")
         return None

@@ -1,15 +1,13 @@
 from collections import defaultdict
-
 from shapely.lib import reverse
-
 import numpy as np
 import cv2
-import re
 import json
 import random
 import os
 import numpy as np
-import re 
+import re
+import base64
 from shapely.geometry import Point
 
 
@@ -37,6 +35,7 @@ def visualize_cutting_paths_extended(file_path, x_max=500, y_max=1000, arc_pts_l
     Rafał Szygenda
     - liczba punktów łuków jest argumentem wejściowym funkcji, większa rozdzielczość
     - zwrotka rozmiaru blachy, dane koła i punktow liniowych (do systemu wizyjnego)
+    - Kąt obrotu końcowy
     - zapis danych o elementach do json
     - zdjecia elementów np.array (zgodne z cv2)
     """
@@ -230,6 +229,16 @@ def allGcodeElementsCV2(sheet_path, scale = 5, arc_pts_len = 300):
         return None, None, None, None,None
 
 def singleGcodeElementCV2(cutting_path,circle_line_data,linear_points_data,bounding_box_size):
+    """
+        Funkcja tworząca przeskalowane dane o elemencie wzorcowym
+    Args:
+        cutting_path: dane z gcode jednego elementu o obrysie elementu
+        circle_line_data: dane z gcode o wycinkach nieliniowych
+        linear_points_data: dane z gcode o wycinkach liniowych
+        bounding_box_size: rozmiar wykrytego elementu jako (width x height)
+    Returns:
+        gcode_data_packed: słownik danych elementu wzorcowego (do użycia z funkcją linesContourCompare)
+    """
     #przeskalowanie
     main_contour, holes, = find_main_and_holes(cutting_path)
     max_x = max(main_contour, key=lambda item: item[0])[0]
@@ -294,6 +303,13 @@ def singleGcodeElementCV2(cutting_path,circle_line_data,linear_points_data,bound
     return gcode_data_packed
 
 def gcodeToImageCV2(cutting_paths,scale=3):
+    """
+        Funkcja generująca obrazy elementów wzorcowych zgodne z formatem opencv
+    Args:
+        cutting_paths: słownik elementów wzorcowych
+        scale: przeskalowanie obrazu względem oryginału
+    Returns:
+    """
     images_dict = {}
     for key, value in cutting_paths.items():
         main_contour, holes, = find_main_and_holes(value)
@@ -329,6 +345,16 @@ def gcodeToImageCV2(cutting_paths,scale=3):
     return images_dict
 
 def capture_median_frame(crop_values,camera_id):
+    """
+    Captures and processes frames from a camera to compute the median background subtractor.
+
+    Args:
+        crop_values (dict): Dictionary containing cropping values with keys 'top', 'bottom', 'left', 'right'.
+        camera_id (int): The ID of the camera to capture frames from.
+
+    Returns:
+        cv2.BackgroundSubtractor: A background subtractor trained with the captured frames.
+    """
     frames = 100
     BgrSubtractor = cv2.createBackgroundSubtractorMOG2(history = frames, varThreshold=50,detectShadows=True)
     cap = cv2.VideoCapture(camera_id)
@@ -362,6 +388,18 @@ def capture_median_frame(crop_values,camera_id):
     return BgrSubtractor
 
 def cameraImage(BgrSubtractor,crop_values,camera_id):
+    """
+    Captures a single frame from the camera, processes it, and applies background subtraction.
+
+    Args:
+        BgrSubtractor (cv2.BackgroundSubtractor): Pre-trained background subtractor.
+        crop_values (dict): Dictionary containing cropping values with keys 'top', 'bottom', 'left', 'right'.
+        camera_id (int): The ID of the camera to capture frames from.
+
+    Returns:
+        tuple: Contains the cropped frame with foreground mask, its dimensions (width, height),
+               and a list of intermediate processing steps.
+    """
     cap = cv2.VideoCapture(camera_id)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
@@ -396,6 +434,15 @@ def cameraImage(BgrSubtractor,crop_values,camera_id):
     return crop, (w,h), img_pack
 
 def camera_calibration(frame):
+    """
+    Calibrates the input frame using pre-saved camera parameters.
+
+    Args:
+        frame (numpy.ndarray): The input image/frame to be calibrated.
+
+    Returns:
+        numpy.ndarray: The calibrated image/frame.
+    """
     # Wczytanie parametrów kamery z pliku
     loaded_mtx = np.loadtxt('Image preprocessing/Gcode to image conversion/settings/mtx_matrix.txt', delimiter=',')
     loaded_dist = np.loadtxt('Image preprocessing/Gcode to image conversion/settings/distortion_matrix.txt', delimiter=',')
@@ -897,6 +944,19 @@ def find_best_rotation(imageA, imageB):
     return best_rotated_image
 
 def sheetRotationTranslation(bgr_subtractor,camera_id,crop_values,sheet_length_mm):
+    """
+    Determines the rotation and translation of a sheet based on its contours in the frame.
+
+    Args:
+        bgr_subtractor (cv2.BackgroundSubtractor): Pre-trained background subtractor.
+        camera_id (int): The ID of the camera to capture frames from.
+        crop_values (dict): Dictionary containing cropping values with keys 'top', 'bottom', 'left', 'right'.
+        sheet_length_mm (float): The length of the sheet in millimeters for scaling.
+
+    Returns:
+        tuple: Contains the rotation angle in degrees, translation in millimeters (x, y),
+               and additional processed data including key points and contours.
+    """
     _,_,img_pack = cameraImage(bgr_subtractor,crop_values,camera_id)
     thresh = img_pack[1]
     org_img = img_pack[2]
@@ -943,6 +1003,17 @@ def sheetRotationTranslation(bgr_subtractor,camera_id,crop_values,sheet_length_m
     return -alpha,(diff_x,diff_y),data_out
 
 def recalibratePoint(point,angle,translation):
+    """
+    Recalibrates a point based on a given rotation angle and translation vector.
+
+    Args:
+        point (tuple): The original point as (x, y).
+        angle (float): Rotation angle in degrees.
+        translation (tuple): Translation vector as (x, y).
+
+    Returns:
+        tuple: The recalibrated point as (x', y').
+    """
     angle_rad = np.radians(angle)
     SE2_rotation = np.array([
         [np.cos(angle_rad),-np.sin(angle_rad)],
@@ -956,6 +1027,15 @@ def nothing(x):
     pass
 
 def get_crop_values(camera_id):
+    """
+    Interactive function to determine cropping values for a camera feed.
+
+    Args:
+        camera_id (int): The ID of the camera to capture frames from.
+
+    Returns:
+        tuple: Contains the cropping values as a dictionary and the sliced frame.
+    """
     # Otwórz dostęp do kamery
     cap = cv2.VideoCapture(camera_id)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
@@ -1123,6 +1203,114 @@ def AutoAdditionalHoleTest():
         cv2.imwrite(original_image_path, value)
         cv2.imwrite(modified_image_path, image_dziura)
         print("siema")
+
+def readRobotCVJsonData(json_name):
+    """
+        Reads JSON file, shows element images and saves them
+    Args:
+        json_name: json file name path
+
+    Returns:
+
+    """
+    with open(f'{json_name}', 'r') as f:
+        data = json.load(f)
+
+    for key, value in data.items():
+        if key == "sheet":
+            continue
+
+        buf_vec = {}
+        for key2, value2 in value['bonusImages'].items():
+            img_bytes = base64.b64decode(value2)
+            img_real = cv2.imdecode(np.frombuffer(img_bytes, np.uint8), cv2.IMREAD_COLOR)
+            buf_vec[key2] = img_real
+
+        image_bytes2 = base64.b64decode(value['gcode_data']['image'])
+        image_gcode = cv2.imdecode(np.frombuffer(image_bytes2, np.uint8), cv2.IMREAD_COLOR)
+        print(f'Element: {key}')
+        print(f'rmse : {value["RMSE"]}')
+        print(f"deformation : {value['deformation']}")
+        print(f'palletizing_angle : {value["palletizing_angle"]}')
+        print("\n \n")
+        # image_gcode = cv2.resize(image_gcode)
+        cv2.imshow("gcode", image_gcode)
+        cv2.imwrite(f"CV_program_photos/zdjecia_przebieg/{key}_gcode.png", image_gcode)
+        for key2, value2 in buf_vec.items():
+            cv2.imshow(key2, value2)
+            cv2.imwrite(f"CV_program_photos/zdjecia_przebieg/{key}_{key2}.png", value2)
+
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+def readRobotSheetCVJSONData(json_file):
+    """
+        Reads JSON file, shows sheet images and saves them
+    Args:
+        json_name: json file name path
+
+    Returns:
+
+    """
+    # Wczytaj dane z pliku JSON
+    with open(json_file, 'r', encoding='utf8') as f:
+        cv_data = json.load(f)
+
+    # Wyodrębnij dane z JSONa
+    sheet_data = cv_data['sheet']
+    right_down_point = tuple(sheet_data['right_down_point'])
+    right_up_point = tuple(sheet_data['right_up_point'])
+    left_down_point = tuple(sheet_data['left_down_point'])
+    bonus_images = sheet_data['bonusImages']
+
+    # Punkt referencyjny
+
+    # Odtwórz obrazy z Base64
+    camera_image = cv2.imdecode(np.frombuffer(base64.b64decode(bonus_images['camera_image']), np.uint8),
+                                cv2.IMREAD_COLOR)
+    mog2_image = cv2.imdecode(np.frombuffer(base64.b64decode(bonus_images['MOG2_image']), np.uint8), cv2.IMREAD_COLOR)
+    object_full_image = cv2.imdecode(np.frombuffer(base64.b64decode(bonus_images['object_full_image']), np.uint8),
+                                     cv2.IMREAD_COLOR)
+
+    # Zaznacz punkty na obrazie MOG2
+    marked_image = mog2_image.copy()
+    # Zaznaczenie punktów
+    cv2.circle(marked_image, right_down_point, 5, (0, 0, 255), -1)  # Czerwony
+    cv2.putText(marked_image, 'Right Down', (right_down_point[0] + 10, right_down_point[1]), cv2.FONT_HERSHEY_SIMPLEX,
+                0.5, (0, 0, 255), 1)
+
+    cv2.circle(marked_image, right_up_point, 5, (0, 255, 0), -1)  # Zielony
+    cv2.putText(marked_image, 'Right Up', (right_up_point[0] + 10, right_up_point[1]), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                (0, 255, 0), 1)
+
+    cv2.circle(marked_image, left_down_point, 5, (255, 0, 0), -1)  # Niebieski
+    cv2.putText(marked_image, 'Left Down', (left_down_point[0] + 10, left_down_point[1]), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                (255, 0, 0), 1)
+
+    # Zaznaczenie punktu referencyjnego
+    cv2.circle(marked_image, REFPOINT, 5, (0, 255, 255), -1)  # Żółty
+    cv2.putText(marked_image, 'REFPOINT', (REFPOINT[0] + 10, REFPOINT[1]), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255),
+                1)
+
+    # Rysowanie linii od REFPOINT do Right Down
+    cv2.line(marked_image, REFPOINT, right_down_point, (255, 255, 0), 2)  # Jasnoniebieska linia
+
+    # Wyświetl obrazy
+    cv2.imshow("Camera Image", camera_image)
+    cv2.imshow("MOG2 Image with Points", marked_image)
+    cv2.imshow("Object Full Image", object_full_image)
+
+    # Poczekaj na klawisz ESC, aby zamknąć
+    print("Naciśnij ESC, aby zamknąć...")
+    while True:
+        key = cv2.waitKey(0) & 0xFF
+        if key == 27:  # ESC
+            cv2.imwrite("CV_program_photos/zdjecia_przebieg/sheet_camera.png", camera_image)
+            cv2.imwrite("CV_program_photos/zdjecia_przebieg/sheet_points.png", marked_image)
+            cv2.imwrite("CV_program_photos/zdjecia_przebieg/sheet_full_image.png", object_full_image)
+            break
+
+    cv2.destroyAllWindows()
 
 def visualize_cutting_paths(file_path, x_max=500, y_max=1000):
     """

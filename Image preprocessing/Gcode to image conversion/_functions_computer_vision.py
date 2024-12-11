@@ -2,62 +2,58 @@ from collections import defaultdict
 
 from shapely.lib import reverse
 
-from _functions_gcode_analize import find_main_and_holes
 import numpy as np
 import cv2
 import re
 import json
 import random
 import os
-import base64
+import numpy as np
+import re 
+from shapely.geometry import Point
 
 
 REFPOINT = (1423, 549)
 def visualize_cutting_paths_extended(file_path, x_max=500, y_max=1000, arc_pts_len = 200):
     """
-    # ----------------- Funkcja do wizualizacji ścieżek cięcia z pliku NC ----------------- #
-    # Autor: Bartłomiej Szalwach,
-    # Funkcja plik .nc z kodem G-kodu i zwraca obraz z wizualizacją ścieżek cięcia.
-    # Funkcja wykorzystuje bibliotekę matplotlib, numpy i re.
-    # Funkcja zwraca ścieżki cięcia, minimalne i maksymalne współrzędne X i Y.
-    # Funkcja przyjmuje ścieżkę do pliku .nc z kodem G-kodu oraz maksymalne współrzędne X i Y.
-    # Domyślnie maksymalne współrzędne X i Y wynoszą odpowiednio 500 i 1000.
-    # ------------------------------------------------------------------------------------- #
-    # Założenia funkcji:
-    # - Włączenie lasera oznaczone jest jako M10, a wyłączenie jako M11.
-    # - Ścieżki cięcia są zapisane jako G01X...Y... lub G02X...Y...I...J... lub G03X...Y...I...J...
-    # - Współrzędne X i Y są zapisane jako liczby zmiennoprzecinkowe.
-    # - Ruch okrężny w prawo jest zapisany jako G02, a ruch okrężny w lewo jako G03.
-    # - Współrzędne I i J określają środek okręgu, a współrzędne X i Y określają punkt końcowy.
-    # - Współrzędne I i J są zapisane jako liczby zmiennoprzecinkowe.
-    # - Wszystkie współrzędne są mniejsze niż podane maksymalne współrzędne X i Y.
-    # ------------------------------------------------------------------------------------- #
+    # Funkcja do wizualizacji ścieżek cięcia z pliku NC
+    Autor: Bartłomiej Szalwach,
+    Funkcja plik .nc z kodem G-kodu i zwraca obraz z wizualizacją ścieżek cięcia.
+    Funkcja wykorzystuje bibliotekę matplotlib, numpy i re.
+    Funkcja zwraca ścieżki cięcia, minimalne i maksymalne współrzędne X i Y.
+    Funkcja przyjmuje ścieżkę do pliku .nc z kodem G-kodu oraz maksymalne współrzędne X i Y.
+    Domyślnie maksymalne współrzędne X i Y wynoszą odpowiednio 500 i 1000.
+    Założenia funkcji:
+    - Włączenie lasera oznaczone jest jako M10, a wyłączenie jako M11.
+    - Ścieżki cięcia są zapisane jako G01X...Y... lub G02X...Y...I...J... lub G03X...Y...I...J...
+    - Współrzędne X i Y są zapisane jako liczby zmiennoprzecinkowe.
+    - Ruch okrężny w prawo jest zapisany jako G02, a ruch okrężny w lewo jako G03.
+    - Współrzędne I i J określają środek okręgu, a współrzędne X i Y określają punkt końcowy.
+    - Współrzędne I i J są zapisane jako liczby zmiennoprzecinkowe.
+    - Wszystkie współrzędne są mniejsze niż podane maksymalne współrzędne X i Y.
     # Przykład użycia:
-    # cutting_paths, x_min, x_max, y_min, y_max = visualize_cutting_paths_extended("./Przygotowanie obrazu/gcode2image/NC_files/Arkusz-6001.nc")
-    # ------------------------------------------------------------------------------------- #
-    # Modyfikacje: Rafał Szygenda
-    # - liczba punktów łuków jest argumentem wejściowym funkcji, większa rozdzielczość
-    # - zwrotka rozmiaru blachy, dane koła i punktow liniowych (do systemu wizyjnego)
-    # - zapis danych o elementach do json
-    # - zdjecia elementów np.array (zgodne z cv2)
+    cutting_paths, x_min, x_max, y_min, y_max = visualize_cutting_paths_extended("./Przygotowanie obrazu/gcode2image/NC_files/Arkusz-6001.nc")
+    # Modyfikacje
+    Rafał Szygenda
+    - liczba punktów łuków jest argumentem wejściowym funkcji, większa rozdzielczość
+    - zwrotka rozmiaru blachy, dane koła i punktow liniowych (do systemu wizyjnego)
+    - zapis danych o elementach do json
+    - zdjecia elementów np.array (zgodne z cv2)
     """
     sheet_size_line = None
     with open(file_path, 'r') as file:
         file_content = file.read().splitlines()
-
     pattern_cnc_commands_extended = re.compile(
         r'(M10|M11|G01X([0-9.]+)Y([0-9.]+)|G0[23]X([0-9.]+)Y([0-9.]+)I([0-9.-]+)J([0-9.-]+))')
-
     pattern_element_name = re.compile(r';@@\[DetailName\((.*?)\)\]')
     laser_on = False
     elements = {}
     current_element_name = 'Unnamed'
-    element_index = {}  # Słownik do przechowywania indeksów dla każdej nazwy elementu
+    element_index = {}
     current_path = []
     current_position = (0, 0)
     curveCircleData = defaultdict(list)
     linearPointsData = defaultdict(list)
-
     for line in file_content:
         element_match = pattern_element_name.search(line)
         if "*SHEET" in line:
@@ -65,12 +61,10 @@ def visualize_cutting_paths_extended(file_path, x_max=500, y_max=1000, arc_pts_l
         if element_match:
             name = element_match.group(1)
             if name not in element_index:
-                element_index[name] = 1  # Rozpocznij liczenie od 1
+                element_index[name] = 1
             else:
                 element_index[name] += 1
-
-            # Formatowanie nazwy z zerami wiodącymi
-            current_element_name = f"{name}_{element_index[name]:03d}"  # Dodaje zera wiodące do indeksu
+            current_element_name = f"{name}_{element_index[name]:03d}"
             if current_element_name == "_001":
                 current_element_name = prev_element_name
                 continue
@@ -78,10 +72,8 @@ def visualize_cutting_paths_extended(file_path, x_max=500, y_max=1000, arc_pts_l
             if current_path:
                 if current_element_name not in elements:
                     elements[current_element_name] = []
-
                 elements[current_element_name].append(current_path)
                 current_path = []
-
         else:
             matches_cnc = pattern_cnc_commands_extended.findall(line)
             for match in matches_cnc:
@@ -121,7 +113,6 @@ def visualize_cutting_paths_extended(file_path, x_max=500, y_max=1000, arc_pts_l
                         else:  # Przeciwnie do ruchu wskazówek zegara
                             if end_angle < start_angle:
                                 end_angle += 2 * np.pi
-
                         angles = np.linspace(start_angle, end_angle, num=arc_pts_len)  # Generowanie punktów łuku (50 punktów)
                         arc_points = [(center_x + radius * np.cos(a), center_y + radius * np.sin(a)) for a in
                                       angles]  # Obliczenie punktów łuku
@@ -129,13 +120,11 @@ def visualize_cutting_paths_extended(file_path, x_max=500, y_max=1000, arc_pts_l
                         linearPointsData[current_element_name].append(arc_points[-1])
                         current_path.extend(arc_points)  # Dodanie punktów łuku do ścieżki
                         current_position = (x, y)  # Aktualizacja pozycji
-
     # Jeśli laser został wyłączony po ostatnim cięciu, dodajemy ścieżkę do listy
     if current_path:
         if current_element_name not in elements:
             elements[current_element_name] = []
         elements[current_element_name].append(current_path)
-
     # Rozmiar arkusza
     x_min, y_min = 0, 0
     split = sheet_size_line.split()
@@ -149,9 +138,8 @@ def visualize_cutting_paths_extended(file_path, x_max=500, y_max=1000, arc_pts_l
         "linearPointsData" : linearPointsData,
         "rotation" : angles
     }
-    with open(f"elements_data_json/{current_element_name[:7]}.json","w") as f:
+    with open(f"Image preprocessing/Gcode to image conversion/elements_data_json/{current_element_name[:7]}.json","w") as f:
         json.dump(json_object,f)
-
     return elements, x_min, x_max, y_min, y_max, sheet_size_line, curveCircleData, linearPointsData
 
 def allGcodeElementsCV2(sheet_path, scale = 5, arc_pts_len = 300):
@@ -1136,7 +1124,199 @@ def AutoAdditionalHoleTest():
         cv2.imwrite(modified_image_path, image_dziura)
         print("siema")
 
+def visualize_cutting_paths(file_path, x_max=500, y_max=1000):
+    """
+    # Funkcja do wizualizacji ścieżek cięcia z pliku NC 
+    Funkcja plik .nc z kodem G-kodu i zwraca obraz z wizualizacją ścieżek cięcia.
+    Funkcja wykorzystuje bibliotekę matplotlib, numpy i re. 
+    Funkcja zwraca ścieżki cięcia, minimalne i maksymalne współrzędne X i Y.
+    Funkcja przyjmuje ścieżkę do pliku .nc z kodem G-kodu oraz maksymalne współrzędne X i Y.
+    Domyślnie maksymalne współrzędne X i Y wynoszą odpowiednio 500 i 1000.
+    # Założenia funkcji:
+    - Włączenie lasera oznaczone jest jako M10, a wyłączenie jako M11.
+    - Ścieżki cięcia są zapisane jako G01X...Y... lub G02X...Y...I...J... lub G03X...Y...I...J...
+    - Współrzędne X i Y są zapisane jako liczby zmiennoprzecinkowe.
+    - Ruch okrężny w prawo jest zapisany jako G02, a ruch okrężny w lewo jako G03.
+    - Współrzędne I i J określają środek okręgu, a współrzędne X i Y określają punkt końcowy.
+    - Współrzędne I i J są zapisane jako liczby zmiennoprzecinkowe.
+    - Wszystkie współrzędne są mniejsze niż podane maksymalne współrzędne X i Y.
+    # Przykład użycia:
+    cutting_paths, x_min, x_max, y_min, y_max = visualize_cutting_paths("./Przygotowanie obrazu/gcode2image/NC_files/Arkusz-6001.nc")
+    """
+    with open(file_path, 'r') as file:
+        file_content = file.read().splitlines()
+    pattern_cnc_commands_extended = re.compile(r'(M10|M11|G01X([0-9.]+)Y([0-9.]+)|G0[23]X([0-9.]+)Y([0-9.]+)I([0-9.-]+)J([0-9.-]+))')
+    pattern_element_name = re.compile(r';@@\[DetailName\((.*?)\)\]')
+    laser_on = False
+    elements = {}
+    current_element_name = 'Unnamed'
+    element_index = {}  # Słownik do przechowywania indeksów dla każdej nazwy elementu
+    current_path = []
+    current_position = (0, 0)
+    for line in file_content:
+        element_match = pattern_element_name.search(line)
+        if element_match:
+            name = element_match.group(1)
+            if name not in element_index:
+                element_index[name] = 1  # Rozpocznij liczenie od 1
+            else:
+                element_index[name] += 1
+            # Formatowanie nazwy z zerami wiodącymi
+            current_element_name = f"{name}_{element_index[name]:03d}"  # Dodaje zera wiodące do indeksu
+            if current_path:
+                if current_element_name not in elements:
+                    elements[current_element_name] = []
+                elements[current_element_name].append(current_path)
+                current_path = []
+        else:
+            matches_cnc = pattern_cnc_commands_extended.findall(line)
+            for match in matches_cnc:
+                command = match[0]
+                if command == 'M10':  # Laser ON
+                    laser_on = True 
+                elif command == 'M11':  # Laser OFF
+                    if laser_on and current_path: # Zapis ścieżki do bieżącego elementu
+                        if current_element_name not in elements:
+                            elements[current_element_name] = []
+                        elements[current_element_name].append(current_path)
+                        current_path = []
+                    laser_on = False
+                elif laser_on: # Dodaj punkty do ścieżki, jeśli laser jest włączony
+                    # Obsługa instrukcji cięcia...
+                    if command.startswith('G01'):  # Linia prosta
+                        x, y = float(match[1]), float(match[2])
+                        current_path.append((x, y))
+                        current_position = (x, y)
+                    elif command.startswith('G02') or command.startswith('G03'):  # Ruch okrężny
+                        x, y, i, j = (float(match[3]), float(match[4]), 
+                                      float(match[5]), float(match[6]))
+                        center_x = current_position[0] + i  # Środek łuku na osi X
+                        center_y = current_position[1] + j  # Środek łuku na osi Y
+                        radius = np.sqrt(i**2 + j**2)       # Promień łuku
+                        start_angle = np.arctan2(current_position[1] - center_y, current_position[0] - center_x) # Kąt początkowy łuku (w radianach)
+                        end_angle = np.arctan2(y - center_y, x - center_x) # Kąt końcowy łuku (w radianach)  
+                        if command.startswith('G02'):  # Zgodnie z ruchem wskazówek zegara
+                            if end_angle > start_angle:
+                                end_angle -= 2 * np.pi
+                        else:  # Przeciwnie do ruchu wskazówek zegara
+                            if end_angle < start_angle:
+                                end_angle += 2 * np.pi
+                        angles = np.linspace(start_angle, end_angle, num=50)  # Generowanie punktów łuku (50 punktów) 
+                        arc_points = [(center_x + radius * np.cos(a), center_y + radius * np.sin(a)) for a in angles] # Obliczenie punktów łuku
+                        current_path.extend(arc_points)  # Dodanie punktów łuku do ścieżki
+                        current_position = (x, y) # Aktualizacja pozycji
+    # Jeśli laser został wyłączony po ostatnim cięciu, dodajemy ścieżkę do listy
+    if current_path:
+        if current_element_name not in elements:
+            elements[current_element_name] = []
+        elements[current_element_name].append(current_path)
+    # Rozmiar arkusza
+    x_min, y_min = 0, 0
+    return elements, x_min, x_max, y_min, y_max
+
+def calculate_centroid(poly):
+    """
+    #  Funkcja do obliczania środka ciężkości i powierzchni wielokąta 
+    Funkcja przyjmuje listę punktów definiujących wierzchołki wielokąta (jako zestawy punktów (x, y)) i zwraca centroid oraz powierzchnię tego wielokąta. Do obliczeń wykorzystywana jest biblioteka numpy, która umożliwia operacje na tablicach. Centroid zwracany jest jako zestaw punktów (centroid_x, centroid_y), a powierzchnia jako pojedyncza wartość.
+    # Założenia funkcji:
+    - Powierzchnia wielokąta obliczana jest przy użyciu wzoru polegającego na wykorzystaniu iloczynu skalarnego
+      oraz funkcji przesunięcia indeksu elementów tablicy (np.roll).
+    - Centroid obliczany jest jako średnia ważona współrzędnych punktów, z wagą proporcjonalną do struktury wielokąta.
+    - Wartości centroidu są zwracane jako wartości bezwzględne, co jest specyficznym zachowaniem tej funkcji.
+    - Powierzchnia zawsze jest zwracana jako wartość dodatnia.
+    # Przykład użycia funkcji:
+    centroid, area = calculate_centroid(main_contour)
+    """
+    if len(poly) < 3:
+        return (None, None), 0 
+    x, y = zip(*poly)
+    x = np.array(x)
+    y = np.array(y)
+    
+    # Obliczanie powierzchni wielokąta (A) przy użyciu formuły Shoelace:
+    # A = 0.5 * abs(sum(x_i * y_(i+1) - y_i * x_(i+1)))
+    area = 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
+    
+    if area == 0:
+        return (None, None), 0
+    
+    # Obliczanie współrzędnej x centroidu (C_x) wielokąta:
+    # C_x = (1 / (6 * A)) * sum((x_i + x_(i+1)) * (x_i * y_(i+1) - x_(i+1) * y_i))
+    centroid_x = (np.sum((x + np.roll(x, 1)) * (x * np.roll(y, 1) - np.roll(x, 1) * y)) / (6.0 * area))
+    
+    # Obliczanie współrzędnej y centroidu (C_y) wielokąta:
+    # C_y = (1 / (6 * A)) * sum((y_i + y_(i+1)) * (x_i * y_(i+1) - x_(i+1) * y_i))
+    centroid_y = (np.sum((y + np.roll(y, 1)) * (x * np.roll(y, 1) - np.roll(x, 1) * y)) / (6.0 * area))
+    return (abs(centroid_x), abs(centroid_y)), area
+
+def find_main_and_holes(contours):
+    """
+    #  Funkcja do znalezienia głównego konturu i otworów 
+    Funkcja przyjmuje listę konturów i zwraca główny kontur i otwory.
+    # Założenia funkcji:
+    - Główny kontur jest konturem z największym polem powierzchni.
+    - Otwory są konturami z mniejszym polem powierzchni.
+    # Przykład użycia:
+    main_contour, holes = find_main_and_holes(contours)
+    """
+    areas = [(calculate_centroid(contour)[1], contour) for contour in contours]
+    areas.sort(reverse=True, key=lambda x: x[0])
+    main_contour = areas[0][1]
+    holes = [area[1] for area in areas[1:]]
+    return main_contour, holes
+
+def point_in_polygon(point, polygon):
+    """
+    #  Funkcja do sprawdzenia, czy punkt znajduje się w wielokącie 
+    Funkcja przyjmuje punkt i wielokąt i zwraca True, jeśli punkt znajduje się wewnątrz wielokąta.
+    Źródło: https://www.geeksforgeeks.org/how-to-check-if-a-given-point-lies-inside-a-polygon/
+    # Przykład użycia:
+    point_in_polygon(adjusted_centroid, main_contour)
+    """
+    num_vertices = len(polygon)
+    x, y = point[0], point[1]
+    inside = False
+    p1 = polygon[0]
+    for i in range(1, num_vertices + 1):
+        p2 = polygon[i % num_vertices] 
+        if y > min(p1[1], p2[1]):
+            if y <= max(p1[1], p2[1]):
+                if x <= max(p1[0], p2[0]):
+                    x_intersection = (y - p1[1]) * (p2[0] - p1[0]) / (p2[1] - p1[1]) + p1[0]
+                    if p1[0] == p2[0] or x <= x_intersection:
+                        inside = not inside
+        p1 = p2
+    return inside
+
+def is_valid_circle(center, radius, shape, holes):
+    """
+    # Funkcja do sprawdzenia, czy okrąg mieści się w figurze 
+    Funkcja przyjmuje środek okręgu, promień, kształt i otwory.
+    Funkcja zwraca True, jeśli okrąg mieści się w figurze bez nakładania na otwory.
+    # Przykład użycia:
+    is_valid_circle(center, radius, shape, holes)
+    """
+    circle = Point(center).buffer(radius)
+    return shape.contains(circle) and all(not hole.intersects(circle) for hole in holes)
+
+def detail_mass(shape, holes, material_density=0.0027, material_thickness=1.5):
+    """
+    #  Funkcja do sprawdzenia jaką mase ma detal
+    Funkcja przyjmuje kształt, otwory, gęstość materiału i grubość materiału.
+    Funkcja zwraca masę detalu na podstawie kształtu i otworów.
+    # Przykład użycia:
+    detail_mass(shape, holes, material_density=0.0027, material_thickness=1.5)
+    """
+    total_area = shape.area - sum(hole.area for hole in holes)
+    total_volume = total_area * material_thickness
+    total_mass = total_volume * material_density
+    return total_mass
+
+
 
 if __name__ == "__main__":
     AutoAdditionalHoleTest()
     # generate_sheet_json()
+
+
+

@@ -5,7 +5,7 @@ import csv
 
 sys.path.append('.\\Image preprocessing\\Gcode to image conversion')
 
-from _functions_gcode_analize import *
+from _functions_gcode_analize_do_usuniecia import *
 import matplotlib.pyplot as plt
 
 def extrude_contours(contours, thickness):

@@ -8,7 +8,7 @@ import matplotlib
 import numpy as np
 from shapely.geometry import Point, Polygon as ShapelyPolygon
 from matplotlib.patches import Circle, Polygon
-from _functions_gcode_analize import visualize_cutting_paths, find_main_and_holes, is_valid_circle, detail_mass
+from _functions_computer_vision import visualize_cutting_paths, find_main_and_holes, is_valid_circle, detail_mass
 import csv
 import matplotlib.lines as mlines  
 from matplotlib.patches import Patch

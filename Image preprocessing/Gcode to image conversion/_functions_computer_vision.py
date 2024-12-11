@@ -538,6 +538,7 @@ def linesContourCompare(imageB,gcode_data):
         "circle": gcode_data['circleData'],
         "linear": [],
     }
+    new_imageB = find_best_rotation(imageB, img)
     imgCopy = imageB.copy()
     imgCopy_lines = cv2.cvtColor(imgCopy,cv2.COLOR_GRAY2BGR)
     imgCopy_circ = imgCopy_lines.copy()
@@ -575,6 +576,8 @@ def linesContourCompare(imageB,gcode_data):
                 if d_circ < d_minimal:
                     d_minimal = d_circ
 
+            scale_px_to_mm = 0.6075949367088608 # stala wartosc obliczona recznie lol
+            d_minimal = d_minimal*scale_px_to_mm
             cntrErrors.append(d_minimal)
 
     certainErrors = [e for e in cntrErrors if e > 1]
@@ -589,10 +592,12 @@ def linesContourCompare(imageB,gcode_data):
     if accuracy < 99.5:
         print("Detal posiada błąd wycięcia")
         print(f'ret: {ret} \n')
+        print('accuracy: ',accuracy)
         return False,RMSE, ret
 
     print("Detal poprawny")
     print(f'ret: {ret} \n')
+    print('accuracy: ',accuracy)
     return True,RMSE, ret
 
     # except Exception as e:
@@ -858,6 +863,50 @@ def rotate_image(image, angle):
     # Perform the rotation
     rotated = cv2.warpAffine(image, M, (w, h))
     return rotated
+
+def find_best_rotation(imageA, imageB):
+    """
+    Finds the best rotation of imageB (0 to 360 degrees in steps of 0.5) that best matches imageA using template matching.
+    
+    Args:
+        imageA: Target image (numpy array, single channel).
+        imageB: Template image to be rotated (numpy array, single channel).
+    
+    Returns:
+        best_rotated_imageB: imageB rotated to the angle that gave the best match.
+    """
+    max_match = -1
+    best_angle = 0
+    best_rotated_image = None
+
+    for angle in np.arange(0, 360, 0.5):
+        # Rotate imageB by the current angle
+        rotated_template = rotate_image(imageB, angle)
+
+        # If rotated_template is larger than imageA, resize it
+        if (rotated_template.shape[0] > imageA.shape[0]) or (rotated_template.shape[1] > imageA.shape[1]):
+            scale_factor = min(imageA.shape[0] / rotated_template.shape[0], 
+                               imageA.shape[1] / rotated_template.shape[1])
+            rotated_template = cv2.resize(rotated_template, (0, 0), fx=scale_factor, fy=scale_factor)
+
+        # Perform template matching
+        result = cv2.matchTemplate(imageA, rotated_template, cv2.TM_CCOEFF_NORMED)
+
+        # Check if we got a valid result
+        if result is None or result.size == 0:
+            continue
+
+        # Get the maximum match value from the result
+        _, max_val, _, _ = cv2.minMaxLoc(result)
+
+        # Update best angle and max match if current is better
+        if max_val > max_match:
+            max_match = max_val
+            best_angle = angle
+            best_rotated_image = rotated_template.copy()
+
+    print(f"Best rotation angle found: {best_angle} degrees with match: {max_match}")
+    return best_rotated_image
 
 def sheetRotationTranslation(bgr_subtractor,camera_id,crop_values,sheet_length_mm):
     _,_,img_pack = cameraImage(bgr_subtractor,crop_values,camera_id)

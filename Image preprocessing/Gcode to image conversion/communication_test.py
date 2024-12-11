@@ -210,10 +210,17 @@ def readRobotCVJsonData(json_name):
         data = json.load(f)
 
     for key,value in data.items():
-        image_bytes1 = base64.b64decode(value['camera_image'])
+        if key == "sheet":
+            continue
+
+        buf_vec = {}
+        for key2,value2 in value['bonusImages'].items():
+            img_bytes = base64.b64decode(value2)
+            img_real = cv2.imdecode(np.frombuffer(img_bytes,np.uint8),cv2.IMREAD_COLOR)
+            buf_vec[key2] = img_real
+
         image_bytes2 = base64.b64decode(value['gcode_data']['image'])
         image_gcode = cv2.imdecode(np.frombuffer(image_bytes2, np.uint8), cv2.IMREAD_COLOR)
-        image_camera = cv2.imdecode(np.frombuffer(image_bytes1, np.uint8), cv2.IMREAD_COLOR)
         print(f'Element: {key}')
         print(f'rmse : {value["RMSE"]}')
         print(f"deformation : {value['deformation']}")
@@ -221,7 +228,9 @@ def readRobotCVJsonData(json_name):
         print("\n \n")
         # image_gcode = cv2.resize(image_gcode)
         cv2.imshow("gcode", image_gcode)
-        cv2.imshow("camera", image_camera)
+        for key2,value2 in buf_vec.items():
+            cv2.imshow(key2,value2)
+
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
@@ -282,6 +291,6 @@ if __name__ == "__main__":
     # crop,sliced_frame = get_crop_values(2) 
     # print(crop)
     # draw_circle_on_click(sliced_frame)
-    # main('blacha8')
-    # readRobotSheetCVJSONData("cv_data_blacha8_sheetTest.json")
+    main('blacha8') 
+    readRobotSheetCVJSONData("cv_data_blacha8_sheetTest.json")
     readRobotCVJsonData('cv_data_blacha8_sheetTest')

@@ -291,10 +291,8 @@ def singleGcodeElementCV2(cutting_path,circle_line_data,linear_points_data,bound
     for l in linear_points_data:
         adjusted_linear_data.append(((l[0] - min_x) * dx, (l[1] - min_y) * dy))
 
-    # Binary thresholding to convert the image to black and white
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     _, thresh = cv2.threshold(gray, 30, 255, 0)
-    # Pack the results
     gcode_data_packed = {
         "image": thresh,
         "linearData": adjusted_linear_data,
@@ -455,71 +453,6 @@ def camera_calibration(frame):
     frame = frame[y:y + h, x:x + w]
     return frame
 
-def imageBInfoExtraction(imageB):
-    """
-    Extracts data for quality control from camera image
-    Args:
-        imageB (nd.array): gray and threshholded camera image
-    Returns:
-        corners (np.array): array of tuples containing corner info (x,y,corner_val).
-
-        corner_val (int) is evaluation of how "sure of a pick" the corner is (range 0-255)
-
-        contours (nd.array): array of contour points
-
-        contourImage (nd.array): cv2 image with drawn detected contour points
-
-        polyImage (nd.array): cv2 image with drawn detected corner points TO BE UPDATED
-
-        hullImage (nd.array): cv2 image with drawn corners from cv2.convexHull()
-
-    """
-    imageBFloat = np.float32(imageB)
-    contours, _ = cv2.findContours(imageB, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
-    contourImage = cv2.cvtColor(imageB, cv2.COLOR_GRAY2BGR)
-    polyImage = contourImage.copy()
-    hullImage = contourImage.copy()
-    for contour in contours:
-        # Przybliżenie
-        arc = 0.015 * cv2.arcLength(contour, True)
-        poly = cv2.approxPolyDP(contour, arc, -1, True)
-        #oryginalny kontur
-        cv2.drawContours(contourImage, [contour], -1, (255, 100, 0), 2)
-        for point in contour:
-            cv2.circle(contourImage, (point[0][0], point[0][1]), 3, (0, 0, 255), 2)
-        #kontur przybliżony (punkty kluczowe)
-        cv2.drawContours(polyImage, [poly], -1, (155, 155, 0), 2)
-        for point in poly:
-            cv2.circle(polyImage, (point[0][0],point[0][1]), 3, (0, 0, 255), 2)
-
-        #Hull punkty bogate
-        cv2.drawContours(hullImage, cv2.convexHull(contour),-1, (0,0, 255), 10)
-    #Harris Corner detection
-    dst = cv2.cornerHarris(imageBFloat, 2, 3, 0.04)
-    dst = cv2.dilate(dst, None)
-    rows = dst.shape[0]
-    columns = dst.shape[1]
-    corners_f32 = np.array([])
-    corners_index = np.array([])
-    threshhold = 0.01*dst.max()
-    for i in range(rows):
-        for j in range(columns):
-            point = dst[i][j]
-            if point>threshhold:
-                corners_f32 = np.append(corners_f32,dst[i][j])
-                corners_index = np.array([np.append(corners_index,np.array([i,j]))])
-            else:
-                continue
-    corners_index = corners_index.reshape(-1, 2)
-    corners_uint8 = corners_f32.astype(np.uint8)
-
-    corners = np.array([])
-    for i in range(corners_uint8.shape[0]):
-        buf = np.append(corners_index[i],corners_uint8[i])
-        corners = np.append(corners,buf)
-    corners = corners.reshape(-1,3) # elementy to [[x,y,corner_val],...]
-    return corners, contours, contourImage, polyImage, hullImage
-
 def lineFromPoints(x1, y1, x2, y2):
     """
     calculates linear function parameters for 2 points
@@ -639,180 +572,6 @@ def linesContourCompare(imageB,gcode_data):
     #     print("Podczas przetwarzania obrazu wystąpił błąd")
     #     print(e)
     #     return False,0, ret
-
-def elementRotationSIFT(images):
-    """
-    Calculates rotation between objects of the same class using SIFT.
-
-    Args:
-        images: Dict of generated cv2 images from gcode
-    Returns:
-        output_rotation: Dict of rotations when putting the element away
-    """
-    hash = defaultdict(list)
-    output_rotation = {}
-
-    for key, value in images.items():
-        cut_key = key[:-4]
-
-        if cut_key not in hash:
-            hash[cut_key].append(value)
-            output_rotation[key] = 0
-        else:
-            # Initialize SIFT
-            sift = cv2.SIFT_create()
-            kp_first, des_first = sift.detectAndCompute(hash[cut_key][0], None)
-            kp_other, des_other = sift.detectAndCompute(value, None)
-
-            if len(kp_first) == 0 or len(kp_other) == 0:
-                output_rotation[key] = 0
-                continue
-
-            bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
-            matches = bf.match(des_first, des_other)
-            matches = sorted(matches, key=lambda x: x.distance)
-            src_pts = np.float32([kp_first[m.queryIdx].pt for m in matches]).reshape(-1, 1, 2)
-            dst_pts = np.float32([kp_other[m.trainIdx].pt for m in matches]).reshape(-1, 1, 2)
-
-            if len(src_pts) < 4 or len(dst_pts) < 4:
-                output_rotation[key] = 0
-                continue
-
-            M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
-
-            if M is not None:
-                angle = np.degrees(np.arctan2(M[1, 0], M[0, 0]))
-                print(f"Rotation angle between images: {angle} degrees")
-                hash[cut_key].append(value)
-                output_rotation[key] = angle
-            else:
-                print("Homography could not be found.")
-                output_rotation[key] = 0
-
-    return output_rotation
-
-def elementRotationPCU(images):
-    """
-    Calculates rotation between binary images of simple shapes using PCA on contours.
-
-    Args:
-        images: Dict of binary cv2 images from gcode.
-    Returns:
-        output_rotation: Dict of rotations between pairs of images.
-    """
-    hash = defaultdict(list)
-    output_rotation = {}
-
-    for key, value in images.items():
-        cut_key = key[:-4]  # Exclude file extension
-
-        # Check if the base image is stored in hash
-        if cut_key not in hash:
-            hash[cut_key].append(value)
-            output_rotation[key] = 0
-        else:
-            # Get the contours of both images
-            contours1, _ = cv2.findContours(hash[cut_key][0], cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            contours2, _ = cv2.findContours(value, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-            # Check if contours were found in both images
-            if len(contours1) == 0 or len(contours2) == 0:
-                output_rotation[key] = 0
-                continue
-
-            # Perform PCA on the contour points to get the orientation angle
-            def get_orientation_angle(contour):
-                contour_points = np.squeeze(contour)
-                if len(contour_points.shape) < 2:  # Check if there are enough points
-                    return None
-                mean, eigenvectors = cv2.PCACompute(contour_points.astype(np.float32), mean=None)
-                # Calculate the angle of the primary eigenvector
-                angle = np.arctan2(eigenvectors[0, 1], eigenvectors[0, 0])  # radians
-                return np.degrees(angle)  # convert to degrees
-
-            # Get angles for each contour
-            angle1 = get_orientation_angle(contours1[0])
-            angle2 = get_orientation_angle(contours2[0])
-
-            # Ensure both angles are valid
-            if angle1 is None or angle2 is None:
-                output_rotation[key] = 0
-                continue
-
-            # Calculate relative rotation
-            relative_rotation = angle2 - angle1
-            # relative_rotation = (relative_rotation + 360) % 360  # Normalize to [0, 360)
-
-            # Handle cases close to 180-degree difference (for flipped shapes)
-            if abs(relative_rotation - 180) < 5:  # Tolerance of 5 degrees for 180-degree rotations
-                relative_rotation = 180
-
-            output_rotation[key] = relative_rotation
-            hash[cut_key].append(value)
-
-    return output_rotation
-
-def elementRotationMoments(images):
-    """
-    Calculates rotation between binary images of simple shapes using contours.
-
-    Args:
-        images: Dict of binary cv2 images from gcode.
-    Returns:
-        output_rotation: Dict of rotations between pairs of images.
-    """
-    hash = defaultdict(list)
-    output_rotation = {}
-
-    for key, value in images.items():
-        cut_key = key[:-4]  # Exclude file extension
-
-        # Check if the base image is stored in hash
-        if cut_key not in hash:
-            hash[cut_key].append(value)
-            output_rotation[key] = 0
-        else:
-            # Get the contours of both images
-            contours1, _ = cv2.findContours(hash[cut_key][0], cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            contours2, _ = cv2.findContours(value, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-            # Check if contours were found in both images
-            if len(contours1) == 0 or len(contours2) == 0:
-                output_rotation[key] = 0
-                continue
-
-            # Compute image moments to find the center of each shape
-            M1 = cv2.moments(contours1[0])
-            M2 = cv2.moments(contours2[0])
-
-            if M1["m00"] == 0 or M2["m00"] == 0:
-                output_rotation[key] = 0
-                continue
-
-            # Calculate the centroid of each contour
-            cX1, cY1 = int(M1["m10"] / M1["m00"]), int(M1["m01"] / M1["m00"])
-            cX2, cY2 = int(M2["m10"] / M2["m00"]), int(M2["m01"] / M2["m00"])
-
-            # Shift contours so centroids overlap
-            shifted_contour1 = contours1[0] - [cX1, cY1]
-            shifted_contour2 = contours2[0] - [cX2, cY2]
-
-            # Calculate the rotation angle using principal component analysis (PCA)
-            _, _, angle1 = cv2.fitEllipse(shifted_contour1)
-            _, _, angle2 = cv2.fitEllipse(shifted_contour2)
-
-            # Calculate relative rotation
-            relative_rotation = angle2 - angle1
-            relative_rotation = (relative_rotation + 360) % 360  # Normalize to [0, 360)
-
-            # Handle cases close to 180-degree difference (for flipped shapes)
-            if abs(relative_rotation - 180) < 5:  # Tolerance of 5 degrees for 180-degree rotations
-                relative_rotation = 180
-
-            output_rotation[key] = relative_rotation
-            hash[cut_key].append(value)
-
-    return output_rotation
 
 def elementRotationByTemplateMatching(images):
     """
@@ -1499,8 +1258,6 @@ def detail_mass(shape, holes, material_density=0.0027, material_thickness=1.5):
     total_volume = total_area * material_thickness
     total_mass = total_volume * material_density
     return total_mass
-
-
 
 if __name__ == "__main__":
     AutoAdditionalHoleTest()

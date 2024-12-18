@@ -24,7 +24,7 @@ MATERIAL_THICKNESS = 3                  # Grubość materiału [mm]
 NUM_SEARCH_ANGLES = 80                  # Liczba kątów do przeszukania
 NUM_SEARCH_RADII = 80                   # Liczba promieni do przeszukania
 Z_INCREMENT = 2                         # Przyrost wysokości w pudełku na każdy element
-INITIAL_HEIGHT = 0                      # Początkowa wysokość dla pierwszego elementu
+INITIAL_HEIGHT = 55                      # Początkowa wysokość dla pierwszego elementu
 DETAIL_Z = 0                            # Wysokość pobrania detalu
 DRAW_SUCTION_CANDIDATES = False          # Czy rysować kandydatów na punkty przyłożenia przyssawki
 DRAW_PLACEMENT_ARROWS = True            # Czy rysować strzałki do odłożenia elementów
@@ -37,7 +37,7 @@ def create_boxes():
     Funkcja tworzy listę pudełek (punktów), do których będą przypisane elementy.
     """
     box_positions = [
-        (0, 600), (0, 700), (150, 700), (300, 700), (450, 700),
+        (782, 1060), (782, 852), (982, 852), (982, 1060), (450, 700),
         (550, 700), (0, 800), (150, 800), (300, 800), (450, 800),
         (550, 600), (421, 600), (421, 650), (421, 700), (421, 750),
         (421, 800), (421, 850), (421, 900), (421, 950), (421, 1000),

@@ -112,7 +112,7 @@ def main(json_name):
             response = f"{send_valueX:09.4f}{send_valueY:09.4f}{send_valueZ:09.4f}{send_valueAngle:09.4f}a"
             client_socket.send(response.encode('ascii'))
             print(f"Wysłano dane do ruchu A \n {response }")
-            # Oczekiwanie na informację zwrotną od robota
+            # Oczekiwanie na informację zwrotną od robota 
             data = client_socket.recv(1024).decode('utf-8', errors='ignore')
             print(f"Robot Dane: {data}")
 

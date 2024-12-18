@@ -360,7 +360,7 @@ def capture_median_frame(crop_values,camera_id):
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
     cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
     cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.25)
-    cap.set(cv2.CAP_PROP_EXPOSURE, -1)
+    cap.set(cv2.CAP_PROP_EXPOSURE, -4)
 
     fgmask_vec = []
     frames_vec = []
@@ -403,7 +403,7 @@ def cameraImage(BgrSubtractor,crop_values,camera_id):
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
     cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
     cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.25)
-    cap.set(cv2.CAP_PROP_EXPOSURE, -1)
+    cap.set(cv2.CAP_PROP_EXPOSURE, -4)
     ret,frame = cap.read()
     while not ret:
         ret,frame = cap.read()
@@ -499,14 +499,16 @@ def linesContourCompare(imageB,gcode_data):
     contours, _ = cv2.findContours(img,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
     contoursB,_ = cv2.findContours(imageB,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
     ret = cv2.matchShapes(contours[0],contoursB[0],1,0.0)
-    if ret > 0.5:
+    if ret > 0.06:
         print(f'Odkształcenie, ret: {ret} \n')
         return False,0,ret
     gcodeLines = {
         "circle": gcode_data['circleData'],
         "linear": [],
     }
-    new_imageB = find_best_rotation(imageB, img)
+    new_imageB = cv2.flip(imageB,1)
+    # new_imageB = find_best_rotation(img, imageB)
+    contoursB,_ = cv2.findContours(new_imageB,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
     imgCopy = imageB.copy()
     imgCopy_lines = cv2.cvtColor(imgCopy,cv2.COLOR_GRAY2BGR)
     imgCopy_circ = imgCopy_lines.copy()
@@ -548,8 +550,10 @@ def linesContourCompare(imageB,gcode_data):
             d_minimal = d_minimal*scale_px_to_mm
             cntrErrors.append(d_minimal)
 
-    certainErrors = [e for e in cntrErrors if e > 1]
-    accuracy = 100 * (len(certainErrors)/len(cntrErrors))
+    # Punkty, które nie przekraczają błędu 2:
+    goodPoints = [e for e in cntrErrors if e <= 2]
+    accuracy = 100 * (len(goodPoints)/len(cntrErrors))
+
     RMSE = np.sqrt(sum(e*e for e in cntrErrors)/len(cntrErrors))
     print("----------")
     contourSum = 0
@@ -557,7 +561,7 @@ def linesContourCompare(imageB,gcode_data):
         contourSum += len(contour)
     print("ilosc punktow: ",contourSum)
     print("RMSE:",RMSE)
-    if accuracy < 99.5:
+    if accuracy < 90:
         print("Detal posiada błąd wycięcia")
         print(f'ret: {ret} \n')
         print('accuracy: ',accuracy)
@@ -759,7 +763,7 @@ def sheetRotationTranslation(bgr_subtractor,camera_id,crop_values,sheet_length_m
     diff_x = diff_x_px * scalePxMm
     diff_y = diff_y_px * scalePxMm
     data_out = [(xl,yl),(xt,yt),(xb,yb),(A,B,C),img_pack,final_contours]
-    return -alpha,(diff_x,diff_y),data_out
+    return alpha,(diff_x,diff_y),data_out
 
 def recalibratePoint(point,angle,translation):
     """
@@ -978,7 +982,7 @@ def readRobotCVJsonData(json_name):
     for key, value in data.items():
         if key == "sheet":
             continue
-
+        
         buf_vec = {}
         for key2, value2 in value['bonusImages'].items():
             img_bytes = base64.b64decode(value2)
@@ -993,6 +997,7 @@ def readRobotCVJsonData(json_name):
         print(f'palletizing_angle : {value["palletizing_angle"]}')
         print("\n \n")
         # image_gcode = cv2.resize(image_gcode)
+        image_gcode=cv2.flip(image_gcode,1)
         cv2.imshow("gcode", image_gcode)
         cv2.imwrite(f"CV_program_photos/zdjecia_przebieg/{key}_gcode.png", image_gcode)
         for key2, value2 in buf_vec.items():

@@ -1,7 +1,7 @@
 .venv
 .vscode
 .idea
-Image preprocessing/Gcode to image conversion/__pycache__
+tests/Image preprocessing/Gcode to image conversion/__pycache__
 Videos/tempo_x2.mp4
 Videos/trybA.mp4
 Videos/trybB.mp4
@@ -41,13 +41,13 @@ Videos/z aparatu/_DSC0393.NEF
 Videos/z aparatu/_DSC0397.NEF
 Videos/z aparatu/_DSC0397.xmp
 Videos/Rezultaty/_DSC0336.mp4
-Image preprocessing/Gcode to image conversion/__pycache__/centroid.cpython-311.pyc
-Image preprocessing/Gcode to image conversion/__pycache__/gcode_analize.cpython-311.pyc
+tests/Image preprocessing/Gcode to image conversion/__pycache__/centroid.cpython-311.pyc
+tests/Image preprocessing/Gcode to image conversion/__pycache__/gcode_analize.cpython-311.pyc
 /.idea/codeStyles/codeStyleConfig.xml
-/Image preprocessing/Gcode to image conversion/element_details.csv
+/main/element_details.csv
 /.idea/inspectionProfiles/Project_Default.xml
 /.idea/shelf/Uncommitted_changes_before_Update_at_2024-10-13_12_41_[Changes]/shelved.patch
 /.idea/shelf/Uncommitted_changes_before_Update_at_2024-10-13_12_41__Changes_.xml
 /.idea/workspace.xml
-Image preprocessing/Gcode to image conversion/CV_program_photos/Additional_hole_test
+main/CV_program_photos/Additional_hole_test
 

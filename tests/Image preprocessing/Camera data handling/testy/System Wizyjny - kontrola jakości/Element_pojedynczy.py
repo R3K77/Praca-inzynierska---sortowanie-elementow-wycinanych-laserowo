@@ -1044,7 +1044,7 @@ def testAdditionalHole(imageB,gcode_data):
 
 def singleGcodeTest():
     (cutting_paths, _, _, _, _, sheet_size_line, circleLineData,
-     linearPointsData) = visualize_cutting_paths_extended('../../../Gcode to image conversion/NC_files/8.NC')
+     linearPointsData) = visualize_cutting_paths_extended('../../../../../main/NC_files/8.NC')
     median_background_frame = capture_median_frame()
     cv2.imshow("bgr",median_background_frame)
     cv2.waitKey(0)
@@ -1106,7 +1106,7 @@ def draw_circle_on_click():
     cv2.destroyAllWindows()
 
 def AutoAdditionalHoleTest():
-    path = "../../../Gcode to image conversion/NC_files/8.NC"
+    path = "../../../../../main/NC_files/8.NC"
     images, pts, sheet_size, pts_hole, circleLineData, linearData = allGcodeElementsCV2(
         sheet_path=path,
         arc_pts_len=300)

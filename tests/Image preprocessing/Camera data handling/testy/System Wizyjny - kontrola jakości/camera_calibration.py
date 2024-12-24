@@ -30,7 +30,7 @@ def load_camera_calibration():
     return loaded_mtx, loaded_dist, loaded_newcameramtx, loaded_roi
 
 def main():
-    CALIBRATION_DIR = "./frames/"
+    CALIBRATION_DIR = "frames/"
 
     # Inicjalizacja kamery
     cap = cv2.VideoCapture(1)

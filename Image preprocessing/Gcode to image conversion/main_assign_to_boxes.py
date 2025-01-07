@@ -7,7 +7,7 @@ import matplotlib
 import numpy as np
 from shapely.geometry import Point, Polygon as ShapelyPolygon
 from matplotlib.patches import Circle, Polygon
-from _functions_gcode_analize import visualize_cutting_paths, find_main_and_holes, is_valid_circle, detail_mass
+from _functions_computer_vision import visualize_cutting_paths, find_main_and_holes, is_valid_circle, detail_mass
 import csv
 import matplotlib.lines as mlines  
 from matplotlib.patches import Patch
@@ -23,20 +23,26 @@ MATERIAL_DENSITY = 0.00785              # Gęstość materiału  # ST-3S: 0.0078
 MATERIAL_THICKNESS = 2                  # Grubość materiału [mm]
 NUM_SEARCH_ANGLES = 80                  # Liczba kątów do przeszukania
 NUM_SEARCH_RADII = 80                   # Liczba promieni do przeszukania
+<<<<<<< HEAD
 Z_INCREMENT = 3                         # Przyrost wysokości w pudełku na każdy element
 INITIAL_HEIGHT = 0                      # Początkowa wysokość dla pierwszego elementu
+=======
+Z_INCREMENT = 2                         # Przyrost wysokości w pudełku na każdy element
+INITIAL_HEIGHT = 55                      # Początkowa wysokość dla pierwszego elementu
+>>>>>>> 0bf9e126082fb5f43a7967e0061edb31ae00552b
 DETAIL_Z = 0                            # Wysokość pobrania detalu
 DRAW_SUCTION_CANDIDATES = False          # Czy rysować kandydatów na punkty przyłożenia przyssawki
 DRAW_PLACEMENT_ARROWS = True            # Czy rysować strzałki do odłożenia elementów
 NC_FILE_PATH = "./Image preprocessing/Gcode to image conversion/NC_files/8.nc"    # Nazwa pliku NC
 
 
-# ----------------- Funkcja do tworzenia listy pudełek ----------------- #
-# Funkcja tworzy listę pudełek (punktów), do których będą przypisane elementy.
-# --------------------------------------------------------------- #
 def create_boxes():
+    """
+    # Funkcja do tworzenia listy pudełek
+    Funkcja tworzy listę pudełek (punktów), do których będą przypisane elementy.
+    """
     box_positions = [
-        (0, 600), (0, 700), (150, 700), (300, 700), (450, 700),
+        (782, 1060), (782, 852), (982, 852), (982, 1060), (450, 700),
         (550, 700), (0, 800), (150, 800), (300, 800), (450, 800),
         (550, 600), (421, 600), (421, 650), (421, 700), (421, 750),
         (421, 800), (421, 850), (421, 900), (421, 950), (421, 1000),
@@ -44,12 +50,11 @@ def create_boxes():
     ]
     return [Point(x, y) for x, y in box_positions]
 
-
-# ----------------- Funkcja do przetwarzania pojedynczego elementu ----------------- #
-# Funkcja przetwarza pojedynczy element, wyodrębniając jego kształt, otwory, masę
-# oraz uwzględniając kryteria dotyczące przyłożenia przyssawki.
-# --------------------------------------------------------------- #
 def process_element(element_name, element_paths, ax, polar_cache):
+    """
+    # Funkcja do przetwarzania pojedynczego elementu 
+    Funkcja przetwarza pojedynczy element, wyodrębniając jego kształt, otwory, masę oraz uwzględniając kryteria dotyczące przyłożenia przyssawki.
+    """
     print(f"Processing element: {element_name}")
     if len(element_name) == 4:
         # Ignorowanie obcięcia arkusza
@@ -110,11 +115,21 @@ def process_element(element_name, element_paths, ax, polar_cache):
 
     return (element_name[:-4], best_point, element_name) if best_point else None
 
-
-# ----------------- Funkcja do znalezienia najlepszego punktu przyłożenia przyssawki ----------------- #
-# Funkcja szuka najlepszego punktu do przyłożenia przyssawki w układzie biegunowym.
-# --------------------------------------------------------------- #
 def find_best_suction_point(element_name, centroid_point, main_contour_polygon, holes_polygons, polar_cache):
+    """
+     # Funkcja do znalezienia najlepszego punktu przyłożenia przyssawki 
+    Funkcja szuka najlepszego punktu do przyłożenia przyssawki w układzie biegunowym.
+    Autor: Bartłomiej Szalwach
+    # Wejście:
+    - element_name: nazwa elementu - string
+    - centroid_point: środek ciężkości elementu - tuple[float, float] 
+    - main_contour_polygon: główny kształt elementu - ShapelyPolygon
+    - holes_polygons: otwory w elemencie - list(ShapelyPolygon)
+    - polar_cache: słownik z zapamiętanymi punktami przeszukiwania
+    # Zwraca:
+    - best_point: najlepszy punkt przyłożenia przyssawki - tuple[float, float]
+    - valid_points: lista punktów przeszukiwania - list[tuple[float, float]]
+    """
     # Sprawdzenie, czy przyssawka może być umieszczona w środku ciężkości
     if is_valid_circle(centroid_point, SUCTION_RADIUS, main_contour_polygon, holes_polygons):
         return centroid_point, [centroid_point]
@@ -147,10 +162,11 @@ def find_best_suction_point(element_name, centroid_point, main_contour_polygon, 
         print("\tAdjusted centroid: TOO FAR FROM CENTER")
     return None, valid_points
 
-# ----------------- Funkcja do tworzenia legendy ----------------- #
-# Funkcja tworzy własną legendę, wyjaśniając znaczenie kolorów na wykresie.
-# --------------------------------------------------------------- #
 def add_custom_legend(ax):
+    """
+    # Funkcja do dodawania legendy na wykresie
+    Funkcja dodaje własną legendę, wyjaśniając znaczenie kolorów na wykresie.
+    """
     legend_elements = [
         Patch(facecolor='none', edgecolor='red', label='Główny obrys detalu'),
         mlines.Line2D([], [], color='red', linestyle='--', label='Otwór w detalu'),
@@ -166,17 +182,16 @@ def add_custom_legend(ax):
         )
     ax.legend(handles=legend_elements, loc='upper right')
 
-# ----------------- Główna funkcja programu ----------------- #
-# Funkcja przetwarza listę plików NC, wywołując odpowiednie funkcje do przetwarzania i wizualizacji danych.
-# ----------------------------------------------------------- #
 def main():
     matplotlib.rcParams['font.family'] = 'Times New Roman'
     nc_file_paths = [NC_FILE_PATH]
 
     # Pętla główna przetwarzająca pliki NC
     for nc_file_path in nc_file_paths:
-        cutting_paths, x_min, x_max, y_min, y_max = visualize_cutting_paths(nc_file_path)
-        fig, ax = plt.subplots()
+#            return elements, x_min, x_max, y_min, y_max, sheet_size_line, curveCircleData, linearPointsData
+
+        cutting_paths, _, _, _, _ = visualize_cutting_paths(nc_file_path)
+        _, ax = plt.subplots()
         processed_elements = []
         polar_cache = {}
 

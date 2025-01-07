@@ -8,7 +8,7 @@ import matplotlib
 import numpy as np
 from shapely.geometry import Point, Polygon as ShapelyPolygon
 from matplotlib.patches import Circle, Polygon
-from _functions_gcode_analize import visualize_cutting_paths, find_main_and_holes, is_valid_circle, detail_mass
+from _functions_computer_vision import visualize_cutting_paths, find_main_and_holes, is_valid_circle, detail_mass
 import csv
 import matplotlib.lines as mlines  
 from matplotlib.patches import Patch
@@ -19,19 +19,19 @@ from collections import defaultdict
 # ----------------- Stałe globalne ----------------- #
 # Stałe używane w programie.
 # -------------------------------------------------- #
-SUCTION_DIAMETER = 20                   # Średnica przyssawki
+SUCTION_DIAMETER = 40                   # Średnica przyssawki
 SUCTION_RADIUS = SUCTION_DIAMETER / 2   # Promień przyssawki
 MAX_SUCTION_SEARCH_RADIUS = 80          # Maksymalna odległość od środka ciężkości
 MAX_ADJUSTED_DISTANCE = 80              # Maksymalna odległość od środka ciężkości po korekcie
 MAX_DETAIL_MASS = 1200                  # Maksymalna masa elementu [g]
 MATERIAL_DENSITY = 0.00785              # Gęstość materiału 
-MATERIAL_THICKNESS = 2                  # Grubość materiału [mm]
+MATERIAL_THICKNESS = 2.0                  # Grubość materiału [mm]
 NUM_SEARCH_ANGLES = 80                  # Liczba kątów do przeszukania
 NUM_SEARCH_RADII = 80                   # Liczba promieni do przeszukania
 
 # Nowe zmienne logiczne
 DRAW_SUCTION_CANDIDATES = False          # Czy rysować kandydatów na punkty przyłożenia przyssawki
-DRAW_PLACEMENT_ARROWS = True            # Czy rysować strzałki do odłożenia elementów
+DRAW_PLACEMENT_ARROWS = False         # Czy rysować strzałki do odłożenia elementów
 
 # Dodatkowe stałe
 Z_INCREMENT = 2                         # Przyrost wysokości w pudełku na każdy element
@@ -39,7 +39,7 @@ INITIAL_HEIGHT = 0                      # Początkowa wysokość dla pierwszego 
 DETAIL_Z = 0                            # Wysokość pobrania detalu
 
 # Nazwa pliku NC
-NC_FILE_PATH = "./Image preprocessing/Gcode to image conversion/NC_files/8.nc"
+NC_FILE_PATH = "./Image preprocessing/Gcode to image conversion/NC_files/6.nc"
 
 # ----------------- Funkcja do tworzenia listy pudełek ----------------- #
 # Funkcja tworzy listę pudełek (punktów), do których będą przypisane elementy.
@@ -195,11 +195,11 @@ def add_custom_legend(ax):
     legend_elements = [
         Patch(facecolor='none', edgecolor='black', label='Główny obrys detalu'),
         #mlines.Line2D([], [], color='red', linestyle='--', label='Otwór w detalu'),
-        #Patch(facecolor='none', edgecolor='lightgray', label='Nie znaleziono punktu przyssawki'),
+        Patch(facecolor='none', edgecolor='lightgray', label='Brak możliwości przyłożenia przyssawki'),
         #Patch(facecolor='none', edgecolor='gray', label='Element zbyt ciężki'),
         #mpatches.Circle((0, 0), radius=5, color='orange', label='Środek ciężkości'),
         mpatches.Circle((0, 0), radius=5, color='lightgray', label='Punkt przyłożenia przyssawki'),
-        mlines.Line2D([], [], color='grey', linestyle='-', linewidth=1, marker='>', markersize=7, label='Wskazanie miejsca składowania'),
+        #mlines.Line2D([], [], color='grey', linestyle='-', linewidth=1, marker='>', markersize=7, label='Wskazanie miejsca składowania'),
     ]
 
     # Dodajemy legendę dla kandydatów na punkt przyssawki, jeśli są rysowani
@@ -309,7 +309,7 @@ def main():
                     arrowprops=dict(facecolor='grey', arrowstyle='->', linewidth=0.2)
                 )
 
-        ax.set_xlim(0, 1000), ax.set_ylim(0, 1000)
+        ax.set_xlim(0, 500), ax.set_ylim(0, 575)
         ax.set_aspect('equal', adjustable='box')
         ax.set_xlabel('X [mm]'), ax.set_ylabel('Y [mm]')
         add_custom_legend(ax)

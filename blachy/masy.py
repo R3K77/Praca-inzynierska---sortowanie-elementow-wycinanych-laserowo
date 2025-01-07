@@ -42,11 +42,19 @@ bins = list(range(0, max(all_masses) + 50, 50))
 plt.hist(all_masses, bins=bins, edgecolor='black', color='gray')
 
 
+# Dodanie pionowej linii w x=1200
+plt.axvline(x=1200, color='black', linestyle='--', linewidth=2, label='Założony limit wagowy')
+
+# Dodanie opisu dla linii
+plt.text(1200-10, plt.ylim()[1] * 0.7, 'Założony limit wagowy', color='black', rotation=90, ha='right', va='center', fontsize=10, fontname='Times New Roman', clip_on=True)
+
+
 plt.grid(axis='y', alpha=0.75)
+
 
 # Add titles and labels
 plt.xlabel('Masa [g]', font='times new roman', size=13)
-plt.ylabel('Ilość detali [szt]', font='times new roman', size=13)
+plt.ylabel('Liczba detali [szt]', font='times new roman', size=13)
 plt.xticks(fontname='Times New Roman', size=12, rotation=25, ticks=range(0, max(all_masses) + 200, 200))
 plt.yticks(fontname='Times New Roman', size=12)
 

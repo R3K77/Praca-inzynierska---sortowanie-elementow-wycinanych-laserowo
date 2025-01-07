@@ -23,16 +23,16 @@ function ur5e = attachPart(ur5e, rotation, partID, collisionPoint, visualPoint)
   
   % Attach collision box to the rigid body model
   transformPart = eul2tform([0 0 0]);
-  transformPart(:, 4) = [0; 0; 0.02; 1]; % To avoid self-collision
+  transformPart(:, 4) = [0; 0; 0; 1]; % To avoid self-collision
   
   part = rigidBody('part');
-  addCollision(part, 'box', box, tf_collision);
+  % addCollision(part, 'box', box, tf_collision);
   
   addVisual(part, "Mesh", filename, tf_visual);
   
   partJoint = rigidBodyJoint('partJoint', 'fixed');
   part.Joint = partJoint;
   setFixedTransform(part.Joint, transformPart);
-  curEndEffectorBodyName = ur5e.BodyNames{14};
+  curEndEffectorBodyName = ur5e.BodyNames{end};
   addBody(ur5e, part, curEndEffectorBodyName);
 end

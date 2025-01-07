@@ -3,14 +3,14 @@ function [partGT, env] = generateGroundTruth(numberOfParts, env)
     partGT = [[ones(numberOfParts, 1)*0.15, zeros(numberOfParts, 1)], zeros(numberOfParts, 1), zeros(numberOfParts, 1)];
     
     % Add a fixed Z-coordinate and rotation
-    fixedZ = -0.001;  % Assuming part height of 0.0508
+    fixedZ = -0.002;  % Assuming part height of 0.0508
     partGT(:, 3) = fixedZ;  % Fixed Z-coordinate
     partGT(:, 4) = 0;  % Fixed rotation (if needed)
 
     
     % Load and place parts
     for i = 1:numberOfParts
-        [garbage_, filename] = findStl('meshes/blacha*.stl', i);
+        [~, filename] = findStl('meshes/blacha*.stl', i);
         filename = strcat('meshes/', filename);
         FV = stlread(filename);
         % Create a collision box for each part

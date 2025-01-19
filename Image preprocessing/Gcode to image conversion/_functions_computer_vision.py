@@ -144,7 +144,6 @@ def visualize_cutting_paths_extended(file_path, x_max=500, y_max=1000, arc_pts_l
     json.dump(json_object, f)
   return elements, x_min, x_max, y_min, y_max, sheet_size_line, curveCircleData, linearPointsData
 
-
 def allGcodeElementsCV2(sheet_path, scale=5, arc_pts_len=300):
   """
     Creates cv2 images of sheet elements from gcode.
@@ -234,7 +233,6 @@ def allGcodeElementsCV2(sheet_path, scale=5, arc_pts_len=300):
   else:
     return None, None, None, None, None
 
-
 def singleGcodeElementCV2(cutting_path, circle_line_data, linear_points_data, bounding_box_size):
   """
         Funkcja tworząca przeskalowane dane o elemencie wzorcowym
@@ -307,7 +305,6 @@ def singleGcodeElementCV2(cutting_path, circle_line_data, linear_points_data, bo
   }
   return gcode_data_packed
 
-
 def gcodeToImageCV2(cutting_paths, scale=3):
   """
         Funkcja generująca obrazy elementów wzorcowych zgodne z formatem opencv
@@ -349,7 +346,6 @@ def gcodeToImageCV2(cutting_paths, scale=3):
     # gcode_image_base64 = base64.b64encode(thresh).decode('utf-8')
     images_dict[f"{key}"] = thresh
   return images_dict
-
 
 def capture_median_frame(crop_values, camera_id):
   """
@@ -393,7 +389,6 @@ def capture_median_frame(crop_values, camera_id):
     cv2.imwrite(f"Image preprocessing/Gcode to image conversion/camera_images_debug/fgmask_{i}.png", fgmask_vec[i])
     cv2.imwrite(f"Image preprocessing/Gcode to image conversion/camera_images_debug/frame_{i}.png", frames_vec[i])
   return BgrSubtractor
-
 
 def cameraImage(BgrSubtractor, crop_values, camera_id):
   """
@@ -476,7 +471,6 @@ def camera_calibration(frame):
   frame = frame[y:y + h, x:x + w]
   return frame
 
-
 def lineFromPoints(x1, y1, x2, y2):
   """
     calculates linear function parameters for 2 points
@@ -509,7 +503,6 @@ def lineFromPoints(x1, y1, x2, y2):
     C = b
   return A, B, C
 
-
 def linesContourCompare(imageB, gcode_data):
   """
         Compares image from camera to gcode image.
@@ -532,7 +525,7 @@ def linesContourCompare(imageB, gcode_data):
     "linear": [],
   }
   new_imageB = cv2.flip(imageB, 1)
-  # new_imageB = find_best_rotation(img, imageB)
+  # new_imageB = findRotation(img, imageB)
   contoursB, _ = cv2.findContours(new_imageB, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
   imgCopy = img.copy()
   imgCopy = cv2.cvtColor(imgCopy,cv2.COLOR_GRAY2BGR)
@@ -609,7 +602,6 @@ def linesContourCompare(imageB, gcode_data):
   #     print(e)
   #     return False,0, ret
 
-
 def elementRotationByTemplateMatching(images):
   """
     Calculates rotation between binary images of simple shapes by using template matching with rotated templates.
@@ -673,7 +665,6 @@ def elementRotationByTemplateMatching(images):
 
   return output_rotation
 
-
 def rotate_image(image, angle):
   """
     Rotates an image by a given angle.
@@ -696,8 +687,7 @@ def rotate_image(image, angle):
   rotated = cv2.warpAffine(image, M, (w, h))
   return rotated
 
-
-def find_best_rotation(imageA, imageB):
+def findRotation(imageA, imageB):
   """
     Finds the best rotation of imageB (0 to 360 degrees in steps of 0.5) that best matches imageA using template matching.
 
@@ -740,7 +730,6 @@ def find_best_rotation(imageA, imageB):
 
   print(f"Best rotation angle found: {best_angle} degrees with match: {max_match}")
   return best_rotated_image
-
 
 def sheetRotationTranslation(bgr_subtractor, camera_id, crop_values, sheet_length_mm):
   """
@@ -801,7 +790,6 @@ def sheetRotationTranslation(bgr_subtractor, camera_id, crop_values, sheet_lengt
   data_out = [(xl, yl), (xt, yt), (xb, yb), (A, B, C), img_pack, final_contours]
   return alpha, (diff_x, diff_y), data_out
 
-
 def recalibratePoint(point, angle, translation):
   """
     Recalibrates a point based on a given rotation angle and translation vector.
@@ -823,10 +811,8 @@ def recalibratePoint(point, angle, translation):
   transformed_point = np.dot(SE2_rotation, point_np) + np.array(translation)
   return tuple(transformed_point)
 
-
 def nothing(x):
   pass
-
 
 def get_crop_values(camera_id):
   """
@@ -904,7 +890,6 @@ def get_crop_values(camera_id):
 
   return crop_values, sliced_frame
 
-
 def draw_circle_on_click(image):
   def click_event(event, x, y, flags, param):
     if event == cv2.EVENT_LBUTTONDOWN:
@@ -919,7 +904,6 @@ def draw_circle_on_click(image):
   cv2.waitKey(0)
   cv2.destroyAllWindows()
 
-
 def generate_sheet_json():
   paths = [
     "NC_files/1.NC",
@@ -933,7 +917,6 @@ def generate_sheet_json():
   ]
   for path in paths:
     visualize_cutting_paths_extended(path)
-
 
 def testAdditionalHole(imageB, gcode_data):
   """
@@ -969,7 +952,6 @@ def testAdditionalHole(imageB, gcode_data):
     cv2.rectangle(image_copy, top_left, bottom_right, (0, 0, 0), -1)  # Czarny kolor
 
   return image_copy, linesContourCompare(image_copy, gcode_data)
-
 
 def AutoAdditionalHoleTest():
   # Path to the NC file
@@ -1084,7 +1066,6 @@ def readRobotCVJsonData(json_name):
         f"{dir}/CV_program_photos/zdjecia_przebieg/{key}_contours.png",
         cam)
       print(saved)
-
 
 def readRobotSheetCVJSONData(json_file):
   """

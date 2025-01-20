@@ -458,12 +458,12 @@ def camera_calibration(frame):
         numpy.ndarray: The calibrated image/frame.
     """
   # Wczytanie parametrów kamery z pliku
-  loaded_mtx = np.loadtxt('Image preprocessing/Gcode to image conversion/settings/mtx_matrix.txt', delimiter=',')
-  loaded_dist = np.loadtxt('Image preprocessing/Gcode to image conversion/settings/distortion_matrix.txt',
+  loaded_mtx = np.loadtxt('settings/mtx_matrix.txt', delimiter=',')
+  loaded_dist = np.loadtxt('settings/distortion_matrix.txt',
                            delimiter=',')
-  loaded_newcameramtx = np.loadtxt('Image preprocessing/Gcode to image conversion/settings/new_camera_matrix.txt',
+  loaded_newcameramtx = np.loadtxt('settings/new_camera_matrix.txt',
                                    delimiter=',')
-  loaded_roi = np.loadtxt('Image preprocessing/Gcode to image conversion/settings/roi_matrix.txt', delimiter=',')
+  loaded_roi = np.loadtxt('settings/roi_matrix.txt', delimiter=',')
 
   # Kalibracja kamery
   frame = cv2.undistort(frame, loaded_mtx, loaded_dist, None, loaded_newcameramtx)

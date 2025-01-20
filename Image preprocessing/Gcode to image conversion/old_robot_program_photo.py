@@ -4,10 +4,10 @@ import cv2
 import os
 
 cv_data = {}
-SHEET_CAMERA_ID = 0 #TODO zmienic na 1
+SHEET_CAMERA_ID = 1 #TODO zmienic na 1
 SHEET_SIZE = 570
-json_name = "zdjecia_inzynierka"
-output_folder = "zdjęcia_obrot"
+json_name = "zdjecia_plus"
+path = "C:/Users/rafal/PycharmProjects/Praca-inzynierska---sortowanie-elementow-wycinanych-laserowo/Image preprocessing/Gcode to image conversion/zdjecia_obrot"
 
 if __name__ == "__main__":
 
@@ -42,14 +42,9 @@ if __name__ == "__main__":
   #
   # with open(f'{json_name}.json', 'w', encoding='utf8') as f:
   #   json.dump(cv_data, f, ensure_ascii=False)
-  if not os.path.exists(output_folder):
-    os.makedirs(output_folder)
 
-  # Wyświetlanie i zapisywanie wszystkich zdjęć z sheetData[4]
   for idx, img in enumerate(sheetData[4]):
-    image_filename = os.path.join(output_folder, f'image_{idx + 1}.jpg')
-    cv2.imwrite(image_filename, img)
-    print(f"Zapisano: {image_filename}")
+    cv2.imwrite(os.path.join(path , f'{json_name}_{idx}.jpg'), img)
     cv2.imshow(f'Image {idx + 1}', img)
 
   print("Naciśnij dowolny klawisz, aby zamknąć wszystkie okna ze zdjęciami.")

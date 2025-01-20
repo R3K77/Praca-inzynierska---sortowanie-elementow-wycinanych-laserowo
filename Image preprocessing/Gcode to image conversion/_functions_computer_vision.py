@@ -139,7 +139,7 @@ def visualize_cutting_paths_extended(file_path, x_max=500, y_max=1000, arc_pts_l
     "linearPointsData": linearPointsData,
     "rotation": angles
   }
-  with open(f"Image preprocessing/Gcode to image conversion/elements_data_json/{current_element_name[:7]}.json",
+  with open(f"elements_data_json/{current_element_name[:7]}.json",
             "w") as f:
     json.dump(json_object, f)
   return elements, x_min, x_max, y_min, y_max, sheet_size_line, curveCircleData, linearPointsData
@@ -953,18 +953,19 @@ def testAdditionalHole(imageB, gcode_data):
 
   return image_copy, linesContourCompare(image_copy, gcode_data)
 
-def AutoAdditionalHoleTest():
+def AutoAdditionalHoleTest(num):
   # Path to the NC file
-  path = "NC_files/8.NC"
+  path = f"NC_files/{num}.NC"
 
   # Directory to save images
-  save_dir = "CV_program_photos/Additional_hole_test"
+  save_dir = f"CV_program_photos/Additional_hole_test/{num}"
   os.makedirs(save_dir, exist_ok=True)  # Create directory if it doesn't exist
 
   # Load all G-code elements
   images, pts, sheet_size, pts_hole, circleLineData, linearData = allGcodeElementsCV2(
     sheet_path=path,
-    arc_pts_len=300
+    arc_pts_len=300,
+    scale=3
   )
 
   # Process each image
@@ -1135,7 +1136,6 @@ def readRobotSheetCVJSONData(json_file):
       break
 
   cv2.destroyAllWindows()
-
 
 def visualize_cutting_paths(file_path, x_max=500, y_max=1000):
   """
@@ -1335,8 +1335,9 @@ def detail_mass(shape, holes, material_density=0.0027, material_thickness=1.5):
 
 
 if __name__ == "__main__":
-  readRobotCVJsonData('../../cv_data_blacha8_sheetTest_18-12_USZKODZENIA.json')
-  # AutoAdditionalHoleTest()
+  # readRobotCVJsonData('../../cv_data_blacha8_sheetTest_18-12_USZKODZENIA.json')
+  for i in range(0,9):
+    AutoAdditionalHoleTest(i)
   # generate_sheet_json()
 
 

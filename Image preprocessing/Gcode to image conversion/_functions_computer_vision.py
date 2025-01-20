@@ -517,14 +517,15 @@ def linesContourCompare(imageB, gcode_data):
   contours, _ = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
   contoursB, _ = cv2.findContours(imageB, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
   ret = cv2.matchShapes(contours[0], contoursB[0], 1, 0.0)
-  # if ret > 0.06:
-  #     print(f'Odkształcenie, ret: {ret} \n')
-  #     return False,0,ret,None,None
+  if ret > 0.01:
+      print(f'Odkształcenie, ret: {ret} \n')
+      return False,0,ret,None,None
   gcodeLines = {
     "circle": gcode_data['circleData'],
     "linear": [],
   }
-  new_imageB = cv2.flip(imageB, 1)
+  # new_imageB = cv2.flip(imageB, 1) #TODO używane we wdrożeniu
+  new_imageB = imageB
   # new_imageB = findRotation(img, imageB)
   contoursB, _ = cv2.findContours(new_imageB, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
   imgCopy = img.copy()
@@ -907,7 +908,7 @@ def draw_circle_on_click(image):
 def generate_sheet_json():
   paths = [
     "NC_files/1.NC",
-    "NC_files/2_FIXME.NC",
+    "NC_files/2.NC",
     "NC_files/3.NC",
     "NC_files/4.NC",
     "NC_files/5.NC",
@@ -1336,8 +1337,7 @@ def detail_mass(shape, holes, material_density=0.0027, material_thickness=1.5):
 
 if __name__ == "__main__":
   # readRobotCVJsonData('../../cv_data_blacha8_sheetTest_18-12_USZKODZENIA.json')
-  for i in range(0,9):
-    AutoAdditionalHoleTest(i)
+  AutoAdditionalHoleTest(1)
   # generate_sheet_json()
 
 

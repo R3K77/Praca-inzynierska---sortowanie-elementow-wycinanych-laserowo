@@ -23,13 +23,8 @@ MATERIAL_DENSITY = 0.00785              # Gęstość materiału  # ST-3S: 0.0078
 MATERIAL_THICKNESS = 2                  # Grubość materiału [mm]
 NUM_SEARCH_ANGLES = 80                  # Liczba kątów do przeszukania
 NUM_SEARCH_RADII = 80                   # Liczba promieni do przeszukania
-<<<<<<< HEAD
 Z_INCREMENT = 3                         # Przyrost wysokości w pudełku na każdy element
 INITIAL_HEIGHT = 0                      # Początkowa wysokość dla pierwszego elementu
-=======
-Z_INCREMENT = 2                         # Przyrost wysokości w pudełku na każdy element
-INITIAL_HEIGHT = 55                      # Początkowa wysokość dla pierwszego elementu
->>>>>>> 0bf9e126082fb5f43a7967e0061edb31ae00552b
 DETAIL_Z = 0                            # Wysokość pobrania detalu
 DRAW_SUCTION_CANDIDATES = False          # Czy rysować kandydatów na punkty przyłożenia przyssawki
 DRAW_PLACEMENT_ARROWS = True            # Czy rysować strzałki do odłożenia elementów

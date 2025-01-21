@@ -1,6 +1,6 @@
 function [partGT, env] = generateGroundTruth(numberOfParts, env)
     % Initialize partGT with positions from CSV
-    partGT = [[ones(numberOfParts, 1)*0.15, zeros(numberOfParts, 1)], zeros(numberOfParts, 1), zeros(numberOfParts, 1)];
+    partGT = [[ones(numberOfParts, 1), zeros(numberOfParts, 1)], zeros(numberOfParts, 1), zeros(numberOfParts, 1)];
     
     % Add a fixed Z-coordinate and rotation
     fixedZ = -0.002;  % Assuming part height of 0.0508

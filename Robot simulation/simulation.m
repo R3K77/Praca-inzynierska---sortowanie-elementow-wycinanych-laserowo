@@ -52,7 +52,7 @@ hold on
 data = readmatrix("element_details.csv");
 data = sortrows(data, 1);
 dataElement = data(:, 2:3);
-dataBox = data(:, 5:7);
+dataBox = data(:, 5:7) + [0 0 0.028];
 goalPoints = dataElement/1000;
 goalBoxes = dataBox/1000;
 numberOfParts = size(goalPoints, 1);
@@ -68,7 +68,7 @@ for i = 1:numberOfParts
     stl_file = data.Nazwa{i};
     filename = strcat('meshes/', stl_file, '.stl');
     FV = stlread(filename);
-    partHandles(i) = patch(gca, 'Faces', FV.ConnectivityList, 'Vertices', FV.Points + partGT(i, 1:3), 'FaceColor', [0.8 0.8 1.0], 'Tag', 'part');
+    partHandles(i) = patch(gca, 'Faces', FV.ConnectivityList, 'Vertices', FV.Points + [goalPoints(i, 1:2) 0] + [0.2 0 0], 'FaceColor', [0.8 0.8 1.0], 'Tag', 'part');
 end
 
 % Adjust the camera and axis limits
@@ -193,7 +193,7 @@ for p = 1:numberOfParts
     eulerAtEndEffector = tform2eul(endEffectorApproachTransform);
     
     % Zapisz przesunięcie i orientację elementu względem chwytaka
-    elementOffset = [-goalPoints(p, :) 0.025]; % Przesunięcie elementu względem chwytaka 001721
+    elementOffset = [0 0 0.025]; % Przesunięcie elementu względem chwytaka 001721
     elementRotation = -deg2rad(partGT(partID,4)) + eulerAtEndEffector(1) + pi; % Orientacja elementu względem chwytaka
 
     % Add part as a collision box with the robot end-effector tool
@@ -345,7 +345,7 @@ for p = 1:numberOfParts
         targetPoseAngle = [-deg2rad(partGT(partID,4)) + eulerAtEndEffector(1) - pi/2, pi, 0];
         num = num + 1;
     
-        aboveTargetPoseXYZ = [goalBoxes(partID, 1), goalBoxes(partID, 2), goalBoxes(partID, 3)] + [0.25, -0.85, 0];
+        aboveTargetPoseXYZ = [goalBoxes(partID, 1), goalBoxes(partID, 2), goalBoxes(partID, 3) + 0.1] + [0.25, -0.85, 0];
         aboveTargetPoseAngle = [-deg2rad(partGT(partID,4)) + eulerAtEndEffector(1) - pi/2, pi, 0];
         aboveTargetPose = trvec2tform(aboveTargetPoseXYZ) * eul2tform(aboveTargetPoseAngle, "ZXY");
     
@@ -373,9 +373,13 @@ for p = 1:numberOfParts
     
         % Use contopptraj to smooth the trajectory
         maxqd = pi/2; % Maximum joint velocity (rad/s)
-        maxqdd = deg2rad(100); % Maximum joint acceleration (rad/s^2)
+        maxqdd = deg2rad(70); % Maximum joint acceleration (rad/s^2)
         vellimits = repmat([-maxqd; maxqd], 1, 6);
         accellimits = repmat([-maxqdd; maxqdd], 1, 6);
+
+        if size(interpAbove, 1) < 2
+            interpAbove = [interpAbove; interpAbove];
+        end
     
         [qAbove, ~, ~, ~] = contopptraj(interpAbove', vellimits', accellimits', ...
             'NumSamples', size(interpAbove, 1)*10);
@@ -413,7 +417,7 @@ for p = 1:numberOfParts
         end
     
         % === 2) Move down to the target pose ===
-        targetPoseXYZ = [goalBoxes(partID, 1), goalBoxes(partID, 2), goalBoxes(partID, 3)] + [0.25, -0.85, 0];
+        targetPoseXYZ = [goalBoxes(partID, 1), goalBoxes(partID, 2), goalBoxes(partID, 3) + 0.025] + [0.25, -0.85, 0.0];
         targetPoseAngle = [-deg2rad(partGT(partID,4)) + eulerAtEndEffector(1) - pi/2 + element_rotation(partID), pi, 0];
         targetPose = trvec2tform(targetPoseXYZ) * eul2tform(targetPoseAngle, "ZXY");
         goalFrame.Pose = targetPose;
@@ -487,32 +491,33 @@ for p = 1:numberOfParts
 
         % Przygotowanie transformacji
         % Transformacja od układu elementu do układu chwytaka
-        if element_rotation(partID) == 0
-            elementToGripper = trvec2tform(elementOffset);
-        else
+        % if element_rotation(partID) == 0
+        elementToGripper = trvec2tform([0 0 0.025]);
+        % else
             % elementToGripper = trvec2tform(elementOffset) * axang2tform([0 0 1 element_rotation(partID)]);
             % elementToGripper = trvec2tform(elementOffset) * axang2tform([0 0 1 elementRotation + element_rotation(partID)]);
 
-        end
+        % end
         % elementToGripper = trvec2tform(elementOffset) * axang2tform([0 0 1 elementRotation + element_rotation(partID)]);
 
         % elementToGripper = trvec2tform(elementOffset) * axang2tform([0 0 1 0]);
 
         % Transformacja od układu chwytaka do układu globalnego (targetPose)
         % Skumulowana transformacja od układu elementu do układu globalnego
-        totalTransform = aboveTargetPose * elementToGripper;
+        totalTransform = targetPose * elementToGripper;
 
 
         % Zastosowanie skumulowanej transformacji do wierzchołków
         points = [FV.Points, ones(size(FV.Points, 1), 1)]'; % Dodanie jedynek dla współrzędnych homogenicznych
 
-        if partID == 4
-            points(1, :) = -points(1, :) + 0.232075;
-            points(2, :) = -points(2, :) + 0.336077;
-        end
+        % if partID == 4
+        %     points(1, :) = -points(1, :) + 0.232075;
+        %     points(2, :) = -points(2, :) + 0.336077;
+        % end
         transformedPoints = (totalTransform * points)'; % Przemnożenie przez macierz transformacji
-        transformedPoints = transformedPoints(:, 1:3); % Wyodrębnienie współrzędnych x, y, z
-                
+        transformedPoints = transformedPoints(:, 1:3) %- [0 0 0.025]; % Wyodrębnienie współrzędnych x, y, z
+            
+        % elementOffset = [0 0 0.025];
         
         fprintf('Element %d placed at position: %f %f %f\n', partID, totalTransform(1, 4), totalTransform(2, 4), totalTransform(3, 4));
         % Rysowanie elementu
@@ -615,11 +620,11 @@ for p = 1:numberOfParts
     %     end
     % end
 
-    % Define velocity and acceleration limits
-    maxqd = pi/2; % in rad/s
-    maxqdd = deg2rad(100); % in rad/s^2
-    vellimits = repmat([-maxqd; maxqd], 1, 6);
-    accellimits = repmat([-maxqdd; maxqdd], 1, 6);
+    % % Define velocity and acceleration limits
+    % maxqd = pi/2; % in rad/s
+    % maxqdd = deg2rad(100); % in rad/s^2
+    % vellimits = repmat([-maxqd; maxqd], 1, 6);
+    % accellimits = repmat([-maxqdd; maxqdd], 1, 6);
 
     % Rest position
     % Send robot to home position after placing the object
@@ -650,6 +655,10 @@ for p = 1:numberOfParts
         interpConfigurations = [interpConfigurations; interpolate(planner, shortPathToHome)];
     else
         disp('Failed to find IK solution for retract pose.');
+    end
+
+    if size(interpConfigurations, 1) < 2
+        interpConfigurations = [interpConfigurations; interpConfigurations];
     end
 
     % Interpolate the rest trajectory using contopptraj
@@ -688,14 +697,18 @@ for p = 1:numberOfParts
     
 
     %% Trajectory interpolation using contopptraj with the max acceleration and max velocity bounds
-    % Robot Parameters
-    maxqd = pi/2; % in rad/s
-    maxqdd = deg2rad(100); % in rad/s2
-    vellimits = repmat([-maxqd; maxqd],1,6);
-    accellimits  = repmat([-maxqdd; maxqdd],1,6);
+    % % Robot Parameters
+    % maxqd = pi/2; % in rad/s
+    % maxqdd = deg2rad(100); % in rad/s2
+    % vellimits = repmat([-maxqd; maxqd],1,6);
+    % accellimits  = repmat([-maxqdd; maxqdd],1,6);
 
     % Interpolate the approach trajectories
     path1 = cumulativePath{1};
+
+    if size(path1, 1) < 2
+        path1 = [path1; path1];
+    end
     [q,qd,qdd,t] = contopptraj(path1',vellimits',accellimits',NumSamples=size(path1,1)*10);
 
     % Show animation of final interpolated trajectory if flag is enabled
@@ -753,6 +766,10 @@ for p = 1:numberOfParts
     pp = interp1(initialGuessPath2,path2,'spline','pp');
 
     % Apply contopptraj for retract + place trajectory
+
+    % if size(pp, 1) < 2
+    %     pp = [pp; pp];
+    % end
     [q,qd,qdd,t] = contopptraj(pp,vellimits',accellimits',NumSamples=size(path2,1)*10);
 
     % Show animation of the trajectory

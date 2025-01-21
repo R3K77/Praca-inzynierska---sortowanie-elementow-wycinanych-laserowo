@@ -6,14 +6,15 @@
 import matplotlib.pyplot as plt
 import matplotlib
 import numpy as np
+import sys
 from shapely.geometry import Point, Polygon as ShapelyPolygon
 from matplotlib.patches import Circle, Polygon
-from _functions_computer_vision import visualize_cutting_paths, find_main_and_holes, is_valid_circle, detail_mass
 import csv
 import matplotlib.lines as mlines  
 from matplotlib.patches import Patch
 import matplotlib.patches as mpatches
 from collections import defaultdict
+from _functions_computer_vision import visualize_cutting_paths, find_main_and_holes, is_valid_circle, detail_mass
 
 
 # ----------------- Stałe globalne ----------------- #
@@ -39,7 +40,7 @@ INITIAL_HEIGHT = 0                      # Początkowa wysokość dla pierwszego 
 DETAIL_Z = 0                            # Wysokość pobrania detalu
 
 # Nazwa pliku NC
-NC_FILE_PATH = "./Image preprocessing/Gcode to image conversion/NC_files/6.nc"
+NC_FILE_PATH = "NC_files/3.nc"
 
 # ----------------- Funkcja do tworzenia listy pudełek ----------------- #
 # Funkcja tworzy listę pudełek (punktów), do których będą przypisane elementy.
@@ -123,7 +124,8 @@ def process_element(element_name, element_paths, ax, polar_cache):
     # Rysowanie elementu
     #   Rysowanie środka ciężkości (jeśli dotyczy)
     if best_point:
-        ax.add_patch(Circle(centroid_point, SUCTION_RADIUS, color=circle_color, alpha=0.5, zorder=2))
+        pass
+        # ax.add_patch(Circle(centroid_point, SUCTION_RADIUS, color=circle_color, alpha=0.5, zorder=2))
     #   Rysowanie głównego kształtu
     ax.add_patch(Polygon(major_shape, closed=True, fill=None, edgecolor=edgecolor, linewidth=2))
     #   Wyświetlenie nazwy elementu i masy
@@ -309,7 +311,7 @@ def main():
                     arrowprops=dict(facecolor='grey', arrowstyle='->', linewidth=0.2)
                 )
 
-        ax.set_xlim(0, 500), ax.set_ylim(0, 575)
+        ax.set_xlim(0, 600), ax.set_ylim(0, 575)
         ax.set_aspect('equal', adjustable='box')
         ax.set_xlabel('X [mm]'), ax.set_ylabel('Y [mm]')
         add_custom_legend(ax)
@@ -321,7 +323,9 @@ def main():
         for box_name, elements in box_to_elements.items():
             print(f"{box_name} zawiera elementy: {', '.join(elements)}")
 
+        plt.savefig("6.pdf",format='pdf',bbox_inches='tight')
         plt.show()
+
 
 if __name__ == "__main__":
     main()

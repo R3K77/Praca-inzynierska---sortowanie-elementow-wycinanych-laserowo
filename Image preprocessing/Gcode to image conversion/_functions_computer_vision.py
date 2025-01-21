@@ -139,11 +139,10 @@ def visualize_cutting_paths_extended(file_path, x_max=500, y_max=1000, arc_pts_l
     "linearPointsData": linearPointsData,
     "rotation": angles
   }
-  with open(f"Image preprocessing/Gcode to image conversion/elements_data_json/{current_element_name[:7]}.json",
+  with open(f"elements_data_json/{current_element_name[:7]}.json",
             "w") as f:
     json.dump(json_object, f)
   return elements, x_min, x_max, y_min, y_max, sheet_size_line, curveCircleData, linearPointsData
-
 
 def allGcodeElementsCV2(sheet_path, scale=5, arc_pts_len=300):
   """
@@ -234,7 +233,6 @@ def allGcodeElementsCV2(sheet_path, scale=5, arc_pts_len=300):
   else:
     return None, None, None, None, None
 
-
 def singleGcodeElementCV2(cutting_path, circle_line_data, linear_points_data, bounding_box_size):
   """
         Funkcja tworząca przeskalowane dane o elemencie wzorcowym
@@ -307,7 +305,6 @@ def singleGcodeElementCV2(cutting_path, circle_line_data, linear_points_data, bo
   }
   return gcode_data_packed
 
-
 def gcodeToImageCV2(cutting_paths, scale=3):
   """
         Funkcja generująca obrazy elementów wzorcowych zgodne z formatem opencv
@@ -349,7 +346,6 @@ def gcodeToImageCV2(cutting_paths, scale=3):
     # gcode_image_base64 = base64.b64encode(thresh).decode('utf-8')
     images_dict[f"{key}"] = thresh
   return images_dict
-
 
 def capture_median_frame(crop_values, camera_id):
   """
@@ -393,7 +389,6 @@ def capture_median_frame(crop_values, camera_id):
     cv2.imwrite(f"Image preprocessing/Gcode to image conversion/camera_images_debug/fgmask_{i}.png", fgmask_vec[i])
     cv2.imwrite(f"Image preprocessing/Gcode to image conversion/camera_images_debug/frame_{i}.png", frames_vec[i])
   return BgrSubtractor
-
 
 def cameraImage(BgrSubtractor, crop_values, camera_id):
   """
@@ -463,19 +458,18 @@ def camera_calibration(frame):
         numpy.ndarray: The calibrated image/frame.
     """
   # Wczytanie parametrów kamery z pliku
-  loaded_mtx = np.loadtxt('Image preprocessing/Gcode to image conversion/settings/mtx_matrix.txt', delimiter=',')
-  loaded_dist = np.loadtxt('Image preprocessing/Gcode to image conversion/settings/distortion_matrix.txt',
+  loaded_mtx = np.loadtxt('settings/mtx_matrix.txt', delimiter=',')
+  loaded_dist = np.loadtxt('settings/distortion_matrix.txt',
                            delimiter=',')
-  loaded_newcameramtx = np.loadtxt('Image preprocessing/Gcode to image conversion/settings/new_camera_matrix.txt',
+  loaded_newcameramtx = np.loadtxt('settings/new_camera_matrix.txt',
                                    delimiter=',')
-  loaded_roi = np.loadtxt('Image preprocessing/Gcode to image conversion/settings/roi_matrix.txt', delimiter=',')
+  loaded_roi = np.loadtxt('settings/roi_matrix.txt', delimiter=',')
 
   # Kalibracja kamery
   frame = cv2.undistort(frame, loaded_mtx, loaded_dist, None, loaded_newcameramtx)
   x, y, w, h = map(int, loaded_roi)
   frame = frame[y:y + h, x:x + w]
   return frame
-
 
 def lineFromPoints(x1, y1, x2, y2):
   """
@@ -509,7 +503,6 @@ def lineFromPoints(x1, y1, x2, y2):
     C = b
   return A, B, C
 
-
 def linesContourCompare(imageB, gcode_data):
   """
         Compares image from camera to gcode image.
@@ -524,15 +517,16 @@ def linesContourCompare(imageB, gcode_data):
   contours, _ = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
   contoursB, _ = cv2.findContours(imageB, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
   ret = cv2.matchShapes(contours[0], contoursB[0], 1, 0.0)
-  # if ret > 0.06:
-  #     print(f'Odkształcenie, ret: {ret} \n')
-  #     return False,0,ret,None,None
+  if ret > 0.01:
+      print(f'Odkształcenie, ret: {ret} \n')
+      return False,0,ret,None,None
   gcodeLines = {
     "circle": gcode_data['circleData'],
     "linear": [],
   }
-  new_imageB = cv2.flip(imageB, 1)
-  # new_imageB = find_best_rotation(img, imageB)
+  # new_imageB = cv2.flip(imageB, 1) #TODO używane we wdrożeniu
+  new_imageB = imageB
+  # new_imageB = findRotation(img, imageB)
   contoursB, _ = cv2.findContours(new_imageB, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
   imgCopy = img.copy()
   imgCopy = cv2.cvtColor(imgCopy,cv2.COLOR_GRAY2BGR)
@@ -609,70 +603,84 @@ def linesContourCompare(imageB, gcode_data):
   #     print(e)
   #     return False,0, ret
 
+import cv2
+from collections import defaultdict
+import csv
 
-def elementRotationByTemplateMatching(images):
-  """
-    Calculates rotation between binary images of simple shapes by using template matching with rotated templates.
+def elementRotationByTemplateMatching(images, output_csv_path="output_rotations.csv"):
+    """
+    Calculates rotation between binary images of simple shapes by using template matching with rotated templates
+    and writes the results into a CSV file.
 
     Args:
         images: Dict of binary cv2 images.
+        output_csv_path: Path to the output CSV file.
     Returns:
         output_rotation: Dict of rotations between pairs of images.
     """
-  hash = defaultdict(list)
-  output_rotation = {}
+    hash = defaultdict(list)
+    output_rotation = {}
+    csv_data = []
 
-  for key, value in images.items():
-    cut_key = key[:-4]  # Exclude file extension
+    for key, value in images.items():
+        cut_key = key[:-4]  # Exclude file extension
 
-    if cut_key not in hash:
-      hash[cut_key].append(value)
-      output_rotation[key] = 0
-    else:
-      # Get the template image (first image in the hash)
-      template = hash[cut_key][0]
-      # Prepare the current image (second image in the comparison)
-      target = value
+        if cut_key not in hash:
+            hash[cut_key].append(value)
+            output_rotation[key] = 0
+        else:
+            # Get the template image (first image in the hash)
+            template = hash[cut_key][0]
+            # Prepare the current image (second image in the comparison)
+            target = value
 
-      # Initialize variables for maximum match
-      max_match = -1  # To keep track of the best match value
-      best_angle = 0  # Angle that gives the best match
+            # Initialize variables for maximum match
+            max_match = -1  # To keep track of the best match value
+            best_angle = 0  # Angle that gives the best match
 
-      # Loop over a range of angles (e.g., 0 to 360 degrees)
-      for angle in range(0, 360, 5):  # Test every 5 degrees (adjust as needed)
-        # Rotate the template by the current angle
-        rotated_template = rotate_image(template, angle)
+            # Loop over a range of angles (e.g., 0 to 360 degrees)
+            for angle in range(0, 360, 5):  # Test every 5 degrees (adjust as needed)
+                # Rotate the template by the current angle
+                rotated_template = rotate_image(template, angle)
 
-        # Check if the rotated template is larger than the target image
-        if rotated_template.shape[0] > target.shape[0] or rotated_template.shape[1] > target.shape[1]:
-          # Resize the rotated template to fit within the target image size
-          scale_factor = min(target.shape[0] / rotated_template.shape[0], target.shape[1] / rotated_template.shape[1])
-          rotated_template = cv2.resize(rotated_template, (0, 0), fx=scale_factor, fy=scale_factor)
+                # Check if the rotated template is larger than the target image
+                if rotated_template.shape[0] > target.shape[0] or rotated_template.shape[1] > target.shape[1]:
+                    # Resize the rotated template to fit within the target image size
+                    scale_factor = min(target.shape[0] / rotated_template.shape[0], target.shape[1] / rotated_template.shape[1])
+                    rotated_template = cv2.resize(rotated_template, (0, 0), fx=scale_factor, fy=scale_factor)
 
-        # Perform template matching
-        result = cv2.matchTemplate(target, rotated_template, cv2.TM_CCOEFF_NORMED)
+                # Perform template matching
+                result = cv2.matchTemplate(target, rotated_template, cv2.TM_CCOEFF_NORMED)
 
-        # Handle edge case where the result is empty or doesn't match
-        if result is None or result.size == 0:
-          continue
+                # Handle edge case where the result is empty or doesn't match
+                if result is None or result.size == 0:
+                    continue
 
-        # Get the maximum match value and location
-        _, max_val, _, max_loc = cv2.minMaxLoc(result)
+                # Get the maximum match value and location
+                _, max_val, _, max_loc = cv2.minMaxLoc(result)
 
-        # Check if the current match is better than the previous ones
-        if max_val > max_match:
-          max_match = max_val
-          best_angle = angle
+                # Check if the current match is better than the previous ones
+                if max_val > max_match:
+                    max_match = max_val
+                    best_angle = angle
 
-      # Store the best angle found
-      output_rotation[key] = best_angle
-      print(f"Rotation angle for {key}: {best_angle} degrees")
+            # Store the best angle found
+            output_rotation[key] = best_angle
+            print(f"Rotation angle for {key}: {best_angle} degrees")
 
-      # Add the current image to the hash for future comparisons
-      hash[cut_key].append(value)
+            # Add the current image to the hash for future comparisons
+            hash[cut_key].append(value)
 
-  return output_rotation
+            # Append data for CSV
+            csv_data.append(["-", key, best_angle])
 
+    # Write data to a CSV file
+    with open(output_csv_path, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(["parent_element", "element", "rotation"])
+        writer.writerows(csv_data)
+
+    return output_rotation
 
 def rotate_image(image, angle):
   """
@@ -696,8 +704,7 @@ def rotate_image(image, angle):
   rotated = cv2.warpAffine(image, M, (w, h))
   return rotated
 
-
-def find_best_rotation(imageA, imageB):
+def findRotation(imageA, imageB):
   """
     Finds the best rotation of imageB (0 to 360 degrees in steps of 0.5) that best matches imageA using template matching.
 
@@ -740,7 +747,6 @@ def find_best_rotation(imageA, imageB):
 
   print(f"Best rotation angle found: {best_angle} degrees with match: {max_match}")
   return best_rotated_image
-
 
 def sheetRotationTranslation(bgr_subtractor, camera_id, crop_values, sheet_length_mm):
   """
@@ -801,7 +807,6 @@ def sheetRotationTranslation(bgr_subtractor, camera_id, crop_values, sheet_lengt
   data_out = [(xl, yl), (xt, yt), (xb, yb), (A, B, C), img_pack, final_contours]
   return alpha, (diff_x, diff_y), data_out
 
-
 def recalibratePoint(point, angle, translation):
   """
     Recalibrates a point based on a given rotation angle and translation vector.
@@ -823,10 +828,8 @@ def recalibratePoint(point, angle, translation):
   transformed_point = np.dot(SE2_rotation, point_np) + np.array(translation)
   return tuple(transformed_point)
 
-
 def nothing(x):
   pass
-
 
 def get_crop_values(camera_id):
   """
@@ -904,7 +907,6 @@ def get_crop_values(camera_id):
 
   return crop_values, sliced_frame
 
-
 def draw_circle_on_click(image):
   def click_event(event, x, y, flags, param):
     if event == cv2.EVENT_LBUTTONDOWN:
@@ -919,11 +921,10 @@ def draw_circle_on_click(image):
   cv2.waitKey(0)
   cv2.destroyAllWindows()
 
-
 def generate_sheet_json():
   paths = [
     "NC_files/1.NC",
-    "NC_files/2_FIXME.NC",
+    "NC_files/2.NC",
     "NC_files/3.NC",
     "NC_files/4.NC",
     "NC_files/5.NC",
@@ -933,7 +934,6 @@ def generate_sheet_json():
   ]
   for path in paths:
     visualize_cutting_paths_extended(path)
-
 
 def testAdditionalHole(imageB, gcode_data):
   """
@@ -970,19 +970,19 @@ def testAdditionalHole(imageB, gcode_data):
 
   return image_copy, linesContourCompare(image_copy, gcode_data)
 
-
-def AutoAdditionalHoleTest():
+def AutoAdditionalHoleTest(num):
   # Path to the NC file
-  path = "NC_files/8.NC"
+  path = f"NC_files/{num}.NC"
 
   # Directory to save images
-  save_dir = "CV_program_photos/Additional_hole_test"
+  save_dir = f"CV_program_photos/Additional_hole_test/{num}"
   os.makedirs(save_dir, exist_ok=True)  # Create directory if it doesn't exist
 
   # Load all G-code elements
   images, pts, sheet_size, pts_hole, circleLineData, linearData = allGcodeElementsCV2(
     sheet_path=path,
-    arc_pts_len=300
+    arc_pts_len=300,
+    scale=3
   )
 
   # Process each image
@@ -1085,7 +1085,6 @@ def readRobotCVJsonData(json_name):
         cam)
       print(saved)
 
-
 def readRobotSheetCVJSONData(json_file):
   """
         Reads JSON file, shows sheet images and saves them
@@ -1154,7 +1153,6 @@ def readRobotSheetCVJSONData(json_file):
       break
 
   cv2.destroyAllWindows()
-
 
 def visualize_cutting_paths(file_path, x_max=500, y_max=1000):
   """
@@ -1354,8 +1352,8 @@ def detail_mass(shape, holes, material_density=0.0027, material_thickness=1.5):
 
 
 if __name__ == "__main__":
-  readRobotCVJsonData('../../cv_data_blacha8_sheetTest_18-12_USZKODZENIA.json')
-  # AutoAdditionalHoleTest()
+  # readRobotCVJsonData('../../cv_data_blacha8_sheetTest_18-12_USZKODZENIA.json')
+  AutoAdditionalHoleTest(3)
   # generate_sheet_json()
 
 

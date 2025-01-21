@@ -1127,7 +1127,7 @@ if __name__ == "__main__":
     AutoAdditionalHoleTest()
     # paths = [
     #     "../../../Gcode to image conversion/NC_files/1.NC",
-    #     "../../../Gcode to image conversion/NC_files/2_FIXME.NC",
+    #     "../../../Gcode to image conversion/NC_files/2.NC",
     #     "../../../Gcode to image conversion/NC_files/3_fixed.NC",
     #     "../../../Gcode to image conversion/NC_files/4.NC",
     #     "../../../Gcode to image conversion/NC_files/5.NC",

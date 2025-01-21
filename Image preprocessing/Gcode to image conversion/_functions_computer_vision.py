@@ -603,68 +603,84 @@ def linesContourCompare(imageB, gcode_data):
   #     print(e)
   #     return False,0, ret
 
-def elementRotationByTemplateMatching(images):
-  """
-    Calculates rotation between binary images of simple shapes by using template matching with rotated templates.
+import cv2
+from collections import defaultdict
+import csv
+
+def elementRotationByTemplateMatching(images, output_csv_path="output_rotations.csv"):
+    """
+    Calculates rotation between binary images of simple shapes by using template matching with rotated templates
+    and writes the results into a CSV file.
 
     Args:
         images: Dict of binary cv2 images.
+        output_csv_path: Path to the output CSV file.
     Returns:
         output_rotation: Dict of rotations between pairs of images.
     """
-  hash = defaultdict(list)
-  output_rotation = {}
+    hash = defaultdict(list)
+    output_rotation = {}
+    csv_data = []
 
-  for key, value in images.items():
-    cut_key = key[:-4]  # Exclude file extension
+    for key, value in images.items():
+        cut_key = key[:-4]  # Exclude file extension
 
-    if cut_key not in hash:
-      hash[cut_key].append(value)
-      output_rotation[key] = 0
-    else:
-      # Get the template image (first image in the hash)
-      template = hash[cut_key][0]
-      # Prepare the current image (second image in the comparison)
-      target = value
+        if cut_key not in hash:
+            hash[cut_key].append(value)
+            output_rotation[key] = 0
+        else:
+            # Get the template image (first image in the hash)
+            template = hash[cut_key][0]
+            # Prepare the current image (second image in the comparison)
+            target = value
 
-      # Initialize variables for maximum match
-      max_match = -1  # To keep track of the best match value
-      best_angle = 0  # Angle that gives the best match
+            # Initialize variables for maximum match
+            max_match = -1  # To keep track of the best match value
+            best_angle = 0  # Angle that gives the best match
 
-      # Loop over a range of angles (e.g., 0 to 360 degrees)
-      for angle in range(0, 360, 5):  # Test every 5 degrees (adjust as needed)
-        # Rotate the template by the current angle
-        rotated_template = rotate_image(template, angle)
+            # Loop over a range of angles (e.g., 0 to 360 degrees)
+            for angle in range(0, 360, 5):  # Test every 5 degrees (adjust as needed)
+                # Rotate the template by the current angle
+                rotated_template = rotate_image(template, angle)
 
-        # Check if the rotated template is larger than the target image
-        if rotated_template.shape[0] > target.shape[0] or rotated_template.shape[1] > target.shape[1]:
-          # Resize the rotated template to fit within the target image size
-          scale_factor = min(target.shape[0] / rotated_template.shape[0], target.shape[1] / rotated_template.shape[1])
-          rotated_template = cv2.resize(rotated_template, (0, 0), fx=scale_factor, fy=scale_factor)
+                # Check if the rotated template is larger than the target image
+                if rotated_template.shape[0] > target.shape[0] or rotated_template.shape[1] > target.shape[1]:
+                    # Resize the rotated template to fit within the target image size
+                    scale_factor = min(target.shape[0] / rotated_template.shape[0], target.shape[1] / rotated_template.shape[1])
+                    rotated_template = cv2.resize(rotated_template, (0, 0), fx=scale_factor, fy=scale_factor)
 
-        # Perform template matching
-        result = cv2.matchTemplate(target, rotated_template, cv2.TM_CCOEFF_NORMED)
+                # Perform template matching
+                result = cv2.matchTemplate(target, rotated_template, cv2.TM_CCOEFF_NORMED)
 
-        # Handle edge case where the result is empty or doesn't match
-        if result is None or result.size == 0:
-          continue
+                # Handle edge case where the result is empty or doesn't match
+                if result is None or result.size == 0:
+                    continue
 
-        # Get the maximum match value and location
-        _, max_val, _, max_loc = cv2.minMaxLoc(result)
+                # Get the maximum match value and location
+                _, max_val, _, max_loc = cv2.minMaxLoc(result)
 
-        # Check if the current match is better than the previous ones
-        if max_val > max_match:
-          max_match = max_val
-          best_angle = angle
+                # Check if the current match is better than the previous ones
+                if max_val > max_match:
+                    max_match = max_val
+                    best_angle = angle
 
-      # Store the best angle found
-      output_rotation[key] = best_angle
-      print(f"Rotation angle for {key}: {best_angle} degrees")
+            # Store the best angle found
+            output_rotation[key] = best_angle
+            print(f"Rotation angle for {key}: {best_angle} degrees")
 
-      # Add the current image to the hash for future comparisons
-      hash[cut_key].append(value)
+            # Add the current image to the hash for future comparisons
+            hash[cut_key].append(value)
 
-  return output_rotation
+            # Append data for CSV
+            csv_data.append(["-", key, best_angle])
+
+    # Write data to a CSV file
+    with open(output_csv_path, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(["parent_element", "element", "rotation"])
+        writer.writerows(csv_data)
+
+    return output_rotation
 
 def rotate_image(image, angle):
   """
@@ -1337,7 +1353,7 @@ def detail_mass(shape, holes, material_density=0.0027, material_thickness=1.5):
 
 if __name__ == "__main__":
   # readRobotCVJsonData('../../cv_data_blacha8_sheetTest_18-12_USZKODZENIA.json')
-  AutoAdditionalHoleTest(1)
+  AutoAdditionalHoleTest(3)
   # generate_sheet_json()
 
 

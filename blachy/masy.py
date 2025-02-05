@@ -58,5 +58,16 @@ plt.ylabel('Liczba detali [szt]', font='times new roman', size=13)
 plt.xticks(fontname='Times New Roman', size=12, rotation=25, ticks=range(0, max(all_masses) + 200, 200))
 plt.yticks(fontname='Times New Roman', size=12)
 
+# Definiowanie limitu wagowego
+limit_waga = 1200
+
+# Obliczanie liczby blach przekraczających limit
+odrzucone = [masa for masa in all_masses if masa > limit_waga]
+liczba_odrzuconych = len(odrzucone)
+
+print(f"Liczba odrzuconych blach: {liczba_odrzuconych}")
+print(f"Masowe odrzuceń: {odrzucone}")
+
+
 # Show the plot
 plt.show()

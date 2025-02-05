@@ -16,7 +16,7 @@ plt.figure(figsize=(8, 8))
 plt.rcParams['font.family'] = 'Times New Roman'
 
 # Rysowanie kwadratu
-plt.plot(rectangle_x, rectangle_y, color='gray', linestyle='-', label='Ścieżka cięcia detalu')
+plt.plot(rectangle_x, rectangle_y, color='black', linestyle='-', label='Ścieżka cięcia detalu')
 
 # Rysowanie punktów jako kółka
 plt.plot(top_left[0], top_left[1], marker='o', color='black', markersize=8, linestyle='None', label='Punkt odczytany z G-code')

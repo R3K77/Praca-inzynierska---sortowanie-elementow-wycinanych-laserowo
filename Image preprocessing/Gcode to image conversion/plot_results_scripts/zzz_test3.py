@@ -37,13 +37,28 @@ arc_y = center_y + radius * np.sin(angles)
 # Wykres
 plt.figure(figsize=(8, 8))
 plt.rcParams['font.family'] = 'Times New Roman'
-plt.plot(arc_x, arc_y, color='gray', linestyle='-', marker='.', label='Punkty tuple w strukturze danych')
-plt.plot(current_position[0], current_position[1], marker='o', color='black', markersize=8, linestyle='None', label='Punkt początkow (z G-code)')
-plt.plot(x_end, y_end, marker='s', color='black', markersize=8, linestyle='None', label='Punkt końcowy (z G-code)')
-plt.plot(center_x, center_y, marker='x', color='black', markersize=8, linestyle='None', label='Środek okręgu (obliczony)')
+
+# Rysowanie łuku
+plt.plot(arc_x, arc_y, color='gray', linestyle='-', marker='.', label='Punkty łuku')
+
+# Rysowanie punktów początkowego, końcowego i środka
+plt.plot(current_position[0], current_position[1], marker='o', color='black', markersize=8, linestyle='None', label='Punkt początkowy')
+plt.plot(x_end, y_end, marker='s', color='black', markersize=8, linestyle='None', label='Punkt końcowy')
+plt.plot(center_x, center_y, marker='x', color='black', markersize=8, linestyle='None', label='Środek okręgu')
+
+# Dodanie linii R od punktu początkowego do środka okręgu
+plt.plot([current_position[0], center_x], [current_position[1], center_y],
+         color='black', linestyle=(0, (5, 10)), linewidth=2, label='Promień R')
+
+# Dodanie etykiety dla linii R, przesuniętej nieco w prawo
+mid_x = (current_position[0] + center_x) / 2
+mid_y = (current_position[1] + center_y) / 2
+offset = 5  # Przesunięcie etykiety w prawo (możesz dostosować wartość)
+plt.text(mid_x + offset, mid_y, 'R', fontsize=12, color='black', ha='left', va='bottom')
+
+# Ustawienia wykresu
 plt.axis('equal')
 plt.legend()
-#plt.title('Przybliżenie łuku wieloma punktami na podstawie G-code')
 plt.xlabel('X [mm]')
 plt.ylabel('Y [mm]')
 plt.grid(True, linestyle='--', color='gray', linewidth=0.5)

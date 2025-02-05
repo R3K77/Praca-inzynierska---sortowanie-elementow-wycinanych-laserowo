@@ -110,7 +110,7 @@ for point in valid_points_1:
     ax1.add_patch(Circle(point, SUCTION_RADIUS, edgecolor='lightgray', fill=False, linestyle='-', linewidth=1))
 # Rysowanie najlepszego punktu przyłożenia przyssawki
 if best_point_1:
-    ax1.plot(best_point_1[0], best_point_1[1], 'kx', markersize=12, label='Najlepszy punkt przyssawki')
+    ax1.plot(best_point_1[0], best_point_1[1], 'kx', markersize=12, label='Punkt pobrania detalu ($p_{su}$)')
     suction_circle = plt.Circle(best_point_1, SUCTION_RADIUS, edgecolor='black', fill=True, facecolor='gray', linewidth=2, linestyle='-')
     ax1.add_patch(suction_circle)
 
@@ -143,7 +143,7 @@ for point in valid_points_2:
     ax2.add_patch(Circle(point, SUCTION_RADIUS, edgecolor='lightgray', fill=False, linestyle='-', linewidth=1))
 # Rysowanie najlepszego punktu przyłożenia przyssawki
 if best_point_2:
-    ax2.plot(best_point_2[0], best_point_2[1], 'kx', markersize=12, label='Najlepszy punkt przyssawki')
+    ax2.plot(best_point_2[0], best_point_2[1], 'kx', markersize=12, label='Punkt pobrania detalu ($p_{su}$)')
     suction_circle = plt.Circle(best_point_2, SUCTION_RADIUS, edgecolor='black', fill=True, facecolor='gray', linewidth=2, linestyle='-')
     ax2.add_patch(suction_circle)
 

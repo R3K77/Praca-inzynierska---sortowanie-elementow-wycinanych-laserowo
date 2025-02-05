@@ -1,0 +1,153 @@
+INI
+  
+$OUT[2]=FALSE
+$OUT[5]=TRUE
+  
+$BASE=BASE_DATA[3]
+$TOOL=TOOL_DATA[7]
+
+PTP XHOME
+
+punkt={X 0.0, Y 0.0, Z -50.0, A 98.4, B -37.9, C -0.4}
+punkt_BGCU={X -299.95, Y 332.06, Z -389.37, A 83.52, B -42.24, C 4.10}
+PTP punkt_BGCU
+END_MOVE=TRUE
+WAIT FOR END_MOVE
+END_MOVE=FALSE
+RET=EKI_Init("BinaryFixedPPGC")
+RET=EKI_Open("BinaryFixedPPGC")
+
+boolPetla=TRUE
+Bajty[]=""
+WHILE boolPetla==TRUE
+    Bajty[]=""
+    ;;; Czekamy na falge
+    WAIT FOR $FLAG[998]
+    ;;; Odbior danych z komputera
+    RET=EKI_GetString("BinaryFixedPPGC","Buffer",Bajty[])
+    $FLAG[998]=FALSE
+ 
+    ;;;; Odczytanie pozycji X
+    nIntPart=0
+    FOR i=1 TO 4
+        charValue=Bajty[i]
+        nIntPart=nIntPart*10+(charValue-48)
+    ENDFOR
+    nFracPart=0
+    FOR i=6 TO 9
+        charValue=Bajty[i]
+        nFracPart=nFracPart*10+(charValue-48)
+    ENDFOR
+    rResultX=nIntPart+nFracPart/10000.0
+
+    ;;;;; Odczytanie pozycji Y
+    nIntPart=0
+    FOR i=10 TO 13
+        charValue=Bajty[i]
+        nIntPart=nIntPart*10+(charValue-48)
+    ENDFOR
+    nFracPart=0
+    FOR i=15 TO 18
+        charValue=Bajty[i]
+        nFracPart=nFracPart*10+(charValue-48)
+    ENDFOR
+    rResultY=nIntPart+nFracPart/10000.0
+ 
+    ;;;;; Odczytanie pozycji Z
+    nIntPart=0
+    FOR i=19 TO 22
+        charValue=Bajty[i]
+        nIntPart=nIntPart*10+(charValue-48)
+    ENDFOR
+    nFracPart=0
+    FOR i=24 TO 27
+        charValue=Bajty[i]
+        nFracPart=nFracPart*10+(charValue-48)
+    ENDFOR
+    rResultZ=nIntPart+nFracPart/10000.0
+   
+    ;;;;; Odczytanie obrotu A
+    nIntPart=0
+    FOR i=28 TO 31
+        charValue=Bajty[i]
+        nIntPart=nIntPart*10+(charValue-48)
+    ENDFOR
+    nFracPart=0
+    FOR i=33 TO 36
+        charValue=Bajty[i]
+        nFracPart=nFracPart*10+(charValue-48)
+    ENDFOR
+    rResultA=nIntPart+nFracPart/10000.0
+   
+    ;;; Przypisanie punktow
+    punkt.X=rResultX
+    punkt.Y=rResultY
+    punkt.A=defaultA + rResultA
+    tryb[1]=Bajty[37]
+   
+    IF tryb[1]=="a" THEN
+        punkt.A=defaultA
+        punkt.Z=-rResultZ-100
+        PTP punkt
+        punkt.Z=-rResultZ
+        LIN punkt
+        $OUT[5]=FALSE
+        $OUT[2]=TRUE
+        WAIT FOR $OUT[2]
+        WAIT SEC 2
+        punkt.Z=-rResultZ-100
+        LIN punkt
+        PTP P1 Vel=100 % PDAT2 Tool[7]:PracaIzynierska Base[3]:PracaIzynierska Base[3]:PracaInzynierska
+        PTP P2 Vel=2 m/s CPDAT2 Tool[7]:PracaIzynierska Base[3]:PracaIzynierska Base[3]:PracaInzynierska
+        $OUT[2]=FALSE
+        $OUT[5]=TRUE
+        WAIT FOR $OUT[5]
+        PTP P1 Vel=2 m/s CPDAT3 Tool[7]:PracaIzynierska Base[3]:PracaIzynierska Base[3]:PracaInzynierska
+        PTP P3 Vel=100 % PDAT3 Tool[7]:PracaIzynierska Base[3]:PracaIzynierska Base[3]:PracaInzynierska
+        END_MOVE=TRUE
+    ENDIF
+
+    IF tryb[1]=="b" THEN
+        punkt.A=defaultA + rResultA
+        PTP P1 Vel=100 % PDAT4 Tool[7]:PracalIzynierska Base[3]:PracalInzynierska
+        LIN P2 Vel=2 m/s CPDAT4 Tool[7]:PracalIzynierska Base[3]:PracalInzynierska
+        $OUT[5]=FALSE
+        $OUT[2]=TRUE
+        WAIT FOR $OUT[2]
+        WAIT SEC 2
+        LIN P1 Vel=2 m/s CPDAT5 Tool[7]:PracalIzynierska Base[3]:PracalInzynierska
+        punkt.Z=-rResultZ-100
+        PTP punkt
+        punkt.Z=-rResultZ
+        LIN punkt
+        $OUT[2]=FALSE
+        $OUT[5]=TRUE
+        WAIT FOR $OUT[5]
+        punkt.Z=-rResultZ-100
+        punkt.A=defaultA - rResultA/2
+        LIN punkt
+        punkt.A=defaultA
+        PTP punkt
+        END_MOVE=TRUE
+    ENDIF
+
+    IF tryb[1]=="c" THEN
+        PTP XHOME
+        boolPetla=FALSE
+        END_MOVE=TRUE
+    ENDIF
+    
+    IF punkt.X>2000 THEN
+        boolPetla=FALSE
+        END_MOVE=TRUE
+    ENDIF
+
+    Bajty[]="koniec"
+    WAIT FOR (END_MOVE==TRUE)
+    RET=EKI_Send("BinaryFixedPPGC",Bajty[])
+    END_MOVE=FALSE
+ENDWHILE
+ 
+RET=EKI_Close("BinaryFixedPPGC")
+RET=EKI_Clear("BinaryFixedPPGC")
+PTP XHOME

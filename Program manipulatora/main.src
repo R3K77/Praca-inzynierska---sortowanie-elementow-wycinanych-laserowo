@@ -82,6 +82,7 @@ WHILE boolPetla==TRUE
     ;;; Przypisanie punktow
     punkt.X=rResultX
     punkt.Y=rResultY
+    punkt.Z=rResultZ
     punkt.A=defaultA + rResultA
     tryb[1]=Bajty[37]
    

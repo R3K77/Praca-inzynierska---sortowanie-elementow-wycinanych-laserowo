@@ -7,33 +7,36 @@ import matplotlib.ticker as ticker
 
 
 START = 0
-END = 10.4
+END = 71.5
 
 data = pd.read_csv('./Robot simulation/logData.csv')
 time, x, y, z, theta = data['timeLog'], data['xLog'], data['yLog'], data['zLog'], data['thetaLog']
+z = z - 0.025
 time = time - time[0]
 
 plt.rc('font', family='Times New Roman', size=15)
 
-fig, axs = plt.subplots(3, 1, figsize=(12, 6), sharex=True)
+fig, axs = plt.subplots(3, 1, figsize=(12, 6), sharex=True, dpi=200)
 
 
-axs[0].plot(time, x, label='X[m]', color='gray')
+axs[0].plot(time, x, label='X[m]', color='black')
 axs[0].set_ylabel('X [m]', font='times new roman')
 axs[0].yaxis.set_major_locator(ticker.MultipleLocator(0.1))
 axs[0].grid(True)
 
-axs[0].set_ylim(0.18, 0.42)
+axs[0].set_ylim(0.2, 0.8)
 
-axs[1].plot(time, y, label='Y[m]', color='gray')
+axs[1].plot(time, y, label='Y[m]', color='black')
 axs[1].set_ylabel('Y [m]', font='times new roman')
 axs[1].yaxis.set_major_locator(ticker.MultipleLocator(0.2))
 axs[1].grid(True)
 
-axs[2].plot(time, z, label='Z[m]', color='gray')
+axs[2].plot(time, z, label='Z[m]', color='black')
 axs[2].set_ylabel('Z [m]', font='times new roman')
 axs[2].yaxis.set_major_locator(ticker.MultipleLocator(0.1))
 axs[2].grid(True)
+
+axs[2].set_ylim(0.0, 0.4)
 
 # axs[3].plot(time, theta + np.pi, label='theta', color='red')
 # axs[3].set_ylabel('Theta [rad]', font='times new roman')
@@ -45,7 +48,7 @@ axs[2].grid(True)
 
 for ax in axs:
     ax.set_xlim(START, END)
-    ax.xaxis.set_major_locator(ticker.MultipleLocator(1))
+    ax.xaxis.set_major_locator(ticker.MultipleLocator(5))
 
 
 plt.tight_layout()

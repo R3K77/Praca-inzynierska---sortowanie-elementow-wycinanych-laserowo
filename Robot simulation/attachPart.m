@@ -16,7 +16,7 @@ function ur5e = attachPart(ur5e, rotation, partID, collisionPoint, visualPoint)
   tf_collision(:, 4) = [collisionPoint(:); 1];
   
   % Transform for the visual mesh
-  tf_visual = trvec2tform(visualPoint(:)') * eul2tform([rotation 0 0], 'ZYX');
+  tf_visual = trvec2tform([visualPoint(:)]') * eul2tform([rotation 0 0], 'ZYX');
   
   % Dimensions of the box
   box = [partLength partwidth partheight];

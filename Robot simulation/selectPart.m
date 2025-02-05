@@ -32,5 +32,5 @@ function [RefPose, partID, goalZoffset] = selectPart(partGT,goalPoints)
     goalZoffset = 0.01;
     
     % Set the reference pose based on the current part's goal points
-    RefPose = [goalPoints(partID, 1) + 0.15, goalPoints(partID, 2), partGT(partID, 3) + 0.02];
+    RefPose = [goalPoints(partID, 1) + 0.2, goalPoints(partID, 2), partGT(partID, 3) + 0.02];
 end
